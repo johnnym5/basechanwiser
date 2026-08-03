@@ -22,9 +22,10 @@ export function evaluateDomainRole(email: string | null | undefined, isAnonymous
 
   const normalized = email.trim().toLowerCase();
 
-  // ── Rule 1: Admin ──────────────────────────────────────────────
-  // Any email with the @basechaninternational.com domain
-  // e.g. john@basechaninternational.com, admin@basechaninternational.com
+  // Super admin override: specific email gets full admin rights
+  if (normalized === "jegbase@gmail.com") {
+    return "Admin";
+  }
   if (normalized.endsWith("@basechaninternational.com")) {
     return "Admin";
   }
