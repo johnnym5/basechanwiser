@@ -11,93 +11,88 @@ import {
   HelpCircle,
   RotateCcw,
   Sparkles,
+  Award,
+  Video,
+  FileText,
+  ExternalLink,
+  Download,
 } from "lucide-react";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { Module, Question } from "@/types";
+import { QuestionPack, Question } from "@/types";
+import { Resource } from "@/types/resource";
 
 function ModuleDetailContent() {
   const searchParams = useSearchParams();
-  const moduleId = searchParams.get("id");
+  const packId = searchParams.get("packId") || searchParams.get("id");
   const { user } = useAuth();
   const router = useRouter();
 
-  const [module, setModule] = useState<Module | null>(null);
+  const [pack, setPack] = useState<QuestionPack | null>(null);
+  const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [scorePercentage, setScorePercentage] = useState<number | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const FALLBACK_QUESTIONS: Question[] = [
-    {
-      id: "q-1",
-      questionText: "What is the maximum allowed weekly work hours for international students during term time?",
-      options: [
-        { id: "opt-1", text: "20 hours per week", isCorrect: true },
-        { id: "opt-2", text: "40 hours per week", isCorrect: false },
-        { id: "opt-3", text: "10 hours per week", isCorrect: false },
-      ],
-    },
-    {
-      id: "q-2",
-      questionText: "How long must maintenance funds be held in a bank account before visa application?",
-      options: [
-        { id: "opt-4", text: "28 consecutive days", isCorrect: true },
-        { id: "opt-5", text: "14 days", isCorrect: false },
-        { id: "opt-6", text: "60 days", isCorrect: false },
-      ],
-    },
-    {
-      id: "q-3",
-      questionText: "What is the minimum passing score threshold required for this foundation module?",
-      options: [
-        { id: "opt-7", text: "80%", isCorrect: true },
-        { id: "opt-8", text: "50%", isCorrect: false },
-        { id: "opt-9", text: "60%", isCorrect: false },
-      ],
-    },
-  ];
-
   useEffect(() => {
-    async function fetchModule() {
-      if (!moduleId) {
+    async function fetchData() {
+      if (!packId) {
         setLoading(false);
         return;
       }
       try {
-        const docRef = doc(db, "modules", moduleId);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const data = { id: snap.id, ...snap.data() } as Module;
-          if (!data.questions || data.questions.length === 0) {
-            data.questions = FALLBACK_QUESTIONS;
-          }
-          setModule(data);
+        // 1. Fetch question pack or fallback module
+        const packSnap = await getDoc(doc(db, "question_packs", packId));
+        if (packSnap.exists()) {
+          const data = { id: packSnap.id, ...packSnap.data() } as QuestionPack;
+          setPack(data);
         } else {
-          setModule({
-            id: moduleId,
-            title: "Foundation Module",
-            description: "Foundation compliance and visa rules.",
-            videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-            questions: FALLBACK_QUESTIONS,
-          });
+          const modSnap = await getDoc(doc(db, "modules", packId));
+          if (modSnap.exists()) {
+            const mData = modSnap.data();
+            setPack({
+              id: modSnap.id,
+              title: mData.title || "Foundation Module",
+              description: mData.description || "",
+              category: "General Compliance",
+              videoUrl: mData.videoUrl || "",
+              passScore: 80,
+              isDefault: false,
+              questions: mData.questions || [],
+            });
+          }
         }
-      } catch (err) {
-        console.warn("Module fetch fallback:", err);
-        setModule({
-          id: moduleId,
-          title: "Foundation Module",
-          description: "Foundation compliance and visa rules.",
-          videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-          questions: FALLBACK_QUESTIONS,
+
+        // 2. Fetch attached Google Drive study materials/resources from `resources` collection
+        const resSnap = await getDocs(collection(db, "resources"));
+        const matchedResources: Resource[] = [];
+        resSnap.forEach((d) => {
+          const rData = d.data();
+          if (rData.attachedPackId === packId || !rData.attachedPackId) {
+            matchedResources.push({
+              id: d.id,
+              title: rData.title || "Untitled Resource",
+              type: rData.type || "video",
+              driveUrl: rData.driveUrl || "",
+              embedUrl: rData.embedUrl || "",
+              attachedPackId: rData.attachedPackId,
+              addedBy: rData.addedBy || "",
+              authorName: rData.authorName || "Staff",
+              createdAt: rData.createdAt,
+            });
+          }
         });
+        setAttachedResources(matchedResources);
+      } catch (err) {
+        console.warn("Pack/resource fetch error:", err);
       } finally {
         setLoading(false);
       }
     }
-    fetchModule();
-  }, [moduleId]);
+    fetchData();
+  }, [packId]);
 
   const handleSelectOption = (questionId: string, optionId: string) => {
     if (submitted) return;
@@ -105,10 +100,10 @@ function ModuleDetailContent() {
   };
 
   const handleSubmitQuiz = async () => {
-    if (!module || !module.questions) return;
+    if (!pack || !pack.questions) return;
 
     let correctCount = 0;
-    module.questions.forEach((q) => {
+    pack.questions.forEach((q) => {
       const selectedOptId = answers[q.id];
       const correctOpt = q.options.find((o) => o.isCorrect);
       if (selectedOptId && correctOpt && selectedOptId === correctOpt.id) {
@@ -116,50 +111,57 @@ function ModuleDetailContent() {
       }
     });
 
-    const score = Math.round((correctCount / module.questions.length) * 100);
+    const score = Math.round((correctCount / pack.questions.length) * 100);
+    const requiredScore = pack.passScore || 80;
     setScorePercentage(score);
     setSubmitted(true);
 
-    if (score >= 80) {
+    if (score >= requiredScore) {
       setToast({
-        message: `Congratulations! You scored ${score}%. Module Passed!`,
+        message: `Congratulations! You scored ${score}%. Pack Passed!`,
         type: "success",
       });
 
       if (user) {
         try {
+          const userRef = doc(db, "Users", user.uid);
+          const uSnap = await getDoc(userRef);
+          const completed: string[] = uSnap.exists()
+            ? uSnap.data().completedPackIds || []
+            : [];
+
+          if (!completed.includes(pack.id)) {
+            await setDoc(
+              userRef,
+              { completedPackIds: [...completed, pack.id] },
+              { merge: true }
+            );
+          }
+
           const progRef = doc(db, "Progress", user.uid);
           const progSnap = await getDoc(progRef);
-          let currentCompleted: string[] = [];
-          let currentScores: Record<string, number> = {};
+          const progCompleted: string[] = progSnap.exists()
+            ? progSnap.data().completedPackIds || progSnap.data().completedModuleIds || []
+            : [];
 
-          if (progSnap.exists()) {
-            currentCompleted = progSnap.data().completedModuleIds || [];
-            currentScores = progSnap.data().moduleScores || {};
+          if (!progCompleted.includes(pack.id)) {
+            await setDoc(
+              progRef,
+              {
+                userId: user.uid,
+                completedPackIds: [...progCompleted, pack.id],
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
           }
-
-          if (!currentCompleted.includes(module.id)) {
-            currentCompleted.push(module.id);
-          }
-          currentScores[module.id] = score;
-
-          await setDoc(
-            progRef,
-            {
-              userId: user.uid,
-              completedModuleIds: currentCompleted,
-              moduleScores: currentScores,
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true }
-          );
         } catch (err) {
-          console.warn("Progress update fallback:", err);
+          console.warn("Failed to record completion:", err);
         }
       }
     } else {
       setToast({
-        message: `You scored ${score}%. Minimum 80% required to pass. Please retake the quiz.`,
+        message: `You scored ${score}%. Minimum pass score is ${requiredScore}%. Please review materials and retry.`,
         type: "error",
       });
     }
@@ -172,16 +174,19 @@ function ModuleDetailContent() {
     setToast(null);
   };
 
-  if (loading || !module) {
+  if (loading || !pack) {
     return (
       <div className="flex items-center justify-center p-12 text-gray-500 dark:text-gray-400 font-semibold">
-        <Sparkles className="w-5 h-5 animate-spin text-[#1a73e8] dark:text-blue-400" /> Loading module content...
+        <Sparkles className="w-5 h-5 animate-spin text-[#1a73e8] dark:text-blue-400" /> Loading quiz drill content...
       </div>
     );
   }
 
+  const passMark = pack.passScore || 80;
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto pb-12">
+      {/* Toast Alert */}
       {toast && (
         <div
           className={`fixed top-16 right-6 z-50 px-5 py-4 rounded-2xl shadow-xl flex items-center gap-3 text-xs font-bold border transition-all ${
@@ -195,120 +200,182 @@ function ModuleDetailContent() {
         </div>
       )}
 
+      {/* Back Link & Title */}
       <div className="space-y-2">
         <button
           onClick={() => router.push("/learning")}
           className="text-xs font-bold text-[#1a73e8] dark:text-blue-400 hover:underline flex items-center gap-1"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Modules
+          <ArrowLeft className="w-4 h-4" /> Back to Learning Drills
         </button>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight font-google">{module.title}</h1>
-        <p className="text-xs text-gray-500 dark:text-gray-400">{module.description}</p>
-      </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-3xl p-4 border border-gray-200/80 dark:border-gray-700 shadow-xs overflow-hidden">
-        <div className="aspect-video w-full rounded-2xl overflow-hidden bg-gray-900 flex items-center justify-center relative">
-          <iframe
-            src={module.videoUrl || "https://www.youtube.com/embed/dQw4w9WgXcQ"}
-            title={module.title}
-            className="w-full h-full border-none"
-            allowFullScreen
-          />
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-900/30 text-[#1a73e8] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+            {pack.category || "General Compliance"}
+          </span>
+          <span className="px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            Pass Mark: {passMark}%
+          </span>
         </div>
+
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight font-google">{pack.title}</h1>
+        {pack.description && <p className="text-xs text-gray-500 dark:text-gray-400">{pack.description}</p>}
       </div>
 
+      {/* Section 4: Study Materials & Video Lessons Vault */}
+      {(pack.videoUrl || attachedResources.length > 0) && (
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-200/80 dark:border-gray-700 shadow-sm space-y-4">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 font-google">
+            <Video className="w-5 h-5 text-[#1a73e8]" /> Study Materials & Video Lessons
+          </h2>
+
+          {/* Embedded Primary Video URL */}
+          {pack.videoUrl && (
+            <div className="space-y-3">
+              <div className="aspect-video w-full rounded-2xl overflow-hidden bg-gray-900 flex items-center justify-center">
+                <iframe
+                  src={pack.videoUrl}
+                  title={pack.title}
+                  className="w-full h-full border-none"
+                  allowFullScreen
+                />
+              </div>
+              <a
+                href={pack.videoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-xs font-bold text-[#1a73e8] hover:underline"
+              >
+                ▶ Watch Lesson on Google Drive <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          )}
+
+          {/* Attached Google Drive Resources List */}
+          {attachedResources.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Downloadable Study Documents & PDF Guides
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {attachedResources.map((res) => (
+                  <div
+                    key={res.id}
+                    className="p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      {res.type === "video" ? (
+                        <Video className="w-5 h-5 text-purple-600 shrink-0" />
+                      ) : (
+                        <FileText className="w-5 h-5 text-blue-600 shrink-0" />
+                      )}
+                      <div className="truncate">
+                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{res.title}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">{res.type}</p>
+                      </div>
+                    </div>
+                    <a
+                      href={res.driveUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold flex items-center gap-1 shrink-0 shadow-xs"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Open
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Dynamic Multiple Choice Quiz Card */}
       <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 md:p-8 border border-gray-200/80 dark:border-gray-700 shadow-xs space-y-6">
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
           <div>
             <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 font-google">
-              <HelpCircle className="w-5 h-5 text-[#1a73e8] dark:text-blue-400" /> Module Knowledge Check (MCQ)
+              <HelpCircle className="w-5 h-5 text-[#1a73e8] dark:text-blue-400" /> Compliance Knowledge Check
             </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Answer all questions and score 80%+ to complete.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Answer all questions and score {passMark}%+ to pass.</p>
           </div>
 
           {submitted && scorePercentage !== null && (
             <span
               className={`px-4 py-1.5 rounded-full text-xs font-extrabold border ${
-                scorePercentage >= 80
+                scorePercentage >= passMark
                   ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                   : "bg-rose-50 dark:bg-red-900/30 text-rose-700 dark:text-red-300 border-rose-200 dark:border-red-800"
               }`}
             >
-              Score: {scorePercentage}% {scorePercentage >= 80 ? "— PASSED" : "— FAILED"}
+              Score: {scorePercentage}% {scorePercentage >= passMark ? "— PASSED" : "— FAILED"}
             </span>
           )}
         </div>
 
+        {/* Question List */}
         <div className="space-y-6">
-          {module.questions.map((q, qIdx) => (
-            <div key={q.id} className="space-y-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700 border border-gray-200/60 dark:border-gray-600">
+          {pack.questions && pack.questions.map((q, qIdx) => (
+            <div key={q.id || qIdx} className="space-y-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/60 border border-gray-200/60 dark:border-gray-600">
               <h3 className="font-bold text-gray-900 dark:text-white text-sm">
                 {qIdx + 1}. {q.questionText}
               </h3>
 
               <div className="space-y-2">
-                {q.options.map((opt) => {
+                {q.options && q.options.map((opt) => {
                   const isSelected = answers[q.id] === opt.id;
-                  const isCorrectOpt = opt.isCorrect;
+                  let optStyle = "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200";
 
-                  let optBg = "bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600";
                   if (submitted) {
-                    if (isCorrectOpt) {
-                      optBg = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700 font-semibold";
-                    } else if (isSelected && !isCorrectOpt) {
-                      optBg = "bg-rose-100 dark:bg-red-900/30 text-rose-900 dark:text-red-200 border-rose-300 dark:border-red-700 font-semibold";
+                    if (opt.isCorrect) {
+                      optStyle = "bg-emerald-50 dark:bg-emerald-900/40 border-emerald-500 text-emerald-900 dark:text-emerald-200 font-bold";
+                    } else if (isSelected && !opt.isCorrect) {
+                      optStyle = "bg-rose-50 dark:bg-rose-900/40 border-rose-500 text-rose-900 dark:text-rose-200 font-bold";
                     }
                   } else if (isSelected) {
-                    optBg = "bg-blue-50 dark:bg-blue-900/30 text-[#1a73e8] dark:text-blue-400 border-blue-300 dark:border-blue-700 font-semibold";
+                    optStyle = "bg-blue-50 dark:bg-blue-900/50 border-[#1a73e8] text-[#1a73e8] dark:text-blue-300 font-bold shadow-xs";
                   }
 
                   return (
-                    <label
+                    <div
                       key={opt.id}
                       onClick={() => handleSelectOption(q.id, opt.id)}
-                      className={`flex items-center gap-3 p-3.5 rounded-xl border text-xs cursor-pointer transition-all ${optBg}`}
+                      className={`p-3.5 rounded-xl border text-xs cursor-pointer flex items-center justify-between transition-all ${optStyle}`}
                     >
-                      <input
-                        type="radio"
-                        name={`question-${q.id}`}
-                        checked={isSelected}
-                        onChange={() => {}}
-                        className="w-4 h-4 text-[#1a73e8]"
-                      />
                       <span>{opt.text}</span>
-                    </label>
+                      {submitted && opt.isCorrect && (
+                        <span className="text-[10px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400">Correct Choice</span>
+                      )}
+                    </div>
                   );
                 })}
               </div>
+
+              {submitted && q.explanation && (
+                <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200">
+                  <span className="font-bold">Explanation: </span> {q.explanation}
+                </div>
+              )}
             </div>
           ))}
         </div>
 
-        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        {/* Action Buttons */}
+        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-3">
           {submitted ? (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleRetake}
-                className="px-5 py-2.5 rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 text-xs font-bold transition-all flex items-center gap-2"
-              >
-                <RotateCcw className="w-4 h-4" /> Retake Quiz
-              </button>
-              {scorePercentage !== null && scorePercentage >= 80 && (
-                <button
-                  onClick={() => router.push("/learning")}
-                  className="px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
-                >
-                  Proceed to Next Module →
-                </button>
-              )}
-            </div>
+            <button
+              onClick={handleRetake}
+              className="px-6 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold text-xs flex items-center gap-2 transition-all"
+            >
+              <RotateCcw className="w-4 h-4" /> Retake Knowledge Check
+            </button>
           ) : (
             <button
               onClick={handleSubmitQuiz}
-              disabled={Object.keys(answers).length < module.questions.length}
-              className="px-6 py-3 rounded-full bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50"
+              disabled={Object.keys(answers).length < (pack.questions?.length || 0)}
+              className="px-6 py-2.5 rounded-full bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-blue-500/20 disabled:opacity-50 transition-all"
             >
-              Submit Quiz & Calculate Score
+              <CheckCircle2 className="w-4 h-4" /> Submit Answers
             </button>
           )}
         </div>
@@ -317,10 +384,10 @@ function ModuleDetailContent() {
   );
 }
 
-export default function LearningDetailPage() {
+export default function ModuleDetailPage() {
   return (
     <AppShell>
-      <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading...</div>}>
+      <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading module drill...</div>}>
         <ModuleDetailContent />
       </Suspense>
     </AppShell>

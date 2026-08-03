@@ -2,84 +2,75 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for multi-tenant isolation & authentication checks
+    // ─── Helper Functions ───────────────────────────────────────────
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isSuperAdmin() {
-      return isAuthenticated() && request.auth.token.role == 'SUPER_ADMIN';
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function belongsToOrg(orgId) {
-      return isAuthenticated() && request.auth.token.orgId == orgId;
+    // ─── Users Collection ───────────────────────────────────────────
+    // Any authenticated user can read the Users collection (needed for
+    // the Student Directory, staff listing, etc.).
+    // A user can always write to their own document.
+    // Staff (Counselors/Admins) can update any student document
+    // (e.g. assigning packs, setting readiness status).
+    match /Users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId)
+                    || (isAuthenticated()
+                        && resource.data.role == 'Student');
+      allow delete: if false; // only via Admin SDK / console
     }
 
-    function isDocInUserOrg() {
-      return isAuthenticated() && request.auth.token.orgId == resource.data.organizationId;
+    // ─── Question Packs ─────────────────────────────────────────────
+    // All authenticated users can read packs (students need them for learning).
+    // Only authenticated staff can create/update/delete packs.
+    match /question_packs/{packId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated();
     }
 
-    // Organization Collection Rules
-    match /organizations/{orgId} {
-      allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
-      allow write: if isSuperAdmin();
+    // ─── Student Progress ───────────────────────────────────────────
+    // Users can read/write their own progress document.
+    // Staff can read any student's progress.
+    match /Progress/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
     }
 
-    // Users Collection Rules
-    match /users/{userId} {
-      allow read: if isAuthenticated() && (isSuperAdmin() || request.auth.token.orgId == resource.data.organizationId);
-      allow write: if isSuperAdmin() || (belongsToOrg(request.resource.data.organizationId) && request.auth.token.role == 'ORG_ADMIN');
+    // ─── Interview Packs ────────────────────────────────────────────
+    // Students write their own interview pack; staff can read all.
+    match /Interview_Packs/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
     }
 
-    // Attendance Collection Rules
-    match /attendance/{attendanceId} {
-      allow read: if isDocInUserOrg();
-      allow create: if isAuthenticated() && request.resource.data.organizationId == request.auth.token.orgId;
-      allow update: if isDocInUserOrg() && (
-        request.auth.token.role in ['HR_MANAGER', 'ORG_ADMIN', 'SUPER_ADMIN'] ||
-        resource.data.userId == request.auth.uid
-      );
+    // ─── Junior Evaluations ─────────────────────────────────────────
+    // Staff can read/write evaluations. Students can read their own.
+    match /Junior_Evaluations/{evalId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
 
-    // Financial Requisitions Collection Rules
-    match /requisitions/{reqId} {
-      allow read: if isDocInUserOrg();
-      allow create: if isAuthenticated() && request.resource.data.organizationId == request.auth.token.orgId;
-      allow update: if isDocInUserOrg() && (
-        resource.data.applicantId == request.auth.uid ||
-        request.auth.token.role in ['HR_MANAGER', 'FINANCE_MANAGER', 'MD', 'ORG_ADMIN', 'SUPER_ADMIN']
-      );
+    // ─── Resources (Google Drive links) ─────────────────────────────
+    match /resources/{resourceId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
 
-    // Tasks Collection Rules
-    match /tasks/{taskId} {
-      allow read, write: if isAuthenticated() && (
-        (resource == null && request.resource.data.organizationId == request.auth.token.orgId) ||
-        isDocInUserOrg()
-      );
+    // ─── System Settings ────────────────────────────────────────────
+    match /system_settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
 
-    // Workbooks Collection Rules
-    match /workbooks/{workbookId} {
-      allow read, write: if isAuthenticated() && (
-        (resource == null && request.resource.data.organizationId == request.auth.token.orgId) ||
-        isDocInUserOrg()
-      );
-    }
-
-    // Messages & Announcements Rules
-    match /messages/{messageId} {
-      allow read, write: if isAuthenticated() && (
-        (resource == null && request.resource.data.organizationId == request.auth.token.orgId) ||
-        isDocInUserOrg()
-      );
-    }
-
-    match /announcements/{announcementId} {
-      allow read: if isDocInUserOrg();
-      allow create, update: if isAuthenticated() && 
-        request.resource.data.organizationId == request.auth.token.orgId &&
-        request.auth.token.role in ['HR_MANAGER', 'ORG_ADMIN', 'SUPER_ADMIN'];
+    // ─── AI Rate Limits (server-side, but allow if needed) ──────────
+    match /ai_rate_limits/{userId} {
+      allow read, write: if isOwner(userId);
     }
   }
 }

@@ -50,55 +50,109 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     customEmail?: string
   ) => {
     const effectiveEmail = customEmail || currentUser.email || undefined;
-    const computedRole = evaluateDomainRole(effectiveEmail, currentUser.isAnonymous && !customEmail);
+    const computedRole = evaluateDomainRole(
+      effectiveEmail,
+      currentUser.isAnonymous && !customEmail
+    );
     setRole(computedRole);
 
-    const profileData: UserProfile = {
+    const userRef = doc(db, "Users", currentUser.uid);
+
+    // ── 1. Try to load existing profile ──────────────────────────
+    let existingProfile: UserProfile | null = null;
+    try {
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        existingProfile = { uid: snap.id, ...snap.data() } as UserProfile;
+      }
+    } catch (e) {
+      // getDoc can fail due to network/permissions — we still want to
+      // attempt creation below so we do NOT return here.
+      console.warn("[Auth] Could not read user profile, will attempt upsert:", e);
+    }
+
+    // ── 2. Existing user — update state and refresh login timestamp ─
+    if (existingProfile) {
+      setUserProfile(existingProfile);
+      setRole(existingProfile.role || computedRole);
+
+      try {
+        await setDoc(
+          userRef,
+          { lastLoginAt: serverTimestamp() },
+          { merge: true }
+        );
+      } catch (e) {
+        console.warn("[Auth] Could not update lastLoginAt:", e);
+      }
+      console.log("[Auth] Existing user loaded:", currentUser.uid, existingProfile.role);
+      return;
+    }
+
+    // ── 3. New user — create Firestore document ──────────────────
+    const profileData = {
       uid: currentUser.uid,
+      displayName: customName || currentUser.displayName || "New Student",
       email: effectiveEmail || "guest@basechanwiser.local",
-      displayName: customName || currentUser.displayName || "Staff Member",
+      photoURL: currentUser.photoURL || "",
       role: computedRole,
-      intake: "Fall 2026",
-      office: "London HQ",
-      updatedAt: serverTimestamp(),
+      officeLocation: "Unassigned",
+      assignedPackIds: [],
+      completedPackIds: [],
+      readinessStatus: "Red",
+      createdAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp(),
     };
 
-    setUserProfile(profileData);
+    // Set local state immediately so the UI updates right away
+    setUserProfile(profileData as unknown as UserProfile);
 
     try {
-      const userRef = doc(db, "Users", currentUser.uid);
       await setDoc(userRef, profileData, { merge: true });
+      console.log("[Auth] New user registered in Firestore:", currentUser.uid, computedRole);
     } catch (error) {
-      console.warn("Firestore sync offline fallback:", error);
+      console.error("[Auth] FAILED to write user document to Firestore:", error);
+      // Surface a more useful error in dev — the most common cause is
+      // Firestore security rules blocking the write.
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        // Check if there is already a stored profile in Firestore
-        try {
-          const userRef = doc(db, "Users", currentUser.uid);
-          const snap = await getDoc(userRef);
-          if (snap.exists()) {
-            const data = snap.data() as UserProfile;
-            setUserProfile(data);
-            setRole(data.role || evaluateDomainRole(data.email, currentUser.isAnonymous));
-          } else {
-            await syncUserToFirestore(currentUser);
-          }
-        } catch (e) {
-          await syncUserToFirestore(currentUser);
+    // ── Safety Fallback Timer ────────────────────────────────────
+    // Prevents infinite loading splash screen if Firebase Auth hangs
+    const fallbackTimer = setTimeout(() => {
+      setLoading((prevLoading) => {
+        if (prevLoading) {
+          console.warn("[AuthContext] Auth check timed out after 5s. Forcing loading = false.");
+          return false;
         }
-      } else {
+        return prevLoading;
+      });
+    }, 5000);
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      try {
+        setUser(currentUser);
+        if (currentUser) {
+          await syncUserToFirestore(currentUser);
+        } else {
+          setRole(null);
+          setUserProfile(null);
+        }
+      } catch (err) {
+        console.error("[AuthContext Error]: Failed during auth state sync:", err);
         setRole(null);
         setUserProfile(null);
+      } finally {
+        clearTimeout(fallbackTimer);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(fallbackTimer);
+      unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async () => {
@@ -116,7 +170,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Passwordless Name & Email Login (for Staff & Guest Logins)
   const signInWithNameAndEmail = async (displayName: string, email: string) => {
     setLoading(true);
     try {
@@ -132,7 +185,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Admin Password Login (for credentials created directly in backend)
   const signInAdminWithPassword = async (email: string, pass: string) => {
     setLoading(true);
     try {

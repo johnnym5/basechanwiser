@@ -1,27 +1,42 @@
 import { AppRole } from "@/types";
 
 /**
- * Domain-Based Role Logic:
- * - Email ending strictly in "@basechaninternational.com" => "Admin"
- *   e.g. ithub@basechaninternational.com
- * - Email matching "*.basechaninternational@gmail.com" => "Counselor" (Staff)
- *   e.g. johnmary.basechaninternational@gmail.com
- * - Otherwise => "Student"
+ * Domain-Based Role Evaluation Rules:
+ *
+ * 1. ADMIN — Triggered automatically for emails matching:
+ *      (name)@basechaninternational.com
+ *    Can also be explicitly assigned by an existing Admin via the
+ *    User Management tab in Counselor Settings.
+ *
+ * 2. COUNSELOR — Triggered automatically for staff emails ending in:
+ *      (name).basechaninternational@gmail.com
+ *
+ * 3. STUDENT — Default role for all standard Google Sign-In and
+ *    anonymous logins that don't match the above patterns.
  */
 export function evaluateDomainRole(email: string | null | undefined, isAnonymous: boolean): AppRole {
+  // Anonymous users and users without email are always Students
   if (!email || isAnonymous) {
     return "Student";
   }
 
   const normalized = email.trim().toLowerCase();
 
+  // ── Rule 1: Admin ──────────────────────────────────────────────
+  // Any email with the @basechaninternational.com domain
+  // e.g. john@basechaninternational.com, admin@basechaninternational.com
   if (normalized.endsWith("@basechaninternational.com")) {
     return "Admin";
   }
 
+  // ── Rule 2: Counselor ──────────────────────────────────────────
+  // Staff Gmail aliases: (name).basechaninternational@gmail.com
+  // e.g. sarah.basechaninternational@gmail.com
   if (normalized.endsWith(".basechaninternational@gmail.com")) {
     return "Counselor";
   }
 
+  // ── Rule 3: Student (default) ──────────────────────────────────
+  // All other Google Sign-In and anonymous logins
   return "Student";
 }
