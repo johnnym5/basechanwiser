@@ -104,7 +104,7 @@ export default function LearningModulesPage() {
 
                   <div className="pt-2">
                     <Link
-                      href={`/learning/${mod.id}`}
+                      href={`/learning/detail?id=${mod.id}`}
                       className={`w-full py-3 px-4 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                         isLocked
                           ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
