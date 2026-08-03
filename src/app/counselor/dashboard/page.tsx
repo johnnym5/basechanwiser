@@ -452,9 +452,14 @@ export default function CounselorTrafficLightDashboardPage() {
           </div>
         )}
 
+        {/* Click-outside backdrop for action dropdown */}
+        {activeMenuUid && (
+          <div className="fixed inset-0 z-[90]" onClick={() => setActiveMenuUid(null)} />
+        )}
+
         {/* ── Table: md+ ───────────────────────────────────────── */}
-        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-xs">
-          <div className="overflow-x-auto">
+        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-xs relative">
+          <div className="overflow-x-auto overflow-y-visible">
             <table className="w-full text-left text-xs">
               <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase font-bold text-[10px] tracking-wider border-b border-gray-200 dark:border-gray-600">
                 <tr>
@@ -536,7 +541,7 @@ export default function CounselorTrafficLightDashboardPage() {
 
                           {/* Row Actions Dropdown */}
                           {activeMenuUid === s.uid && (
-                            <div className="absolute right-4 top-12 w-52 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 py-1.5 z-40 text-left text-xs font-semibold animate-fade-down">
+                            <div className="absolute right-4 mt-1 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-[100] text-left text-xs font-semibold animate-fade-down" style={{ top: '100%' }}>
                               <button
                                 onClick={() => { setHistoryStudent(s); setActiveMenuUid(null); }}
                                 className="w-full px-3.5 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-gray-800 dark:text-gray-200 flex items-center gap-2"
