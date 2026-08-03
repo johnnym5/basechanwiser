@@ -161,6 +161,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
+        // Determine role based on the Google account email (including super‑admin override)
+        const googleRole = evaluateDomainRole(result.user.email, false);
+        setRole(googleRole);
         await syncUserToFirestore(result.user);
       }
     } catch (error) {
