@@ -17,10 +17,12 @@ import {
   ExternalLink,
   Download,
 } from "lucide-react";
-import { doc, getDoc, setDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, serverTimestamp, updateDoc, addDoc, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { QuestionPack, Question } from "@/types";
+import { QuestionPack, Question, LearningModule, UserProfile } from "@/types";
 import { Resource } from "@/types/resource";
+import { shuffleArray } from "@/lib/utils/shuffle";
+import { SystemSettings } from "@/types/resource";
 
 function ModuleDetailContent() {
   const searchParams = useSearchParams();
@@ -28,11 +30,13 @@ function ModuleDetailContent() {
   const { user } = useAuth();
   const router = useRouter();
 
-  const [pack, setPack] = useState<QuestionPack | null>(null);
+  const [pack, setPack] = useState<LearningModule | QuestionPack | null>(null);
   const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [scorePercentage, setScorePercentage] = useState<number | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showFailureModal, setShowFailureModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,25 +47,24 @@ function ModuleDetailContent() {
         return;
       }
       try {
-        // 1. Fetch question pack or fallback module
-        const packSnap = await getDoc(doc(db, "question_packs", packId));
-        if (packSnap.exists()) {
-          const data = { id: packSnap.id, ...packSnap.data() } as QuestionPack;
-          setPack(data);
+        // 1. Fetch learning module or question pack
+        const modSnap = await getDoc(doc(db, "learning_modules", packId));
+        if (modSnap.exists()) {
+          const { id, ...data } = modSnap.data() as LearningModule;
+          const shuffledQuestions = shuffleArray(data.questions || []).map(q => ({
+            ...q,
+            options: shuffleArray(q.options || [])
+          }));
+          setPack({ id: modSnap.id, ...data, questions: shuffledQuestions } as LearningModule);
         } else {
-          const modSnap = await getDoc(doc(db, "modules", packId));
-          if (modSnap.exists()) {
-            const mData = modSnap.data();
-            setPack({
-              id: modSnap.id,
-              title: mData.title || "Foundation Module",
-              description: mData.description || "",
-              category: "General Compliance",
-              videoUrl: mData.videoUrl || "",
-              passScore: 80,
-              isDefault: false,
-              questions: mData.questions || [],
-            });
+          const packSnap = await getDoc(doc(db, "question_packs", packId));
+          if (packSnap.exists()) {
+            const { id, ...data } = packSnap.data() as QuestionPack;
+            const shuffledQuestions = shuffleArray(data.questions || []).map(q => ({
+              ...q,
+              options: shuffleArray(q.options || [])
+            }));
+            setPack({ id: packSnap.id, ...data, questions: shuffledQuestions } as QuestionPack);
           }
         }
 
@@ -78,10 +81,17 @@ function ModuleDetailContent() {
               driveUrl: rData.driveUrl || "",
               embedUrl: rData.embedUrl || "",
               attachedPackId: rData.attachedPackId,
+              tags: rData.tags,
+              validUntil: rData.validUntil,
+              clicks: rData.clicks,
+              views: rData.views,
               addedBy: rData.addedBy || "",
               authorName: rData.authorName || "Staff",
               createdAt: rData.createdAt,
             });
+
+            // Increment views for matched resources
+            updateDoc(d.ref, { views: (rData.views || 0) + 1 });
           }
         });
         setAttachedResources(matchedResources);
@@ -100,13 +110,67 @@ function ModuleDetailContent() {
   };
 
   const handleSubmitQuiz = async () => {
-    if (!pack || !pack.questions) return;
+    if (!pack || !pack.questions || !user) return;
+
+    // ── Check Cooldown & Max Retakes ──
+    try {
+      const sysRef = doc(db, "system_settings", "global");
+      const sysSnap = await getDoc(sysRef);
+      if (sysSnap.exists()) {
+        const settings = sysSnap.data() as SystemSettings;
+
+        // 1. Max Retakes check
+        const attemptsQ = query(
+          collection(db, "quiz_attempts"),
+          where("userId", "==", user.uid),
+          where("packId", "==", pack.id)
+        );
+        const existingAttempts = await getDocs(attemptsQ);
+        const attemptCount = existingAttempts.size;
+
+        if (settings.maxRetakes && attemptCount >= settings.maxRetakes) {
+          alert(`You have reached the maximum number of attempts (${settings.maxRetakes}) for this module. Please contact your counselor to unlock.`);
+          return;
+        }
+
+        // 2. Cooldown check
+        if (settings.quizRetakeCooldownHours && attemptCount > 0) {
+          const lastAttempt = existingAttempts.docs
+            .map(d => d.data())
+            .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)[0];
+
+          if (lastAttempt?.timestamp) {
+            const lastTime = lastAttempt.timestamp.seconds * 1000;
+            const now = Date.now();
+            const hoursPassed = (now - lastTime) / (1000 * 60 * 60);
+            if (hoursPassed < settings.quizRetakeCooldownHours) {
+              alert(`Please wait ${Math.ceil(settings.quizRetakeCooldownHours - hoursPassed)} more hours before retaking this quiz.`);
+              return;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Retake check error:", err);
+    }
 
     let correctCount = 0;
+    const detailedAnswers: Record<string, any> = {};
+
     pack.questions.forEach((q) => {
       const selectedOptId = answers[q.id];
+      const selectedOpt = q.options.find((o) => o.id === selectedOptId);
       const correctOpt = q.options.find((o) => o.isCorrect);
-      if (selectedOptId && correctOpt && selectedOptId === correctOpt.id) {
+
+      detailedAnswers[q.id] = {
+        questionText: q.questionText,
+        selectedOptionId: selectedOptId || null,
+        selectedOptionText: selectedOpt?.text || "No Answer",
+        isCorrect: !!(selectedOptId && correctOpt && selectedOptId === correctOpt.id),
+        explanation: q.explanation || "",
+      };
+
+      if (detailedAnswers[q.id].isCorrect) {
         correctCount++;
       }
     });
@@ -116,62 +180,93 @@ function ModuleDetailContent() {
     setScorePercentage(score);
     setSubmitted(true);
 
-    if (score >= requiredScore) {
-      setToast({
-        message: `Congratulations! You scored ${score}%. Pack Passed!`,
-        type: "success",
+    // ── Log Attempt for Analytics ──────────────────────────────
+    try {
+      const attemptsQ = query(
+        collection(db, "quiz_attempts"),
+        where("userId", "==", user.uid),
+        where("packId", "==", pack.id)
+      );
+      const existingAttempts = await getDocs(attemptsQ);
+      const attemptNumber = existingAttempts.size + 1;
+
+      await addDoc(collection(db, "quiz_attempts"), {
+        userId: user.uid,
+        userName: user.displayName || "Student",
+        packId: pack.id,
+        packTitle: pack.title,
+        score,
+        attemptNumber,
+        answers: detailedAnswers,
+        timestamp: serverTimestamp(),
       });
+    } catch (err) {
+      console.warn("Failed to log quiz attempt:", err);
+    }
 
-      if (user) {
-        try {
-          const userRef = doc(db, "Users", user.uid);
-          const uSnap = await getDoc(userRef);
-          const completed: string[] = uSnap.exists()
-            ? uSnap.data().completedPackIds || []
-            : [];
+    if (score >= requiredScore) {
+      setShowSuccessModal(true);
+      sessionStorage.setItem("last_quiz_score", score.toString());
 
-          if (!completed.includes(pack.id)) {
-            await setDoc(
-              userRef,
-              { completedPackIds: [...completed, pack.id] },
-              { merge: true }
-            );
+      try {
+        const userRef = doc(db, "Users", user.uid);
+        const uSnap = await getDoc(userRef);
+        if (uSnap.exists()) {
+          const uData = uSnap.data() as UserProfile;
+          const moduleScores = uData.moduleScores || {};
+          const prevScore = moduleScores[pack.id] || 0;
+          const newScores = { ...moduleScores, [pack.id]: Math.max(prevScore, score) };
+
+          let updatePayload: any = {
+            moduleScores: newScores,
+            updatedAt: serverTimestamp(),
+          };
+
+          // If it's a LearningModule with an order, handle progression
+          if ("order" in pack) {
+            const currentOrder = pack.order;
+            const userLevel = uData.currentModuleLevel || 1;
+            if (userLevel === currentOrder) {
+              updatePayload.currentModuleLevel = currentOrder + 1;
+            }
           }
 
-          const progRef = doc(db, "Progress", user.uid);
-          const progSnap = await getDoc(progRef);
-          const progCompleted: string[] = progSnap.exists()
-            ? progSnap.data().completedPackIds || progSnap.data().completedModuleIds || []
-            : [];
-
-          if (!progCompleted.includes(pack.id)) {
-            await setDoc(
-              progRef,
-              {
-                userId: user.uid,
-                completedPackIds: [...progCompleted, pack.id],
-                updatedAt: serverTimestamp(),
-              },
-              { merge: true }
-            );
-          }
-        } catch (err) {
-          console.warn("Failed to record completion:", err);
+          await updateDoc(userRef, updatePayload);
         }
+      } catch (err) {
+        console.warn("Failed to update progression:", err);
       }
     } else {
-      setToast({
-        message: `You scored ${score}%. Minimum pass score is ${requiredScore}%. Please review materials and retry.`,
-        type: "error",
-      });
+      setShowFailureModal(true);
     }
   };
 
   const handleRetake = () => {
+    // Reshuffle on retake
+    if (pack && pack.questions) {
+      const reshuffled = shuffleArray(pack.questions).map(q => ({
+        ...q,
+        options: shuffleArray(q.options || [])
+      }));
+      setPack({ ...pack, questions: reshuffled });
+    }
     setAnswers({});
     setSubmitted(false);
     setScorePercentage(null);
     setToast(null);
+    setShowFailureModal(false);
+  };
+
+  const handleResourceClick = async (resId: string) => {
+    try {
+      const resRef = doc(db, "resources", resId);
+      const resSnap = await getDoc(resRef);
+      if (resSnap.exists()) {
+        await updateDoc(resRef, { clicks: (resSnap.data().clicks || 0) + 1 });
+      }
+    } catch (err) {
+      console.warn("Failed to increment clicks:", err);
+    }
   };
 
   if (loading || !pack) {
@@ -210,8 +305,8 @@ function ModuleDetailContent() {
         </button>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-900/30 text-[#1a73e8] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-            {pack.category || "General Compliance"}
+          <span className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-900/40 text-[#1a73e8] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+            {'category' in pack ? pack.category : "UKVI Module"}
           </span>
           <span className="px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
             Pass Mark: {passMark}%
@@ -278,6 +373,7 @@ function ModuleDetailContent() {
                       href={res.driveUrl}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={() => handleResourceClick(res.id)}
                       className="px-3 py-1.5 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold flex items-center gap-1 shrink-0 shadow-xs"
                     >
                       <Download className="w-3.5 h-3.5" /> Open
@@ -380,6 +476,58 @@ function ModuleDetailContent() {
           )}
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border border-emerald-200 dark:border-emerald-900 animate-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <Sparkles className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white font-google">Congratulations!</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              You passed with <span className="font-black text-emerald-600 dark:text-emerald-400">{scorePercentage}%</span>.
+              {"order" in pack ? `Module ${pack.order + 1} is now unlocked!` : "You have mastered this drill!"}
+            </p>
+            <button
+              onClick={() => router.push("/learning")}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 transition-all"
+            >
+              Continue Learning
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Failure Modal */}
+      {showFailureModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border border-rose-200 dark:border-rose-900">
+            <div className="w-20 h-20 bg-rose-100 dark:bg-rose-900/50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white font-google">Not Quite There</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              You scored <span className="font-black text-rose-600 dark:text-rose-400">{scorePercentage}%</span>.
+              You need <span className="font-bold">{passMark}%</span> to pass. Please review the material and try again.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleRetake}
+                className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl shadow-lg shadow-rose-500/20 transition-all"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => router.push("/learning")}
+                className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-2xl transition-all"
+              >
+                Exit to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

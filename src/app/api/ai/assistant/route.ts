@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { sanitizeInput } from '@/lib/server/sanitizer';
 import { checkRateLimit } from '@/lib/server/rateLimiter';
+import { db } from '@/lib/firebaseAdmin';
 
 export interface AIContextPayload {
   userRole: 'Student' | 'Counselor' | 'Admin';
@@ -47,6 +48,17 @@ export async function POST(request: Request) {
     // 3. Contextual Student Directory Data (Injected from Client Context if available)
     let studentLookupDataStr = "";
 
+    // ── Fetch Global AI Prompt Overrides ──
+    let promptOverrides = "";
+    try {
+      const sysSnap = await db.collection("system_settings").doc("global").get();
+      if (sysSnap.exists) {
+        promptOverrides = sysSnap.data()?.globalAIPromptOverrides || "";
+      }
+    } catch (e) {
+      console.warn("[AI Assistant] Could not fetch prompt overrides:", e);
+    }
+
     // 4. Build System Persona & Prompt based on Role
     let systemInstruction = "";
 
@@ -58,6 +70,9 @@ CORE RESPONSIBILITIES:
 1. Answer questions clearly regarding UK visa regulations, CAS (Confirmation of Acceptance for Studies), 28-day maintenance fund rules, work hour limits (20 hrs/week term-time), and course progression.
 2. Provide constructive feedback on student draft answers to interview questions.
 3. Keep answers concise, highly structured (using bullet points or bold text), friendly, and encouraging.
+
+ADDITIONAL SYSTEM RULES:
+${promptOverrides || "No additional overrides provided."}
 
 CURRENT APP CONTEXT:
 - Student UID: ${context.userUid}
@@ -72,6 +87,9 @@ CORE RESPONSIBILITIES:
 1. Assist counselors with student progress analysis, UKVI risk evaluations, and customized recovery plan creation.
 2. Query and interpret student directory data, readiness traffic lights (Green/Yellow/Red), and assigned question packs.
 3. ACTION TOOL TRIGGER (CRITICAL): When a counselor asks you to generate, create, or recommend a targeted recovery question pack for a student (e.g. "Generate a targeted question pack for Johnmary based on their score" or "Create a recovery pack for [Student Name]"), construct a 3 to 5 question recovery drill tailored to their weak areas (e.g., Financial Credibility, Career Intent, UKVI Visa Rules).
+
+ADDITIONAL SYSTEM RULES:
+${promptOverrides || "No additional overrides provided."}
 
 IMPORTANT: When generating a question pack, you MUST return a valid JSON object embedded inside your response with the following format:
 

@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import AppShell from "@/components/layout/app-shell";
 import StudentHistoryModal from "@/components/StudentHistoryModal";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   ShieldCheck,
   Search,
@@ -19,6 +20,14 @@ import {
   FolderKanban,
   AlertTriangle,
   History,
+  TrendingUp,
+  Users,
+  Award,
+  Clock,
+  ExternalLink,
+  ChevronRight,
+  Zap,
+  FolderOpen
 } from "lucide-react";
 import {
   collection,
@@ -30,9 +39,26 @@ import {
   query,
   where,
   serverTimestamp,
+  orderBy,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { TrafficLightStatus, EvaluationDecision, InterviewPack, JuniorEvaluation, QuestionPack } from "@/types";
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  AreaChart,
+  Area,
+} from "recharts";
+import ResourceVaultModal from "@/components/common/ResourceVaultModal";
 
 interface StudentTableRow {
   uid: string;
@@ -42,19 +68,39 @@ interface StudentTableRow {
   learningProgress: number;
   status: TrafficLightStatus;
   pack?: InterviewPack;
+  lastLoginAt?: any;
+  averageScore: number;
+  failedAttemptsCount: number;
+  totalAttempts: number;
 }
 
-export default function CounselorTrafficLightDashboardPage() {
+interface QuizAttempt {
+  id: string;
+  userId: string;
+  packId: string;
+  packTitle: string;
+  score: number;
+  attemptNumber: number;
+  timestamp: any;
+}
+
+const COLORS = ["#10B981", "#F59E0B", "#EF4444", "#94A3B8"];
+
+export default function CounselorAnalyticsDashboardPage() {
   const { user, role, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && role !== "Counselor" && role !== "Admin") {
+    if (!loading && role !== "Counselor" && role !== "Admin" && role !== "Super Admin") {
       router.push("/dashboard");
     }
   }, [role, loading, router]);
 
-  const [filter, setFilter] = useState<"All" | TrafficLightStatus>("All");
+  const searchParams = useSearchParams();
+  const initialView = searchParams.get("view") === "table" ? "table" : "analytics";
+
+  const [view, setView] = useState<"analytics" | "table">(initialView);
+  const [activeTab, setActiveTab] = useState<"star" | "at_risk" | "in_progress" | "unstarted" | "forms">("in_progress");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<StudentTableRow | null>(null);
 
@@ -65,6 +111,7 @@ export default function CounselorTrafficLightDashboardPage() {
   const [evalSuccessToast, setEvalSuccessToast] = useState<string | null>(null);
 
   const [students, setStudents] = useState<StudentTableRow[]>([]);
+  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   // ── Multi-Select State ──────────────────────────────────────────
@@ -79,11 +126,13 @@ export default function CounselorTrafficLightDashboardPage() {
   const [deleteInputText, setDeleteInputText] = useState("");
   const [availablePacks, setAvailablePacks] = useState<QuestionPack[]>([]);
   const [bulkPackId, setBulkPackId] = useState("");
+  const [isVaultOpen, setIsVaultOpen] = useState(false);
 
   const fetchRealData = async () => {
     try {
       const usersSnap = await getDocs(collection(db, "Users"));
       const packsSnap = await getDocs(collection(db, "Interview_Packs"));
+      const attemptsSnap = await getDocs(collection(db, "quiz_attempts"));
 
       const packMap: Record<string, InterviewPack> = {};
       if (!packsSnap.empty) {
@@ -92,24 +141,39 @@ export default function CounselorTrafficLightDashboardPage() {
         });
       }
 
+      const allAttempts: QuizAttempt[] = attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() } as QuizAttempt));
+      setAttempts(allAttempts);
+
       if (!usersSnap.empty) {
         const fetchedRows: StudentTableRow[] = usersSnap.docs
           .filter((d) => d.data().role === "Student" || !d.data().role)
           .map((d) => {
             const uData = d.data();
             const pack = packMap[d.id];
+
+            // Calculate student-specific stats
+            const studentAttempts = allAttempts.filter(a => a.userId === d.id);
+            const totalScore = studentAttempts.reduce((sum, a) => sum + a.score, 0);
+            const avgScore = studentAttempts.length > 0 ? Math.round(totalScore / studentAttempts.length) : 0;
+            const failedCount = studentAttempts.filter(a => a.score < 80).length;
+
             let status: TrafficLightStatus = uData.readinessStatus || "Red";
             if (!uData.readinessStatus && pack) {
               status = "Yellow";
             }
+
             return {
               uid: d.id,
               name: uData.displayName || "Student",
               email: uData.email || "N/A",
               location: uData.office || uData.officeLocation || "Head Office",
-              learningProgress: uData.learningProgress ?? (pack ? 100 : 0),
+              learningProgress: uData.learningProgress ?? (avgScore >= 80 ? 100 : avgScore > 0 ? 50 : 0),
               status,
               pack,
+              lastLoginAt: uData.lastLoginAt,
+              averageScore: avgScore,
+              failedAttemptsCount: failedCount,
+              totalAttempts: studentAttempts.length,
             };
           });
 
@@ -124,8 +188,6 @@ export default function CounselorTrafficLightDashboardPage() {
 
   useEffect(() => {
     fetchRealData();
-
-    // Fetch Question Packs for bulk assignment modal
     async function fetchPacks() {
       try {
         const qSnap = await getDocs(collection(db, "question_packs"));
@@ -139,33 +201,99 @@ export default function CounselorTrafficLightDashboardPage() {
     fetchPacks();
   }, []);
 
-  const filteredStudents = students.filter((s) => {
-    const matchesFilter = filter === "All" || s.status === filter;
-    const matchesSearch =
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.email.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  // ── Metrics Computation ───────────────────────────────────────
+  const metrics = useMemo(() => {
+    const total = students.length;
+    const now = Date.now();
+    const activeLast7Days = students.filter(s => {
+      if (!s.lastLoginAt) return false;
+      const loginTime = s.lastLoginAt.seconds * 1000;
+      return (now - loginTime) < (7 * 24 * 60 * 60 * 1000);
+    }).length;
 
-  // ── Multi-select Header Controls ──────────────────────────────
-  const isAllSelected =
-    filteredStudents.length > 0 && filteredStudents.every((s) => selectedUids.includes(s.uid));
+    const inactiveCount = students.filter(s => {
+      if (!s.lastLoginAt) return true;
+      const loginTime = s.lastLoginAt.seconds * 1000;
+      return (now - loginTime) > (14 * 24 * 60 * 60 * 1000);
+    }).length;
 
-  const handleSelectAllToggle = () => {
-    if (isAllSelected) {
-      setSelectedUids([]);
-    } else {
-      setSelectedUids(filteredStudents.map((s) => s.uid));
+    const firstTimePasses = attempts.filter(a => a.attemptNumber === 1 && a.score >= 80).length;
+    const totalFirstAttempts = attempts.filter(a => a.attemptNumber === 1).length;
+    const firstTimePassRate = totalFirstAttempts > 0 ? Math.round((firstTimePasses / totalFirstAttempts) * 100) : 0;
+
+    const formsSubmitted = students.filter(s => s.pack?.status === 'Submitted').length;
+    const formCompletionRate = total > 0 ? Math.round((formsSubmitted / total) * 100) : 0;
+
+    const urgentCount = students.filter(s => s.status === 'Red' || s.failedAttemptsCount >= 2).length;
+
+    return {
+      total,
+      activeLast7Days,
+      inactiveCount,
+      firstTimePassRate,
+      formCompletionRate,
+      formsSubmitted,
+      urgentCount
+    };
+  }, [students, attempts]);
+
+  // ── Chart Data Computation ────────────────────────────────────
+  const readinessData = useMemo(() => [
+    { name: "Green", value: students.filter(s => s.status === 'Green').length },
+    { name: "Yellow", value: students.filter(s => s.status === 'Yellow').length },
+    { name: "Red", value: students.filter(s => s.status === 'Red').length },
+    { name: "Gray", value: students.filter(s => !s.status).length },
+  ], [students]);
+
+  const moduleUsageData = useMemo(() => {
+    const usageMap: Record<string, { name: string; pass: number; fail: number }> = {};
+    attempts.forEach(a => {
+      if (!usageMap[a.packId]) {
+        usageMap[a.packId] = { name: a.packTitle || "Module", pass: 0, fail: 0 };
+      }
+      if (a.score >= 80) usageMap[a.packId].pass++;
+      else usageMap[a.packId].fail++;
+    });
+    return Object.values(usageMap);
+  }, [attempts]);
+
+  const progressDistribution = useMemo(() => [
+    { name: "Not Started (0%)", count: students.filter(s => s.learningProgress === 0).length },
+    { name: "Early (1-49%)", count: students.filter(s => s.learningProgress > 0 && s.learningProgress < 50).length },
+    { name: "Mid (50-79%)", count: students.filter(s => s.learningProgress >= 50 && s.learningProgress < 80).length },
+    { name: "Ready (80-100%)", count: students.filter(s => s.learningProgress >= 80).length },
+  ], [students]);
+
+  // ── Tab Filters ───────────────────────────────────────────────
+  const segmentedStudents = useMemo(() => {
+    let list = [...students];
+    if (searchTerm) {
+      list = list.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.email.toLowerCase().includes(searchTerm.toLowerCase()));
     }
-  };
 
+    switch (activeTab) {
+      case "star":
+        return list.filter(s => s.averageScore >= 80 && s.pack?.status === 'Submitted');
+      case "at_risk":
+        return list.filter(s => s.failedAttemptsCount >= 2 || s.status === 'Red');
+      case "in_progress":
+        return list.filter(s => s.learningProgress > 0 && s.learningProgress < 100);
+      case "unstarted":
+        const now = Date.now();
+      return list.filter(s => s.learningProgress === 0 || (s.lastLoginAt && (now - s.lastLoginAt.seconds * 1000) > 14 * 24 * 60 * 60 * 1000));
+      case "forms":
+        return list.filter(s => !!s.pack);
+      default:
+        return list;
+    }
+  }, [students, activeTab, searchTerm]);
+
+  // ── Handlers ──────────────────────────────────────────────────
+  const isAllSelected = segmentedStudents.length > 0 && segmentedStudents.every((s) => selectedUids.includes(s.uid));
+  const handleSelectAllToggle = () => isAllSelected ? setSelectedUids([]) : setSelectedUids(segmentedStudents.map((s) => s.uid));
   const handleRowSelectToggle = (uid: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (selectedUids.includes(uid)) {
-      setSelectedUids(selectedUids.filter((id) => id !== uid));
-    } else {
-      setSelectedUids([...selectedUids, uid]);
-    }
+    setSelectedUids(prev => prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]);
   };
 
   const showToast = (message: string) => {
@@ -173,675 +301,425 @@ export default function CounselorTrafficLightDashboardPage() {
     setTimeout(() => setEvalSuccessToast(null), 4000);
   };
 
-  // ── Bulk Status Update ────────────────────────────────────────
   const handleBulkStatusUpdate = async (newStatus: TrafficLightStatus) => {
     if (selectedUids.length === 0) return;
     try {
       const batch = writeBatch(db);
-      selectedUids.forEach((uid) => {
-        batch.set(doc(db, "Users", uid), { readinessStatus: newStatus }, { merge: true });
-      });
+      selectedUids.forEach((uid) => batch.set(doc(db, "Users", uid), { readinessStatus: newStatus }, { merge: true }));
       await batch.commit();
-      setStudents((prev) =>
-        prev.map((s) => (selectedUids.includes(s.uid) ? { ...s, status: newStatus } : s))
-      );
-      showToast(`Mass updated readiness status to ${newStatus} for ${selectedUids.length} student(s).`);
-    } catch (err: any) {
-      alert(`Bulk update error: ${err.message}`);
-    }
+      setStudents(prev => prev.map(s => selectedUids.includes(s.uid) ? { ...s, status: newStatus } : s));
+      showToast(`Updated ${selectedUids.length} student(s) to ${newStatus}.`);
+    } catch (err: any) { alert(err.message); }
   };
 
-  // ── Bulk Assign Question Pack ──────────────────────────────────
   const handleBulkAssignPack = async () => {
     if (!bulkPackId || selectedUids.length === 0) return;
     try {
       const batch = writeBatch(db);
       for (const uid of selectedUids) {
-        const uDoc = doc(db, "Users", uid);
-        const uSnap = students.find((s) => s.uid === uid);
-        batch.set(
-          uDoc,
-          {
-            assignedPackIds: [...new Set([...(uSnap?.pack ? [uSnap.pack.id] : []), bulkPackId])],
-          },
-          { merge: true }
-        );
+        const uSnap = students.find(s => s.uid === uid);
+        batch.set(doc(db, "Users", uid), { assignedPackIds: [...new Set([...(uSnap?.pack ? [uSnap.pack.id] : []), bulkPackId])] }, { merge: true });
       }
       await batch.commit();
       setShowBulkPackModal(false);
-      showToast(`Assigned Question Pack to ${selectedUids.length} student(s).`);
-    } catch (err: any) {
-      alert(`Pack assignment error: ${err.message}`);
-    }
+      showToast(`Assigned pack to ${selectedUids.length} students.`);
+    } catch (err: any) { alert(err.message); }
   };
 
-  // ── Cascade Delete Accounts ───────────────────────────────────
   const handleCascadeDeleteUsers = async () => {
-    if (!showDeleteConfirm) return;
-    if (deleteInputText.trim().toUpperCase() !== "DELETE") {
-      alert("Please type DELETE to confirm permanent account removal.");
-      return;
-    }
-
+    if (!showDeleteConfirm || deleteInputText.trim().toUpperCase() !== "DELETE") return;
     try {
       for (const uid of showDeleteConfirm.uids) {
-        // 1. Delete user doc
         await deleteDoc(doc(db, "Users", uid));
-
-        // 2. Delete quiz attempts
         const qSnap = await getDocs(query(collection(db, "quiz_attempts"), where("userId", "==", uid)));
-        qSnap.forEach(async (d) => await deleteDoc(d.ref));
-
-        // 3. Delete interview packs
-        const pSnap = await getDocs(query(collection(db, "interview_packs"), where("userId", "==", uid)));
-        pSnap.forEach(async (d) => await deleteDoc(d.ref));
-
-        // 4. Delete evaluations
-        const eSnap = await getDocs(query(collection(db, "evaluations"), where("studentId", "==", uid)));
-        eSnap.forEach(async (d) => await deleteDoc(d.ref));
+        qSnap.forEach(async d => await deleteDoc(d.ref));
       }
-
-      setStudents((prev) => prev.filter((s) => !showDeleteConfirm.uids.includes(s.uid)));
-      setSelectedUids((prev) => prev.filter((id) => !showDeleteConfirm.uids.includes(id)));
+      setStudents(prev => prev.filter(s => !showDeleteConfirm.uids.includes(s.uid)));
+      setSelectedUids([]);
       setShowDeleteConfirm(null);
-      setDeleteInputText("");
-      showToast("Student account(s) and all linked compliance records deleted.");
-    } catch (err: any) {
-      alert(`Cascade delete error: ${err.message}`);
-    }
+      showToast("Accounts deleted successfully.");
+    } catch (err: any) { alert(err.message); }
   };
 
-  // ── Cascade Reset User History ────────────────────────────────
   const handleCascadeResetHistory = async () => {
     if (!showResetConfirm) return;
     try {
       for (const uid of showResetConfirm.uids) {
-        // 1. Delete quiz attempts
         const qSnap = await getDocs(query(collection(db, "quiz_attempts"), where("userId", "==", uid)));
-        qSnap.forEach(async (d) => await deleteDoc(d.ref));
-
-        // 2. Reset user profile fields
-        await setDoc(
-          doc(db, "Users", uid),
-          {
-            completedPackIds: [],
-            learningProgress: 0,
-            readinessStatus: "Red",
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
+        qSnap.forEach(async d => await deleteDoc(d.ref));
+        await setDoc(doc(db, "Users", uid), { completedPackIds: [], learningProgress: 0, readinessStatus: "Red", updatedAt: serverTimestamp() }, { merge: true });
       }
-
-      setStudents((prev) =>
-        prev.map((s) =>
-          showResetConfirm.uids.includes(s.uid) ? { ...s, learningProgress: 0, status: "Red" } : s
-        )
-      );
+      setStudents(prev => prev.map(s => showResetConfirm.uids.includes(s.uid) ? { ...s, learningProgress: 0, status: "Red" } : s));
       setShowResetConfirm(null);
-      showToast("Quiz history and overall progress reset to 0% for selected student(s).");
-    } catch (err: any) {
-      alert(`Reset history error: ${err.message}`);
-    }
+      showToast("Student history reset.");
+    } catch (err: any) { alert(err.message); }
   };
 
   const handleSaveEvaluation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudent || !user) return;
-
     setIsSavingEval(true);
     try {
-      const evalData: JuniorEvaluation = {
-        studentId: selectedStudent.uid,
-        counselorId: user.uid,
-        decision,
-        trafficLight: evalTrafficLight,
-        notes: evalNotes,
-        createdAt: serverTimestamp(),
-      };
-
+      const evalData: JuniorEvaluation = { studentId: selectedStudent.uid, counselorId: user.uid, decision, trafficLight: evalTrafficLight, notes: evalNotes, createdAt: serverTimestamp() };
       await setDoc(doc(db, "Junior_Evaluations", selectedStudent.uid), evalData, { merge: true });
-
-      // Update student readiness status in user profile as well
-      await setDoc(
-        doc(db, "Users", selectedStudent.uid),
-        { readinessStatus: evalTrafficLight },
-        { merge: true }
-      );
-
-      setStudents((prev) =>
-        prev.map((s) => (s.uid === selectedStudent.uid ? { ...s, status: evalTrafficLight } : s))
-      );
-
-      showToast("Junior Evaluation & Traffic Light Status Saved!");
+      await setDoc(doc(db, "Users", selectedStudent.uid), { readinessStatus: evalTrafficLight }, { merge: true });
+      setStudents(prev => prev.map(s => s.uid === selectedStudent.uid ? { ...s, status: evalTrafficLight } : s));
+      showToast("Evaluation Saved!");
       setSelectedStudent(null);
-      setEvalNotes("");
-    } catch (err) {
-      console.error("Evaluation save error:", err);
-    } finally {
-      setIsSavingEval(false);
-    }
+    } catch (err) { console.error(err); } finally { setIsSavingEval(false); }
   };
+
+  const StatCard = ({ title, value, sub, icon: Icon, color }: any) => (
+    <div className="bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-slate-500">{title}</span>
+        <div className={`p-2 rounded-xl ${color} bg-opacity-10`}><Icon className={`w-4 h-4 ${color.replace('bg-', 'text-')}`} /></div>
+      </div>
+      <div className="flex flex-col">
+        <span className="text-2xl font-black text-gray-900 dark:text-white">{value}</span>
+        <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500">{sub}</span>
+      </div>
+    </div>
+  );
 
   return (
     <AppShell>
-      <div className="space-y-6">
-        {/* Toast */}
-        {evalSuccessToast && (
-          <div className="fixed bottom-6 right-6 bg-emerald-600 text-white font-bold px-4 py-3 rounded-2xl shadow-2xl z-50 flex items-center gap-2 border border-emerald-400 animate-fade-up">
-            <CheckCircle2 className="w-5 h-5 fill-white text-emerald-600" />
-            <span className="text-xs">{evalSuccessToast}</span>
-          </div>
-        )}
-
+      <div className="max-w-[1600px] mx-auto space-y-8 pb-20">
         {/* Title */}
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2 font-google">
-            <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-[#1a73e8] dark:text-blue-400" /> Traffic Light Dashboard
-          </h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Review student packs, conduct Junior Interviews, manage bulk actions, and evaluate readiness.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2 font-google">
+              <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-[#1a73e8] dark:text-blue-400" />
+              {view === 'analytics' ? "Analytics Control Center" : "Student Compliance Table"}
+            </h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Review student packs, conduct Junior Interviews, and evaluate readiness.
+            </p>
+          </div>
+
+          <div className="flex bg-gray-100 dark:bg-[#1E293B] p-1 rounded-2xl border border-gray-200 dark:border-slate-800">
+            <button
+              onClick={() => setView('analytics')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'analytics' ? 'bg-white dark:bg-[#0F172A] text-[#1a73e8] shadow-sm' : 'text-gray-500'}`}
+            >
+              Analytics
+            </button>
+            <button
+              onClick={() => setView('table')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'table' ? 'bg-white dark:bg-[#0F172A] text-[#1a73e8] shadow-sm' : 'text-gray-500'}`}
+            >
+              Data Table
+            </button>
+          </div>
         </div>
 
-        {/* Filter Chips + Search */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+        {view === 'analytics' && (
+          <>
+            {/* KPI Banner */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+              <StatCard title="Total Students" value={metrics.total} sub={`${metrics.activeLast7Days} active this week`} icon={Users} color="bg-blue-500" />
+              <StatCard title="First-Try Pass Rate" value={`${metrics.firstTimePassRate}%`} sub="Students passing attempt #1" icon={Zap} color="bg-emerald-500" />
+              <StatCard title="Pack Completion" value={`${metrics.formCompletionRate}%`} sub={`${metrics.formsSubmitted} forms submitted`} icon={FileText} color="bg-amber-500" />
+              <StatCard title="At-Risk" value={metrics.urgentCount} sub="Red status or 2+ fails" icon={AlertTriangle} color="bg-rose-500" />
+            </div>
+
+            {/* Analytics Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-6 duration-700">
+              {/* Readiness Donut */}
+              <div className="xl:col-span-1 bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-slate-800">
+                <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 dark:text-white mb-6">Readiness Distribution</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={readinessData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                        {readinessData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Module Usage */}
+              <div className="xl:col-span-2 bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-slate-800">
+                 <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 dark:text-white mb-6">Module Usage & Pass/Fail Ratio</h3>
+                 <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={moduleUsageData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.1} />
+                      <XAxis dataKey="name" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
+                      <YAxis fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                      <Bar dataKey="pass" name="Passed" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="fail" name="Failed" stackId="a" fill="#EF4444" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                 </div>
+              </div>
+
+              {/* Progress Breakdown */}
+              <div className="xl:col-span-1 bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-slate-800">
+                 <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 dark:text-white mb-6">Learning Progression</h3>
+                 <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={progressDistribution}>
+                        <defs>
+                          <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#1a73e8" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#1a73e8" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="name" hide />
+                        <Tooltip />
+                        <Area type="monotone" dataKey="count" stroke="#1a73e8" fillOpacity={1} fill="url(#colorCount)" strokeWidth={3} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                 </div>
+                 <div className="grid grid-cols-2 gap-2 mt-4">
+                    {progressDistribution.map((d, i) => (
+                      <div key={i} className="bg-gray-50 dark:bg-[#0F172A] p-2 rounded-xl border border-gray-100 dark:border-slate-800">
+                        <p className="text-[9px] font-black uppercase text-gray-400">{d.name}</p>
+                        <p className="text-sm font-black dark:text-white">{d.count}</p>
+                      </div>
+                    ))}
+                 </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Resource Vault Banner ───────────── */}
+        <div className="bg-gradient-to-r from-blue-600 via-[#1a73e8] to-indigo-600 rounded-3xl p-6 text-white shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-google font-extrabold text-lg">
+              <FolderOpen className="w-6 h-6" /> Google Drive Resource Vault
+            </div>
+            <p className="text-xs text-blue-100 max-w-xl">
+              Manage and view staff-curated video tutorials, UKVI visa compliance guides, and financial template calculators.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsVaultOpen(true)}
+            className="shrink-0 px-5 py-3 rounded-2xl bg-white hover:bg-blue-50 text-[#1a73e8] font-bold text-xs shadow-md transition-all flex items-center gap-2 active:scale-95"
+          >
+            <FolderOpen className="w-4 h-4 text-[#1a73e8]" /> Open Resource Vault
+          </button>
+        </div>
+
+        <ResourceVaultModal isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} />
+
+        {/* Action Center Tabs */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-800 pb-2 overflow-x-auto gap-4 scrollbar-hide">
             {[
-              { label: "All", value: "All", color: "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600" },
-              { label: "Green (Ready)", value: "Green", color: "bg-[#e6f4ea] dark:bg-emerald-900/30 text-[#1e8e3e] dark:text-emerald-300 border-[#ceead6] dark:border-emerald-800" },
-              { label: "Yellow (Needs Work)", value: "Yellow", color: "bg-[#fef7e0] dark:bg-amber-900/30 text-[#b06000] dark:text-amber-300 border-[#feefc3] dark:border-amber-800" },
-              { label: "Red (Urgent / Not Ready)", value: "Red", color: "bg-[#fce8e6] dark:bg-red-900/30 text-[#d93025] dark:text-red-300 border-[#fad2cf] dark:border-red-800" },
-            ].map((chip) => {
-              const isSelected = filter === chip.value;
-              return (
-                <button
-                  key={chip.value}
-                  onClick={() => setFilter(chip.value as any)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${chip.color} ${
-                    isSelected ? "ring-2 ring-blue-500 shadow-xs font-extrabold" : "opacity-80 hover:opacity-100"
-                  }`}
-                >
-                  {chip.label}
-                </button>
-              );
-            })}
+              { id: "in_progress", label: "In-Progress", icon: Clock },
+              { id: "star", label: "Star Students", icon: Award },
+              { id: "at_risk", label: "At-Risk", icon: AlertTriangle },
+              { id: "unstarted", label: "Inactive/New", icon: Zap },
+              { id: "forms", label: "Form Matrix", icon: FileText },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? "bg-[#1a73e8] text-white shadow-lg shadow-blue-500/20"
+                    : "text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white"
+                }`}
+              >
+                <tab.icon className="w-3.5 h-3.5" /> {tab.label}
+              </button>
+            ))}
           </div>
 
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Filter by student name..."
-              className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full pl-9 pr-4 py-1.5 text-xs text-gray-700 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-600 focus:outline-none focus:border-blue-500"
-            />
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+             <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search cohort..."
+                  className="w-full bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-slate-800 rounded-2xl pl-11 pr-4 py-3 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all"
+                />
+             </div>
+          </div>
+
+          {/* Tabbed List Rendering */}
+          <div className="bg-white dark:bg-[#1E293B] rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-xl shadow-gray-200/20 overflow-hidden">
+            <div className="overflow-x-auto">
+               <table className="w-full text-left text-xs">
+                 <thead>
+                    <tr className="bg-gray-50/50 dark:bg-[#0F172A]/50 border-b border-gray-100 dark:border-slate-800">
+                       <th className="p-5 w-10 text-center"><button onClick={handleSelectAllToggle}>{isAllSelected ? <CheckSquare className="w-4 h-4 text-[#1a73e8]" /> : <Square className="w-4 h-4" />}</button></th>
+                       <th className="p-5 font-black uppercase tracking-widest text-gray-400">Student</th>
+                       <th className="p-5 font-black uppercase tracking-widest text-gray-400">Progression</th>
+                       <th className="p-5 font-black uppercase tracking-widest text-gray-400">Form Status</th>
+                       <th className="p-5 font-black uppercase tracking-widest text-gray-400">Last Activity</th>
+                       <th className="p-5 text-right font-black uppercase tracking-widest text-gray-400">Actions</th>
+                    </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50">
+                    {segmentedStudents.length === 0 ? (
+                      <tr><td colSpan={6} className="p-12 text-center text-sm font-bold text-gray-400">No students in this cohort.</td></tr>
+                    ) : (
+                      segmentedStudents.map((s) => (
+                        <tr key={s.uid} className={`group hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all ${selectedUids.includes(s.uid) ? "bg-blue-50/50 dark:bg-blue-900/20" : ""}`}>
+                          <td className="p-5 text-center" onClick={(e) => handleRowSelectToggle(s.uid, e)}>{selectedUids.includes(s.uid) ? <CheckSquare className="w-4 h-4 text-[#1a73e8]" /> : <Square className="w-4 h-4 text-gray-300" />}</td>
+                          <td className="p-5">
+                            <div className="flex items-center gap-3">
+                               <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-[#0F172A] flex items-center justify-center font-black text-[#1a73e8]">{s.name.charAt(0)}</div>
+                               <div>
+                                  <p className="font-black text-gray-900 dark:text-white text-sm">{s.name}</p>
+                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{s.email}</p>
+                               </div>
+                            </div>
+                          </td>
+                          <td className="p-5">
+                             <div className="space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-tighter">
+                                   <span className="text-gray-500">{s.learningProgress}% Complete</span>
+                                   <span className={s.averageScore >= 80 ? "text-emerald-500" : "text-gray-400"}>Avg: {s.averageScore}%</span>
+                                </div>
+                                <div className="w-32 bg-gray-100 dark:bg-[#0F172A] rounded-full h-1.5 overflow-hidden">
+                                   <div className={`h-full rounded-full transition-all duration-500 ${s.status === 'Green' ? 'bg-emerald-500' : s.status === 'Yellow' ? 'bg-amber-500' : 'bg-blue-600'}`} style={{ width: `${s.learningProgress}%` }} />
+                                </div>
+                             </div>
+                          </td>
+                          <td className="p-5">
+                             <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[9px] font-black uppercase border ${s.pack?.status === 'Submitted' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                                {s.pack?.status === 'Submitted' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                {s.pack?.status || "Not Started"}
+                             </span>
+                          </td>
+                          <td className="p-5">
+                             <div className="flex flex-col gap-0.5">
+                                <span className="text-[10px] font-black uppercase text-gray-900 dark:text-white">{s.lastLoginAt ? new Date(s.lastLoginAt.seconds * 1000).toLocaleDateString() : "Never"}</span>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{s.location}</span>
+                             </div>
+                          </td>
+                          <td className="p-5 text-right relative">
+                             <button onClick={() => setActiveMenuUid(activeMenuUid === s.uid ? null : s.uid)} className="p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-[#0F172A] transition-all"><MoreVertical className="w-4 h-4" /></button>
+                             {activeMenuUid === s.uid && (
+                                <div className="absolute right-12 top-5 w-56 bg-white dark:bg-[#1E293B] rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-800 py-2 z-[100] text-left animate-in fade-in slide-in-from-right-2">
+                                   <button onClick={() => { setHistoryStudent(s); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 flex items-center gap-3"><History className="w-4 h-4 text-blue-500" /> Full Audit History</button>
+                                   <button onClick={() => { setSelectedStudent(s); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 flex items-center gap-3"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Evaluate Readiness</button>
+                                   <div className="border-t border-gray-50 dark:border-slate-800 my-1" />
+                                   <button onClick={() => { setShowDeleteConfirm({ uids: [s.uid], names: [s.name] }); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-[10px] font-black uppercase tracking-widest text-rose-600 flex items-center gap-3"><Trash2 className="w-4 h-4" /> Purge Account</button>
+                                </div>
+                             )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                 </tbody>
+               </table>
+            </div>
           </div>
         </div>
 
         {/* ── STICKY BULK ACTIONS TOOLBAR ─────────────────────────── */}
         {selectedUids.length > 0 && (
-          <div className="sticky top-16 z-30 bg-[#1a73e8] text-white p-3.5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-3 animate-fade-down">
-            <div className="flex items-center gap-2 font-bold text-xs">
-              <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs">
-                {selectedUids.length}
-              </span>
-              <span>Student(s) Selected</span>
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-gray-900 text-white px-6 py-4 rounded-[32px] shadow-2xl flex items-center gap-8 animate-in slide-in-from-bottom-10">
+            <div className="flex items-center gap-3 border-r border-white/10 pr-8">
+              <div className="w-10 h-10 rounded-full bg-[#1a73e8] flex items-center justify-center font-black text-sm">{selectedUids.length}</div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Selected</span>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-              <button
-                onClick={() => handleBulkStatusUpdate("Green")}
-                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-colors"
-              >
-                ● Mark Ready (Green)
-              </button>
-              <button
-                onClick={() => handleBulkStatusUpdate("Yellow")}
-                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white transition-colors"
-              >
-                ● Needs Work (Yellow)
-              </button>
-              <button
-                onClick={() => handleBulkStatusUpdate("Red")}
-                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors"
-              >
-                ● Urgent (Red)
-              </button>
-
-              <button
-                onClick={() => setShowBulkPackModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center gap-1"
-              >
-                <FolderKanban className="w-3.5 h-3.5" /> Assign Pack
-              </button>
-
-              <button
-                onClick={() =>
-                  setShowResetConfirm({
-                    uids: selectedUids,
-                    names: students.filter((s) => selectedUids.includes(s.uid)).map((s) => s.name),
-                  })
-                }
-                className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors flex items-center gap-1"
-              >
-                <RotateCcw className="w-3.5 h-3.5" /> Reset History
-              </button>
-
-              <button
-                onClick={() =>
-                  setShowDeleteConfirm({
-                    uids: selectedUids,
-                    names: students.filter((s) => selectedUids.includes(s.uid)).map((s) => s.name),
-                  })
-                }
-                className="px-3 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white transition-colors flex items-center gap-1"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Delete Selected
-              </button>
-
-              <button
-                onClick={() => setSelectedUids([])}
-                className="p-1.5 rounded-xl hover:bg-white/20 text-white/80"
-                title="Clear Selection"
-              >
-                <X className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-4">
+               <button onClick={() => handleBulkStatusUpdate("Green")} className="text-[10px] font-black uppercase tracking-widest hover:text-emerald-400 transition-colors">● Ready</button>
+               <button onClick={() => handleBulkStatusUpdate("Red")} className="text-[10px] font-black uppercase tracking-widest hover:text-rose-400 transition-colors">● Urgent</button>
+               <button onClick={() => setShowBulkPackModal(true)} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:text-blue-400 transition-colors"><FolderKanban className="w-4 h-4" /> Assign</button>
+               <button onClick={() => setSelectedUids([])} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all"><X className="w-4 h-4" /></button>
             </div>
           </div>
         )}
 
-        {/* Click-outside backdrop for action dropdown */}
-        {activeMenuUid && (
-          <div className="fixed inset-0 z-[90]" onClick={() => setActiveMenuUid(null)} />
-        )}
-
-        {/* ── Table: md+ ───────────────────────────────────────── */}
-        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-xs relative">
-          <div className="overflow-x-auto overflow-y-visible">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase font-bold text-[10px] tracking-wider border-b border-gray-200 dark:border-gray-600">
-                <tr>
-                  <th className="p-4 w-10 text-center">
-                    <button onClick={handleSelectAllToggle} className="text-gray-500 hover:text-blue-600">
-                      {isAllSelected ? (
-                        <CheckSquare className="w-4 h-4 text-[#1a73e8]" />
-                      ) : (
-                        <Square className="w-4 h-4" />
-                      )}
-                    </button>
-                  </th>
-                  <th className="p-4">Student Name</th>
-                  <th className="p-4">Office</th>
-                  <th className="p-4">Learning Progress</th>
-                  <th className="p-4">Pack</th>
-                  <th className="p-4">Readiness</th>
-                  <th className="p-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700 font-medium text-gray-800 dark:text-gray-200">
-                {dataLoading ? (
-                  <tr><td colSpan={7} className="p-8 text-center text-gray-500 dark:text-gray-400">Loading registered students...</td></tr>
-                ) : filteredStudents.length === 0 ? (
-                  <tr><td colSpan={7} className="p-8 text-center text-gray-500 dark:text-gray-400">No students found matching current criteria.</td></tr>
-                ) : (
-                  filteredStudents.map((s) => {
-                    const isSelected = selectedUids.includes(s.uid);
-
-                    return (
-                      <tr
-                        key={s.uid}
-                        onClick={() => { setSelectedStudent(s); setEvalTrafficLight(s.status); }}
-                        className={`hover:bg-blue-50/50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors ${
-                          isSelected ? "bg-blue-50/80 dark:bg-blue-950/40" : ""
-                        }`}
-                      >
-                        <td className="p-4 text-center" onClick={(e) => handleRowSelectToggle(s.uid, e)}>
-                          {isSelected ? (
-                            <CheckSquare className="w-4 h-4 text-[#1a73e8]" />
-                          ) : (
-                            <Square className="w-4 h-4 text-gray-400" />
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <p className="font-bold text-gray-900 dark:text-white">{s.name}</p>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400">{s.email}</p>
-                        </td>
-                        <td className="p-4 text-gray-600 dark:text-gray-300">{s.location}</td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-24 bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
-                              <div className="bg-[#1a73e8] h-full rounded-full" style={{ width: `${s.learningProgress}%` }} />
-                            </div>
-                            <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">{s.learningProgress}%</span>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2.5 py-1 rounded-full">
-                            {s.pack ? "Submitted" : "Pending"}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-extrabold border ${
-                            s.status === "Green" ? "bg-[#e6f4ea] dark:bg-emerald-900/30 text-[#1e8e3e] dark:text-emerald-300 border-[#ceead6] dark:border-emerald-800"
-                            : s.status === "Yellow" ? "bg-[#fef7e0] dark:bg-amber-900/30 text-[#b06000] dark:text-amber-300 border-[#feefc3] dark:border-amber-800"
-                            : "bg-[#fce8e6] dark:bg-red-900/30 text-[#d93025] dark:text-red-300 border-[#fad2cf] dark:border-red-800"
-                          }`}>
-                            {s.status === "Green" ? "● Green" : s.status === "Yellow" ? "● Yellow" : "● Red (Urgent)"}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right relative" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => setActiveMenuUid(activeMenuUid === s.uid ? null : s.uid)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-
-                          {/* Row Actions Dropdown */}
-                          {activeMenuUid === s.uid && (
-                            <div className="absolute right-4 mt-1 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-[100] text-left text-xs font-semibold animate-fade-down" style={{ top: '100%' }}>
-                              <button
-                                onClick={() => { setHistoryStudent(s); setActiveMenuUid(null); }}
-                                className="w-full px-3.5 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-gray-800 dark:text-gray-200 flex items-center gap-2"
-                              >
-                                <History className="w-4 h-4 text-[#1a73e8]" /> View Past Results & History
-                              </button>
-                              <button
-                                onClick={() => { setSelectedStudent(s); setActiveMenuUid(null); }}
-                                className="w-full px-3.5 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-gray-800 dark:text-gray-200 flex items-center gap-2"
-                              >
-                                <ShieldCheck className="w-4 h-4 text-emerald-600" /> Change Readiness Status
-                              </button>
-                              <button
-                                onClick={() => { setShowResetConfirm({ uids: [s.uid], names: [s.name] }); setActiveMenuUid(null); }}
-                                className="w-full px-3.5 py-2 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-700 dark:text-amber-300 flex items-center gap-2"
-                              >
-                                <RotateCcw className="w-4 h-4" /> Reset Quiz & Progress History
-                              </button>
-                              <button
-                                onClick={() => { setShowDeleteConfirm({ uids: [s.uid], names: [s.name] }); setActiveMenuUid(null); }}
-                                className="w-full px-3.5 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center gap-2 border-t border-gray-100 dark:border-gray-700 mt-1 pt-2"
-                              >
-                                <Trash2 className="w-4 h-4" /> Delete Student Account
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ── Cards: mobile (< md) ─────────────────────────────── */}
-        <div className="md:hidden space-y-3">
-          {dataLoading ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading students...</div>
-          ) : filteredStudents.length === 0 ? (
-            <div className="p-6 text-center text-xs text-gray-500 bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700">No students found.</div>
-          ) : (
-            filteredStudents.map((s) => {
-              const isSelected = selectedUids.includes(s.uid);
-              return (
-                <div
-                  key={s.uid}
-                  onClick={() => { setSelectedStudent(s); setEvalTrafficLight(s.status); }}
-                  className={`bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-xs cursor-pointer active:scale-[0.99] transition-all space-y-3 ${
-                    isSelected ? "ring-2 ring-blue-500" : ""
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <button
-                        onClick={(e) => handleRowSelectToggle(s.uid, e)}
-                        className="text-gray-400"
-                      >
-                        {isSelected ? <CheckSquare className="w-5 h-5 text-[#1a73e8]" /> : <Square className="w-5 h-5" />}
-                      </button>
-                      <div className="w-10 h-10 rounded-full bg-[#1a73e8] text-white flex items-center justify-center font-bold text-sm shrink-0">
-                        {s.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-xs text-gray-900 dark:text-white truncate">{s.name}</p>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{s.email}</p>
-                      </div>
-                    </div>
-                    <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${
-                      s.status === "Green" ? "bg-[#e6f4ea] text-[#1e8e3e] border-[#ceead6]"
-                      : s.status === "Yellow" ? "bg-[#fef7e0] text-[#b06000] border-[#feefc3]"
-                      : "bg-[#fce8e6] text-[#d93025] border-[#fad2cf]"
-                    }`}>● {s.status || "Red"}</span>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setHistoryStudent(s); }}
-                      className="text-xs font-bold text-[#1a73e8] flex items-center gap-1"
-                    >
-                      <History className="w-3.5 h-3.5" /> History
-                    </button>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                      Pack: {s.pack ? "✓ Submitted" : "Pending"}
-                    </span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* ── Student History Modal Component ────────────────────── */}
-        {historyStudent && (
-          <StudentHistoryModal
-            student={historyStudent}
-            onClose={() => setHistoryStudent(null)}
-            onRefreshParent={fetchRealData}
-          />
-        )}
-
-        {/* ── Bulk Question Pack Assignment Modal ────────────────── */}
-        {showBulkPackModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-gray-200 dark:border-gray-700 space-y-4">
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
-                <h3 className="font-bold text-gray-900 dark:text-white text-base font-google flex items-center gap-2">
-                  <FolderKanban className="w-5 h-5 text-[#1a73e8]" /> Assign Question Pack
-                </h3>
-                <button onClick={() => setShowBulkPackModal(false)} className="text-gray-400 hover:text-gray-600">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Select a Question Pack to assign to <strong className="text-gray-900 dark:text-white">{selectedUids.length}</strong> selected student(s):
-              </p>
-
-              <select
-                value={bulkPackId}
-                onChange={(e) => setBulkPackId(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-gray-900 dark:text-white"
-              >
-                <option value="">Select Question Pack...</option>
-                {availablePacks.map((pack) => (
-                  <option key={pack.id} value={pack.id}>
-                    {pack.title} ({pack.category || "General"})
-                  </option>
-                ))}
-              </select>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                <button
-                  onClick={() => setShowBulkPackModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleBulkAssignPack}
-                  disabled={!bulkPackId}
-                  className="px-5 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold rounded-xl shadow-xs disabled:opacity-50"
-                >
-                  Assign to {selectedUids.length} Student(s)
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Cascade Delete Confirmation Modal ──────────────────── */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-rose-200 dark:border-rose-900 space-y-4">
-              <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
-                <AlertTriangle className="w-7 h-7 shrink-0" />
-                <h3 className="font-extrabold text-lg font-google">Permanent Cascade Delete</h3>
-              </div>
-
-              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                This action will permanently delete <strong className="text-rose-600 dark:text-rose-400">{showDeleteConfirm.names.length}</strong> student account(s) (<strong>{showDeleteConfirm.names.join(", ")}</strong>) and purge all linked quiz attempt history, interview pack submissions, and evaluation logs.
-              </p>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                  Type <span className="text-rose-600 font-extrabold">DELETE</span> to confirm:
-                </label>
-                <input
-                  type="text"
-                  value={deleteInputText}
-                  onChange={(e) => setDeleteInputText(e.target.value)}
-                  placeholder="DELETE"
-                  className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl px-3.5 py-2 text-xs font-mono text-gray-900 dark:text-white focus:border-rose-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => { setShowDeleteConfirm(null); setDeleteInputText(""); }}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCascadeDeleteUsers}
-                  disabled={deleteInputText.trim().toUpperCase() !== "DELETE"}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs disabled:opacity-50"
-                >
-                  Permanently Delete Account(s)
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Cascade Reset Confirmation Modal ───────────────────── */}
-        {showResetConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl p-6 shadow-2xl border border-amber-200 dark:border-amber-800 space-y-4">
-              <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
-                <RotateCcw className="w-6 h-6 shrink-0" />
-                <h3 className="font-extrabold text-base font-google">Reset Student Progress & Attempts</h3>
-              </div>
-
-              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                Are you sure you want to reset quiz attempt history and learning progress to <strong className="text-amber-600 dark:text-amber-400">0% (Red)</strong> for <strong className="text-gray-900 dark:text-white">{showResetConfirm.names.join(", ")}</strong>?
-              </p>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => setShowResetConfirm(null)}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCascadeResetHistory}
-                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs"
-                >
-                  Reset History to 0%
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Drawer — side panel md+, bottom sheet on mobile */}
+        {/* Evaluation Drawer */}
         {selectedStudent && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex md:justify-end items-end md:items-stretch">
-            <div className="w-full md:max-w-2xl bg-white dark:bg-gray-800 md:h-full max-h-[92dvh] md:max-h-none rounded-t-3xl md:rounded-none p-5 md:p-6 overflow-y-auto space-y-5 shadow-2xl animate-slide-up md:animate-none">
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
-                <div>
-                  <h2 className="font-bold text-gray-900 dark:text-white text-lg font-google">{selectedStudent.name}</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{selectedStudent.email}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedStudent(null)}
-                  className="p-2 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Evaluation Form */}
-              <form onSubmit={handleSaveEvaluation} className="space-y-4 text-xs">
-                <div>
-                  <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">Evaluation Decision</label>
-                  <select
-                    value={decision}
-                    onChange={(e) => setDecision(e.target.value as any)}
-                    className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-gray-900 dark:text-white font-semibold"
-                  >
-                    <option value="Pass">Pass Interview</option>
-                    <option value="Retry">Needs Retry / Further Prep</option>
-                    <option value="Escalate">Escalate to Senior Admin</option>
-                  </select>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex justify-end">
+             <div className="w-full max-w-xl bg-white dark:bg-[#1E293B] h-full p-10 overflow-y-auto space-y-10 animate-in slide-in-from-right duration-300 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-6">
+                   <div className="space-y-1">
+                      <h2 className="text-2xl font-black text-gray-900 dark:text-white font-google">{selectedStudent.name}</h2>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{selectedStudent.email}</p>
+                   </div>
+                   <button onClick={() => setSelectedStudent(null)} className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-[#0F172A] flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white"><X className="w-6 h-6" /></button>
                 </div>
 
-                <div>
-                  <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">Set Readiness Traffic Light</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { value: "Green", label: "Green (Ready)", color: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300" },
-                      { value: "Yellow", label: "Yellow (Needs Work)", color: "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border-amber-300" },
-                      { value: "Red", label: "Red (Urgent)", color: "bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 border-rose-300" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setEvalTrafficLight(opt.value as any)}
-                        className={`p-2.5 rounded-xl font-bold border text-center transition-all ${opt.color} ${
-                          evalTrafficLight === opt.value ? "ring-2 ring-blue-500 shadow-xs scale-105" : "opacity-70"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <form onSubmit={handleSaveEvaluation} className="space-y-8">
+                   <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Evaluation Decision</label>
+                      <select value={decision} onChange={(e) => setDecision(e.target.value as any)} className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl p-4 text-sm font-black text-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]">
+                        <option value="Pass">Pass Interview</option>
+                        <option value="Retry">Needs Further Prep</option>
+                        <option value="Escalate">Escalate to Senior</option>
+                      </select>
+                   </div>
 
-                <div>
-                  <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1">Counselor Notes & Evaluation Rubric</label>
-                  <textarea
-                    rows={4}
-                    value={evalNotes}
-                    onChange={(e) => setEvalNotes(e.target.value)}
-                    placeholder="Enter notes on financial credibility, course knowledge depth, and interview readiness..."
-                    className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-3 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
-                  />
-                </div>
+                   <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Assign Readiness Status</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { v: "Green", label: "Ready", c: "bg-emerald-500" },
+                          { v: "Yellow", label: "Work", c: "bg-amber-500" },
+                          { v: "Red", label: "Urgent", c: "bg-rose-500" },
+                        ].map(opt => (
+                          <button key={opt.v} type="button" onClick={() => setEvalTrafficLight(opt.v as any)} className={`p-4 rounded-2xl text-[10px] font-black uppercase tracking-tighter border-2 transition-all ${evalTrafficLight === opt.v ? `border-${opt.c.replace('bg-', '')} ${opt.c} text-white shadow-xl` : 'border-gray-100 dark:border-slate-800 text-gray-400 opacity-60'}`}>{opt.label}</button>
+                        ))}
+                      </div>
+                   </div>
 
-                <button
-                  type="submit"
-                  disabled={isSavingEval}
-                  className="w-full py-3 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold rounded-2xl shadow-md transition-all disabled:opacity-50"
-                >
-                  {isSavingEval ? "Saving Evaluation..." : "Save & Update Readiness Status"}
-                </button>
-              </form>
-            </div>
+                   <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Counselor Assessment Notes</label>
+                      <textarea rows={6} value={evalNotes} onChange={(e) => setEvalNotes(e.target.value)} placeholder="Review financial credibility, course research depth..." className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-[#1a73e8]" />
+                   </div>
+
+                   <button type="submit" disabled={isSavingEval} className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-3xl text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all">
+                      {isSavingEval ? "Committing Entry..." : "Save Evaluation Log"}
+                   </button>
+                </form>
+             </div>
+          </div>
+        )}
+
+        {/* Modal Components */}
+        {historyStudent && <StudentHistoryModal student={historyStudent} onClose={() => setHistoryStudent(null)} onRefreshParent={fetchRealData} />}
+        {showBulkPackModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+             <div className="bg-white dark:bg-[#1E293B] w-full max-w-lg rounded-[40px] p-10 space-y-6 shadow-2xl border border-gray-100 dark:border-slate-800 animate-in zoom-in duration-200">
+                <h3 className="text-2xl font-black text-gray-900 dark:text-white font-google flex items-center gap-3"><FolderKanban className="w-8 h-8 text-[#1a73e8]" /> Assign Question Pack</h3>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Assigning to {selectedUids.length} students</p>
+                <select value={bulkPackId} onChange={(e) => setBulkPackId(e.target.value)} className="w-full bg-gray-100 dark:bg-[#0F172A] border-none rounded-2xl p-4 text-sm font-black focus:ring-2 focus:ring-[#1a73e8]">
+                   <option value="">Select Pack...</option>
+                   {availablePacks.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+                <div className="flex gap-4 pt-4">
+                   <button onClick={() => setShowBulkPackModal(false)} className="flex-1 py-4 text-xs font-black uppercase text-gray-500">Cancel</button>
+                   <button onClick={handleBulkAssignPack} disabled={!bulkPackId} className="flex-1 py-4 bg-[#1a73e8] text-white font-black rounded-2xl text-xs uppercase shadow-xl disabled:opacity-50">Assign Packs</button>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/95 backdrop-blur-2xl">
+             <div className="bg-white dark:bg-[#1E293B] w-full max-w-lg rounded-[40px] p-10 space-y-8 shadow-2xl border border-rose-100 dark:border-rose-900/30">
+                <div className="text-center space-y-4">
+                   <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto"><AlertTriangle className="w-10 h-10 text-rose-600" /></div>
+                   <h3 className="text-2xl font-black text-gray-900 dark:text-white font-google">Confirm Permanent Purge</h3>
+                   <p className="text-xs font-bold text-gray-500 uppercase leading-relaxed px-6">You are about to delete {showDeleteConfirm.names.length} student accounts and all linked data forever.</p>
+                </div>
+                <div className="space-y-4">
+                   <label className="text-[10px] font-black uppercase text-rose-600 text-center block">Type DELETE to execute</label>
+                   <input type="text" value={deleteInputText} onChange={(e) => setDeleteInputText(e.target.value)} placeholder="DELETE" className="w-full bg-gray-100 dark:bg-[#0F172A] border-none rounded-2xl p-4 text-center text-sm font-black focus:ring-2 focus:ring-rose-500 uppercase" />
+                </div>
+                <div className="flex gap-4">
+                   <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 py-4 text-xs font-black uppercase text-gray-500">Abort</button>
+                   <button onClick={handleCascadeDeleteUsers} disabled={deleteInputText.toUpperCase() !== 'DELETE'} className="flex-1 py-4 bg-rose-600 text-white font-black rounded-2xl text-xs uppercase shadow-xl shadow-rose-500/20 disabled:opacity-50">Execute Delete</button>
+                </div>
+             </div>
           </div>
         )}
       </div>

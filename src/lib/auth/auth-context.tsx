@@ -11,7 +11,7 @@ import {
   onAuthStateChanged,
   updateProfile,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/config";
 import { evaluateDomainRole } from "./domain-roles";
 import { AppRole, UserProfile } from "@/types";
@@ -56,9 +56,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
     setRole(computedRole);
 
+    // ── 1. Check for Existing Account by Email (Enforce Uniqueness) ────
+    if (effectiveEmail) {
+      try {
+        const usersRef = collection(db, "Users");
+        const q = query(usersRef, where("email", "==", effectiveEmail));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const existingDoc = querySnapshot.docs[0];
+          const { uid, ...existingData } = existingDoc.data() as UserProfile;
+
+          // If the UID is different, it's an account linking case
+          if (existingDoc.id !== currentUser.uid) {
+            console.log("[Auth] Existing account found with different UID. Linking to existing profile.");
+          }
+
+          setUserProfile({ uid: existingDoc.id, ...existingData, role: computedRole });
+          setRole(computedRole);
+
+          await updateDoc(doc(db, "Users", existingDoc.id), {
+            lastLoginAt: serverTimestamp(),
+            role: computedRole // Enforce role on every login
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn("[Auth] Email uniqueness check failed:", e);
+      }
+    }
+
     const userRef = doc(db, "Users", currentUser.uid);
 
-    // ── 1. Try to load existing profile ──────────────────────────
+    // ── 2. Fallback: Try to load by UID ──────────────────────────
     let existingProfile: UserProfile | null = null;
     try {
       const snap = await getDoc(userRef);
@@ -66,30 +96,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         existingProfile = { uid: snap.id, ...snap.data() } as UserProfile;
       }
     } catch (e) {
-      // getDoc can fail due to network/permissions — we still want to
-      // attempt creation below so we do NOT return here.
-      console.warn("[Auth] Could not read user profile, will attempt upsert:", e);
+      console.warn("[Auth] Could not read user profile by UID:", e);
     }
 
-    // ── 2. Existing user — update state and refresh login timestamp ─
+    // ── 3. Existing user by UID ──────────────────────────────────
     if (existingProfile) {
-      setUserProfile(existingProfile);
-      setRole(existingProfile.role || computedRole);
+      setUserProfile({ ...existingProfile, role: computedRole });
+      setRole(computedRole);
 
-      try {
-        await setDoc(
-          userRef,
-          { lastLoginAt: serverTimestamp() },
-          { merge: true }
-        );
-      } catch (e) {
-        console.warn("[Auth] Could not update lastLoginAt:", e);
-      }
-      console.log("[Auth] Existing user loaded:", currentUser.uid, existingProfile.role);
+      await updateDoc(userRef, {
+        lastLoginAt: serverTimestamp(),
+        role: computedRole // Enforce role
+      });
       return;
     }
 
-    // ── 3. New user — create Firestore document ──────────────────
+    // ── 4. New user — create Firestore document ──────────────────
     const profileData = {
       uid: currentUser.uid,
       displayName: customName || currentUser.displayName || "New Student",
@@ -99,22 +121,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       officeLocation: "Unassigned",
       assignedPackIds: [],
       completedPackIds: [],
-      readinessStatus: "Red",
+      currentModuleLevel: 1,
+      moduleScores: {},
+      readinessStatus: "Gray",
+      learningProgress: 0,
       createdAt: serverTimestamp(),
       lastLoginAt: serverTimestamp(),
     };
 
-    // Set local state immediately so the UI updates right away
     setUserProfile(profileData as unknown as UserProfile);
-
-    try {
-      await setDoc(userRef, profileData, { merge: true });
-      console.log("[Auth] New user registered in Firestore:", currentUser.uid, computedRole);
-    } catch (error) {
-      console.error("[Auth] FAILED to write user document to Firestore:", error);
-      // Surface a more useful error in dev — the most common cause is
-      // Firestore security rules blocking the write.
-    }
+    await setDoc(userRef, profileData, { merge: true });
+    console.log("[Auth] New user registered:", currentUser.uid);
   };
 
   useEffect(() => {

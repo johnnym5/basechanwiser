@@ -23,7 +23,7 @@ export default function CounselorStudentsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!authLoading && role !== "Counselor" && role !== "Admin") {
+    if (!authLoading && role !== "Counselor" && role !== "Admin" && role !== "Super Admin") {
       router.push("/dashboard");
     }
   }, [role, authLoading, router]);

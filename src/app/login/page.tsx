@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTheme } from "@/lib/theme/theme-context";
-import { User, Mail, ArrowRight, LogIn, Users, Sun, Moon } from "lucide-react";
+import { User, Mail, ArrowRight, LogIn, GraduationCap, Sun, Moon } from "lucide-react";
 import Image from "next/image";
+import { db } from "@/lib/firebase/config";
+import { doc, getDoc } from "firebase/firestore";
 
-type LoginMode = "choose" | "staff" | "guest";
+type LoginMode = "choose" | "staff" | "student";
 
 export default function LoginPage() {
   const { user, role, signInWithGoogle, signInWithNameAndEmail, loading } = useAuth();
@@ -22,10 +24,19 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && role) {
-      if (role === "Admin" || role === "Counselor") {
+      if (role === "Super Admin" || role === "Admin" || role === "Counselor") {
         router.push("/counselor/dashboard");
       } else {
-        router.push("/dashboard");
+        // Check for maintenance mode for students
+        const checkMaintenance = async () => {
+          const sysSnap = await getDoc(doc(db, "system_settings", "global"));
+          if (sysSnap.exists() && sysSnap.data().maintenanceMode) {
+            router.push("/maintenance");
+          } else {
+            router.push("/dashboard");
+          }
+        };
+        checkMaintenance();
       }
     }
   }, [user, role, router]);
@@ -111,14 +122,14 @@ export default function LoginPage() {
               <span>Staff Login</span>
             </button>
 
-            {/* Continue as Guest */}
+            {/* Login as Student */}
             <button
-              onClick={() => { setMode("guest"); setErrorMsg(null); }}
+              onClick={() => { setMode("student"); setErrorMsg(null); }}
               disabled={isFormDisabled}
               className="w-full py-3.5 px-4 rounded-full border-2 border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
             >
-              <Users className="w-4 h-4" />
-              <span>Continue as Guest</span>
+              <GraduationCap className="w-4 h-4" />
+              <span>Login as Student</span>
             </button>
 
             {/* Divider */}
@@ -162,7 +173,7 @@ export default function LoginPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="e.g. John Smith"
+                  placeholder="Full Name"
                   disabled={isFormDisabled}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm font-medium text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/50 focus:border-[#1a73e8] transition-all disabled:opacity-50"
                 />
@@ -178,7 +189,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. john.basechaninternational@gmail.com"
+                  placeholder="Work Email"
                   disabled={isFormDisabled}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm font-medium text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/50 focus:border-[#1a73e8] transition-all disabled:opacity-50"
                 />
@@ -209,24 +220,24 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* ── Guest Login Form ── */}
-        {mode === "guest" && (
+        {/* ── Student Login Form ── */}
+        {mode === "student" && (
           <div className="space-y-4 pt-2 text-left">
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Guest Access</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Student Access</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Please provide your name and email so we know who you are.</p>
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="guest-name" className="text-xs font-bold text-gray-700 dark:text-gray-200">Full Name</label>
+              <label htmlFor="student-name" className="text-xs font-bold text-gray-700 dark:text-gray-200">Full Name</label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
                 <input
-                  id="guest-name"
+                  id="student-name"
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="e.g. Jane Doe"
+                  placeholder="Full Name"
                   disabled={isFormDisabled}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm font-medium text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/50 focus:border-[#1a73e8] transition-all disabled:opacity-50"
                 />
@@ -234,15 +245,15 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="guest-email" className="text-xs font-bold text-gray-700 dark:text-gray-200">Email Address</label>
+              <label htmlFor="student-email" className="text-xs font-bold text-gray-700 dark:text-gray-200">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
                 <input
-                  id="guest-email"
+                  id="student-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. jane@email.com"
+                  placeholder="Email Address"
                   disabled={isFormDisabled}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm font-medium text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/50 focus:border-[#1a73e8] transition-all disabled:opacity-50"
                 />
@@ -259,7 +270,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   <ArrowRight className="w-4 h-4" />
-                  <span>Continue as Guest</span>
+                  <span>Login as Student</span>
                 </>
               )}
             </button>

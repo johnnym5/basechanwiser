@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ThemeProvider } from "@/lib/theme/theme-context";
+import SystemGuard from "@/components/layout/SystemGuard";
 
 export const metadata: Metadata = {
   title: "BASECHANWISER — Student Compliance & Operations Platform",
@@ -22,7 +23,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <SystemGuard>{children}</SystemGuard>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

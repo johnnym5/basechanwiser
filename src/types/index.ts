@@ -1,4 +1,4 @@
-export type AppRole = "Admin" | "Counselor" | "Student";
+export type AppRole = "Super Admin" | "Admin" | "Counselor" | "Student";
 
 export interface UserProfile {
   uid: string;
@@ -9,7 +9,16 @@ export interface UserProfile {
   office?: string;
   assignedPackIds?: string[];
   completedPackIds?: string[];
+  currentModuleLevel?: number;
+  moduleScores?: Record<string, number>;
   readinessStatus?: TrafficLightStatus;
+
+  // Advanced Counselor/Admin Preferences
+  themePreference?: "light" | "dark" | "system";
+  defaultDashboard?: "analytics" | "table";
+  emailSignature?: string;
+  twoFactorEnabled?: boolean;
+
   createdAt?: any;
   updatedAt?: any;
 }
@@ -61,6 +70,19 @@ export interface StudentProgress {
   readinessStatus: "Green" | "Yellow" | "Orange" | "Red";
 }
 
+export interface LearningModule {
+  id: string;
+  order: number;
+  title: string;
+  description?: string;
+  videoUrl?: string;
+  passScore: number; // strictly 80
+  questions: Question[];
+  createdAt?: any;
+  updatedAt?: any;
+  createdBy?: string;
+}
+
 export interface InterviewPack {
   id?: string;
   userId: string;
@@ -81,7 +103,7 @@ export interface InterviewPack {
   updatedAt?: any;
 }
 
-export type TrafficLightStatus = "Green" | "Yellow" | "Orange" | "Red";
+export type TrafficLightStatus = "Green" | "Yellow" | "Orange" | "Red" | "Gray";
 export type EvaluationDecision = "Pass" | "Retry" | "Escalate";
 
 export interface JuniorEvaluation {

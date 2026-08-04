@@ -1,43 +1,39 @@
 import { AppRole } from "@/types";
 
 /**
- * Domain-Based Role Evaluation Rules:
+ * Enhanced Strict Role Assignment Logic:
  *
- * 1. ADMIN — Triggered automatically for emails matching:
- *      (name)@basechaninternational.com
- *    Can also be explicitly assigned by an existing Admin via the
- *    User Management tab in Counselor Settings.
- *
- * 2. COUNSELOR — Triggered automatically for staff emails ending in:
- *      (name).basechaninternational@gmail.com
- *
- * 3. STUDENT — Default role for all standard Google Sign-In and
- *    anonymous logins that don't match the above patterns.
+ * 1. SUPER ADMIN: jegbase@gmail.com
+ * 2. COUNSELOR: johnmary.basechaninternational@gmail.com (or anything with .basechaninternational@gmail.com)
+ * 3. ADMIN: ithub@basechaninternational.com (or anything ending in @basechaninternational.com / @basechan.com)
+ * 4. STUDENT: Default
  */
 export function evaluateDomainRole(email: string | null | undefined, isAnonymous: boolean): AppRole {
-  // Anonymous users and users without email are always Students
   if (!email || isAnonymous) {
     return "Student";
   }
 
   const normalized = email.trim().toLowerCase();
 
-  // Super admin override: specific email gets full admin rights
+  // 1. Super Admin
   if (normalized === "jegbase@gmail.com") {
-    return "Admin";
-  }
-  if (normalized.endsWith("@basechaninternational.com")) {
-    return "Admin";
+    return "Super Admin";
   }
 
-  // ── Rule 2: Counselor ──────────────────────────────────────────
-  // Staff Gmail aliases: (name).basechaninternational@gmail.com
-  // e.g. sarah.basechaninternational@gmail.com
-  if (normalized.endsWith(".basechaninternational@gmail.com")) {
+  // 2. Counselor Check (Gmail staff aliases)
+  if (normalized.includes("basechaninternational@gmail.com")) {
     return "Counselor";
   }
 
-  // ── Rule 3: Student (default) ──────────────────────────────────
-  // All other Google Sign-In and anonymous logins
+  // 3. Admin Check (Corporate domains)
+  if (
+    normalized.endsWith("@basechaninternational.com") ||
+    normalized.endsWith("@basechan.com") ||
+    normalized.includes(".basechan@gmail.com")
+  ) {
+    return "Admin";
+  }
+
+  // 4. Fallback Default
   return "Student";
 }

@@ -306,17 +306,17 @@ export default function InterviewPackPage() {
 
                   <div>
                     <label className="text-xs font-bold text-gray-700 dark:text-gray-200 block mb-1">Passport Number</label>
-                    <input type="text" required placeholder="e.g. A12345678" value={formData.passportNo} onChange={(e) => handleChange("passportNo", e.target.value)} className={inputClasses} />
+                    <input type="text" required placeholder="Passport Number" value={formData.passportNo} onChange={(e) => handleChange("passportNo", e.target.value)} className={inputClasses} />
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-700 dark:text-gray-200 block mb-1">CAS Reference Number</label>
-                    <input type="text" required placeholder="e.g. E4G9K000000X" value={formData.casNumber} onChange={(e) => handleChange("casNumber", e.target.value)} className={inputClasses} />
+                    <input type="text" required placeholder="CAS Reference Number" value={formData.casNumber} onChange={(e) => handleChange("casNumber", e.target.value)} className={inputClasses} />
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-700 dark:text-gray-200 block mb-1">Offer Letter Document Link (Drive/Cloud)</label>
-                    <input type="url" placeholder="https://drive.google.com/file/d/..." value={formData.offerLetterLink} onChange={(e) => handleChange("offerLetterLink", e.target.value)} className={inputClasses} />
+                    <input type="url" placeholder="Offer Letter Document Link" value={formData.offerLetterLink} onChange={(e) => handleChange("offerLetterLink", e.target.value)} className={inputClasses} />
                   </div>
                 </div>
               )}
@@ -340,7 +340,7 @@ export default function InterviewPackPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-bold text-gray-700 dark:text-gray-200 block mb-1">Financial Sponsor Name</label>
-                      <input type="text" placeholder="e.g. Parent / Self / Govt Body" value={formData.sponsorName} onChange={(e) => handleChange("sponsorName", e.target.value)} className={inputClasses} />
+                      <input type="text" placeholder="Financial Sponsor Name" value={formData.sponsorName} onChange={(e) => handleChange("sponsorName", e.target.value)} className={inputClasses} />
                     </div>
                     <div>
                       <label className="text-xs font-bold text-gray-700 dark:text-gray-200 block mb-1">Sponsor Annual Income (£ / $)</label>

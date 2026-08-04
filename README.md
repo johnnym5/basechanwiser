@@ -11,7 +11,7 @@
 - **Admin Password Login**: Direct email and password authentication for administrative operations.
 - **Domain Role Routing**:
   - **Admin**: Emails ending strictly in `@basechaninternational.com`
-  - **Counselor**: Staff emails ending in `*.basechaninternational@gmail.com` (e.g. `john.basechaninternational@gmail.com`)
+  - **Counselor**: Staff emails ending in `*.basechaninternational@gmail.com`
   - **Student**: Standard students and guests
 
 ### 2. Student Workspace & Interview Pack
@@ -64,12 +64,12 @@
 3. **Set up Environment Variables**:
    Create a `.env.local` file in the root directory:
    ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=basechanwiser.firebaseapp.com
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=basechanwiser
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=basechanwiser.appspot.com
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+   NEXT_PUBLIC_FIREBASE_API_KEY=
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+   NEXT_PUBLIC_FIREBASE_APP_ID=
    ```
 
 4. **Run Development Server**:

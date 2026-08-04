@@ -32,7 +32,7 @@ function PackEditorContent() {
     if (!authLoading) {
       if (!user) {
         router.push("/login");
-      } else if (role !== "Admin" && role !== "Counselor") {
+      } else if (role !== "Admin" && role !== "Counselor" && role !== "Super Admin") {
         router.push("/dashboard");
       }
     }
@@ -321,7 +321,7 @@ function PackEditorContent() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Pack Title (e.g. UKVI Financial Credibility Drill)"
+            placeholder="Pack Title"
             className="w-full text-2xl font-bold text-gray-900 dark:text-white bg-transparent border-b border-transparent hover:border-gray-200 dark:hover:border-gray-600 focus:border-[#1a73e8] focus:outline-none py-1 transition-colors font-google"
           />
 
@@ -375,7 +375,7 @@ function PackEditorContent() {
               type="text"
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="Reference Video Embed URL (e.g. https://www.youtube.com/embed/...)"
+              placeholder="Reference Video Embed URL"
               className="flex-1 text-xs text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 focus:outline-none focus:border-[#1a73e8]"
             />
           </div>

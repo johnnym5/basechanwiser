@@ -64,7 +64,7 @@ export default function AIAssistantFab() {
   // Initial welcome greeting when first opened
   useEffect(() => {
     if (messages.length === 0 && user) {
-      const isStaff = role === "Counselor" || role === "Admin";
+      const isStaff = role === "Counselor" || role === "Admin" || role === "Super Admin";
       const initialGreeting: ChatMessage = {
         id: "msg-welcome",
         sender: "assistant",
@@ -95,7 +95,7 @@ export default function AIAssistantFab() {
 
   // Quick Action Chips
   const getQuickChips = () => {
-    if (role === "Counselor" || role === "Admin") {
+    if (role === "Counselor" || role === "Admin" || role === "Super Admin") {
       return [
         "📊 Summarize student readiness",
         "🎯 Generate recovery pack for a student",

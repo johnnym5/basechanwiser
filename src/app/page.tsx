@@ -14,7 +14,7 @@ export default function Home() {
       const timer = setTimeout(() => {
         if (!user) {
           router.push("/login");
-        } else if (role === "Admin" || role === "Counselor") {
+        } else if (role === "Admin" || role === "Counselor" || role === "Super Admin") {
           router.push("/counselor/dashboard");
         } else {
           router.push("/dashboard");

@@ -32,7 +32,7 @@ export default function QuestionPacksDashboardPage() {
     if (!loading) {
       if (!user) {
         router.push("/login");
-      } else if (role !== "Admin" && role !== "Counselor") {
+      } else if (role !== "Admin" && role !== "Counselor" && role !== "Super Admin") {
         router.push("/dashboard");
       }
     }
@@ -106,7 +106,7 @@ export default function QuestionPacksDashboardPage() {
     }
   };
 
-  const categories = ["All", "General Compliance", "Financial", "Academic", "University Specific"];
+  const categories = ["All", "UKVI Core Curriculum", "General Compliance", "Financial", "Academic", "University Specific"];
 
   const filteredPacks = packs.filter((p) => {
     const matchesCategory = selectedCategory === "All" || p.category === selectedCategory;
