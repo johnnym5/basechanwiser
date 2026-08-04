@@ -19,6 +19,7 @@ import { AppRole, UserProfile } from "@/types";
 interface AuthContextType {
   user: FirebaseUser | null;
   userProfile: UserProfile | null;
+  userId: string | null;
   role: AppRole | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
@@ -30,6 +31,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userProfile: null,
+  userId: null,
   role: null,
   loading: true,
   signInWithGoogle: async () => {},
@@ -49,10 +51,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     customName?: string,
     customEmail?: string
   ) => {
-    const effectiveEmail = customEmail || currentUser.email || undefined;
+    // If anonymous, try to recover email/name from localStorage if not provided
+    let recoveredEmail = customEmail;
+    let recoveredName = customName;
+
+    if (currentUser.isAnonymous && !recoveredEmail) {
+      recoveredEmail = localStorage.getItem("bw_guest_email") || undefined;
+      recoveredName = localStorage.getItem("bw_guest_name") || undefined;
+    }
+
+    const effectiveEmail = recoveredEmail || currentUser.email || undefined;
     const computedRole = evaluateDomainRole(
       effectiveEmail,
-      currentUser.isAnonymous && !customEmail
+      currentUser.isAnonymous
     );
     setRole(computedRole);
 
@@ -114,7 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // ── 4. New user — create Firestore document ──────────────────
     const profileData = {
       uid: currentUser.uid,
-      displayName: customName || currentUser.displayName || "New Student",
+      displayName: recoveredName || currentUser.displayName || "New Student",
       email: effectiveEmail || "guest@basechanwiser.local",
       photoURL: currentUser.photoURL || "",
       role: computedRole,
@@ -193,6 +204,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signInWithNameAndEmail = async (displayName: string, email: string) => {
     setLoading(true);
     try {
+      localStorage.setItem("bw_guest_email", email);
+      localStorage.setItem("bw_guest_name", displayName);
       const result = await signInAnonymously(auth);
       if (result.user) {
         await updateProfile(result.user, { displayName });
@@ -221,6 +234,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     setLoading(true);
+    localStorage.removeItem("bw_guest_email");
+    localStorage.removeItem("bw_guest_name");
     await firebaseSignOut(auth);
     setUser(null);
     setRole(null);
@@ -233,6 +248,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         userProfile,
+        userId: userProfile?.uid || user?.uid || null,
         role,
         loading,
         signInWithGoogle,

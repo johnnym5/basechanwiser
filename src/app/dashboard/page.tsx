@@ -47,7 +47,7 @@ const UKVI_TIPS = [
 ];
 
 export default function StudentDashboardPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, userId } = useAuth();
 
   const [modules, setModules] = useState<LearningModule[]>([]);
   const [completedModulesCount, setCompletedModulesCount] = useState<number>(0);
@@ -55,37 +55,47 @@ export default function StudentDashboardPage() {
   const [interviewPackSubmitted, setInterviewPackSubmitted] = useState<boolean>(false);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [attempts, setAttempts] = useState<any[]>([]);
+  const [liveProfile, setLiveProfile] = useState<UserProfile | null>(null);
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [currentTipIdx, setCurrentTipIdx] = useState(0);
 
   useEffect(() => {
     async function fetchData() {
-      if (!user) return;
+      if (!userId) return;
       try {
         // 1. Fetch modules
         const modSnap = await getDocs(query(collection(db, "learning_modules"), orderBy("order", "asc")));
         const mods = modSnap.docs.map(d => ({ id: d.id, ...d.data() } as LearningModule));
         setModules(mods);
 
-        // 2. Fetch progress
-        const progRef = doc(db, "Progress", user.uid);
-        const snap = await getDoc(progRef);
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data.completedModuleIds) {
-            setCompletedModulesCount(data.completedModuleIds.length);
-          }
+        // 2. Fetch profile directly for real-time gamification fields
+        const userRef = doc(db, "Users", userId);
+        const uSnap = await getDoc(userRef);
+        if (uSnap.exists()) {
+          setLiveProfile(uSnap.data() as UserProfile);
+          setCompletedModulesCount(Object.keys(uSnap.data().moduleScores || {}).length);
         }
 
         // 3. Fetch Interview Pack status
-        const packRef = doc(db, "Interview_Packs", user.uid);
+        const packRef = doc(db, "Interview_Packs", userId);
         const packSnap = await getDoc(packRef);
         if (packSnap.exists()) {
           setInterviewPackSubmitted(true);
         }
 
-        // Check if we should show confetti (session based trigger for demo)
+        // 4. Fetch recent quiz attempts
+        const attemptsQ = query(
+          collection(db, "quiz_attempts"),
+          where("userId", "==", userId),
+          orderBy("createdAt", "desc"),
+          limit(5)
+        );
+        const attemptsSnap = await getDocs(attemptsQ);
+        setAttempts(attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+        // Check if we should show confetti
         const lastScore = sessionStorage.getItem("last_quiz_score");
         if (lastScore && parseInt(lastScore) >= 80) {
           setShowConfetti(true);
@@ -100,7 +110,7 @@ export default function StudentDashboardPage() {
       }
     }
     fetchData();
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     const tipInterval = setInterval(() => {
@@ -180,10 +190,18 @@ export default function StudentDashboardPage() {
               <div className="flex items-center justify-center md:justify-start gap-4 mt-4">
                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 dark:bg-orange-900/20 text-orange-600 border border-orange-100 dark:border-orange-800">
                     <Flame className="w-4 h-4 fill-current" />
-                    <span className="text-[10px] font-black uppercase">3 Day Streak</span>
+                    <span className="text-[10px] font-black uppercase">
+                       {liveProfile?.dayStreak || 0} Day Streak
+                    </span>
                  </div>
                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 border border-purple-100 dark:border-purple-800">
                     <Trophy className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase">
+                       {liveProfile?.gamifiedScore?.toLocaleString() || 0} PTS
+                    </span>
+                 </div>
+                 <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 border border-blue-100 dark:border-blue-800">
+                    <Star className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase">{rank}</span>
                  </div>
               </div>
@@ -295,6 +313,32 @@ export default function StudentDashboardPage() {
 
            {/* ── Insight & Help Sidebar ─────────────────────────────── */}
            <div className="space-y-8">
+
+              {/* Recent Activity */}
+              <div className="bg-white dark:bg-[#1E293B] rounded-[40px] p-8 border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
+                 <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                    <History className="w-4 h-4" /> Recent Missions
+                 </h3>
+                 <div className="space-y-4">
+                    {attempts.length === 0 ? (
+                       <p className="text-[10px] font-bold text-gray-400 text-center py-4">No recent activity.</p>
+                    ) : attempts.map(a => (
+                       <div key={a.id} className="flex items-center justify-between gap-4 border-b border-gray-50 dark:border-slate-800 pb-4 last:border-0 last:pb-0">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                             <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${a.passed ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                                {a.passed ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                             </div>
+                             <div className="truncate">
+                                <p className="text-[11px] font-black dark:text-white truncate">{a.packTitle}</p>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase">{a.score}% Accuracy</p>
+                             </div>
+                          </div>
+                          <span className="text-[10px] font-black text-blue-500">+{a.gamifiedScore}</span>
+                       </div>
+                    ))}
+                 </div>
+                 <Link href="/student/history" className="block text-center text-[10px] font-black uppercase text-blue-500 hover:underline pt-2">View Full Log</Link>
+              </div>
 
               {/* Tip Carousel */}
               <div className="bg-gradient-to-br from-gray-900 to-[#1e293b] rounded-[40px] p-8 text-white shadow-xl relative overflow-hidden h-48 flex flex-col justify-center border border-slate-700">

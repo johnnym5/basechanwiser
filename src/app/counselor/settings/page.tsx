@@ -330,7 +330,7 @@ function Tab({ isActive, label, onClick }: { isActive: boolean; label: string; o
 }
 
 export default function SettingsPage() {
-  const { user, userProfile, role, loading: authLoading } = useAuth();
+  const { user, userProfile, userId, role, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -360,6 +360,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!userId) return;
       try {
         const settingsRef = doc(db, "system_settings", "global");
         const snap = await getDoc(settingsRef);
@@ -412,7 +413,7 @@ export default function SettingsPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [userId]);
 
   const [profileInfo, setProfileInfo] = useState({
     name: userProfile?.displayName || "",
@@ -425,8 +426,8 @@ export default function SettingsPage() {
   });
 
   const handleProfileSave = async () => {
-    if (!user) return;
-    const userRef = doc(db, "Users", user.uid);
+    if (!userId) return;
+    const userRef = doc(db, "Users", userId);
     await setDoc(
       userRef,
       {
@@ -450,8 +451,8 @@ export default function SettingsPage() {
   };
 
   const handleAdvancedProfileSave = async (updates: Partial<UserProfile>) => {
-    if (!user) return;
-    const userRef = doc(db, "Users", user.uid);
+    if (!userId) return;
+    const userRef = doc(db, "Users", userId);
     await updateDoc(userRef, updates);
     alert("Preferences updated!");
   };
@@ -466,7 +467,7 @@ export default function SettingsPage() {
 
   const handleResourceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!userId) return;
     const driveUrl = resourceForm.driveUrl || "";
     const embedUrl = getEmbedUrl(driveUrl);
 
@@ -478,7 +479,7 @@ export default function SettingsPage() {
       attachedPackId: resourceForm.attachedPackId || "",
       tags: resourceForm.tags || [],
       validUntil: resourceForm.validUntil || null,
-      addedBy: user.uid,
+      addedBy: userId,
       authorName: userProfile?.displayName || "Staff",
       createdAt: serverTimestamp(),
     };
@@ -615,7 +616,7 @@ export default function SettingsPage() {
   };
 
   const handleSeedPacks = async () => {
-    if (!user) return;
+    if (!userId) return;
     setSeedStatus("seeding");
     setSeedResult([]);
     const results: string[] = [];
@@ -639,7 +640,7 @@ export default function SettingsPage() {
   };
 
   const handleSeedModules = async () => {
-    if (!user) return;
+    if (!userId) return;
     setModuleSeedStatus("seeding");
     setModuleSeedResult([]);
     const results: string[] = [];

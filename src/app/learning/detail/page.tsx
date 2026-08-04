@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useRef } from "react";
 import AppShell from "@/components/layout/app-shell";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -16,29 +16,50 @@ import {
   FileText,
   ExternalLink,
   Download,
+  Timer,
+  Lightbulb,
+  Trophy,
+  ArrowRight,
+  Loader2,
+  X
 } from "lucide-react";
-import { doc, getDoc, setDoc, collection, getDocs, serverTimestamp, updateDoc, addDoc, query, where, orderBy, limit } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, serverTimestamp, updateDoc, addDoc, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { QuestionPack, Question, LearningModule, UserProfile } from "@/types";
-import { Resource } from "@/types/resource";
+import { Resource, SystemSettings } from "@/types/resource";
 import { shuffleArray } from "@/lib/utils/shuffle";
-import { SystemSettings } from "@/types/resource";
+import { motion, AnimatePresence } from "framer-motion";
+
+const BASE_POINTS = 1000;
+const TIME_BONUS_MULTIPLIER = 100;
+const QUESTION_TIMER_SECONDS = 10;
 
 function ModuleDetailContent() {
   const searchParams = useSearchParams();
   const packId = searchParams.get("packId") || searchParams.get("id");
-  const { user } = useAuth();
+  const { user, userId } = useAuth();
   const router = useRouter();
 
   const [pack, setPack] = useState<LearningModule | QuestionPack | null>(null);
   const [attachedResources, setAttachedResources] = useState<Resource[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
-  const [scorePercentage, setScorePercentage] = useState<number | null>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showFailureModal, setShowFailureModal] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // ── Quiz Engine State ──────────────────────────────────────────
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(QUESTION_TIMER_SECONDS);
+  const [showHint, setShowHint] = useState(false);
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [quizFinished, setQuizFinished] = useState(false);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  const [isAnswering, setIsAnswering] = useState(false); // Controls the brief flash delay
+
+  // ── Stats Accumulation ─────────────────────────────────────────
+  const [correctCount, setCorrectCount] = useState(0);
+  const [gamifiedScore, setGamifiedScore] = useState(0);
+  const [totalTimeSpent, setTotalTimeSpent] = useState(0);
+  const [questionLogs, setQuestionLogs] = useState<any[]>([]);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -47,56 +68,37 @@ function ModuleDetailContent() {
         return;
       }
       try {
-        // 1. Fetch learning module or question pack
         const modSnap = await getDoc(doc(db, "learning_modules", packId));
+        let rawData: any = null;
+        let isModule = false;
+
         if (modSnap.exists()) {
-          const { id, ...data } = modSnap.data() as LearningModule;
-          const shuffledQuestions = shuffleArray(data.questions || []).map(q => ({
+          rawData = modSnap.data();
+          isModule = true;
+        } else {
+          const packSnap = await getDoc(doc(db, "question_packs", packId));
+          if (packSnap.exists()) rawData = packSnap.data();
+        }
+
+        if (rawData) {
+          const shuffledQuestions = shuffleArray(rawData.questions || []).map((q: any) => ({
             ...q,
             options: shuffleArray(q.options || [])
           }));
-          setPack({ id: modSnap.id, ...data, questions: shuffledQuestions } as LearningModule);
-        } else {
-          const packSnap = await getDoc(doc(db, "question_packs", packId));
-          if (packSnap.exists()) {
-            const { id, ...data } = packSnap.data() as QuestionPack;
-            const shuffledQuestions = shuffleArray(data.questions || []).map(q => ({
-              ...q,
-              options: shuffleArray(q.options || [])
-            }));
-            setPack({ id: packSnap.id, ...data, questions: shuffledQuestions } as QuestionPack);
-          }
+          setPack({ id: packId, ...rawData, questions: shuffledQuestions });
         }
 
-        // 2. Fetch attached Google Drive study materials/resources from `resources` collection
         const resSnap = await getDocs(collection(db, "resources"));
         const matchedResources: Resource[] = [];
         resSnap.forEach((d) => {
           const rData = d.data();
           if (rData.attachedPackId === packId || !rData.attachedPackId) {
-            matchedResources.push({
-              id: d.id,
-              title: rData.title || "Untitled Resource",
-              type: rData.type || "video",
-              driveUrl: rData.driveUrl || "",
-              embedUrl: rData.embedUrl || "",
-              attachedPackId: rData.attachedPackId,
-              tags: rData.tags,
-              validUntil: rData.validUntil,
-              clicks: rData.clicks,
-              views: rData.views,
-              addedBy: rData.addedBy || "",
-              authorName: rData.authorName || "Staff",
-              createdAt: rData.createdAt,
-            });
-
-            // Increment views for matched resources
-            updateDoc(d.ref, { views: (rData.views || 0) + 1 });
+            matchedResources.push({ id: d.id, ...rData } as Resource);
           }
         });
         setAttachedResources(matchedResources);
       } catch (err) {
-        console.warn("Pack/resource fetch error:", err);
+        console.warn("Fetch error:", err);
       } finally {
         setLoading(false);
       }
@@ -104,145 +106,120 @@ function ModuleDetailContent() {
     fetchData();
   }, [packId]);
 
-  const handleSelectOption = (questionId: string, optionId: string) => {
-    if (submitted) return;
-    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+  // ── Timer Logic ────────────────────────────────────────────────
+  useEffect(() => {
+    if (quizStarted && !quizFinished && !isAnswering) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            handleAnswerSelect(null); // Timeout case
+            return QUESTION_TIMER_SECONDS;
+          }
+          if (prev <= 8) setShowHint(true);
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [quizStarted, quizFinished, isAnswering, currentQuestionIndex]);
+
+  const handleAnswerSelect = async (optionId: string | null) => {
+    if (isAnswering || quizFinished || !pack) return;
+    setIsAnswering(true);
+    setSelectedOptionId(optionId);
+
+    const currentQuestion = pack.questions[currentQuestionIndex];
+    const timeSpentOnThisQuestion = QUESTION_TIMER_SECONDS - timeLeft;
+    setTotalTimeSpent(prev => prev + timeSpentOnThisQuestion);
+
+    const correctOption = currentQuestion.options.find(o => o.isCorrect);
+    const isCorrect = optionId === correctOption?.id;
+
+    if (isCorrect) {
+      setCorrectCount(prev => prev + 1);
+      const points = BASE_POINTS + (timeLeft * TIME_BONUS_MULTIPLIER);
+      setGamifiedScore(prev => prev + points);
+    }
+
+    setQuestionLogs(prev => [...prev, {
+      questionText: currentQuestion.questionText,
+      selectedOption: currentQuestion.options.find(o => o.id === optionId)?.text || "Timeout",
+      correctOption: correctOption?.text || "N/A",
+      isCorrect,
+      timeTakenSeconds: timeSpentOnThisQuestion
+    }]);
+
+    // Brief delay to show feedback before moving on
+    setTimeout(() => {
+      if (currentQuestionIndex < pack.questions.length - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+        setTimeLeft(QUESTION_TIMER_SECONDS);
+        setShowHint(false);
+        setSelectedOptionId(null);
+        setIsAnswering(false);
+      } else {
+        finishQuiz();
+      }
+    }, 800);
   };
 
-  const handleSubmitQuiz = async () => {
-    if (!pack || !pack.questions || !user) return;
+  const finishQuiz = async () => {
+    setQuizFinished(true);
+    if (!pack || !userId) return;
 
-    // ── Check Cooldown & Max Retakes ──
+    const totalQuestions = pack.questions.length;
+    const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
+    const passThreshold = pack.passScore || 80;
+    const passed = scorePercentage >= passThreshold;
+
     try {
-      const sysRef = doc(db, "system_settings", "global");
-      const sysSnap = await getDoc(sysRef);
-      if (sysSnap.exists()) {
-        const settings = sysSnap.data() as SystemSettings;
-
-        // 1. Max Retakes check
-        const attemptsQ = query(
-          collection(db, "quiz_attempts"),
-          where("userId", "==", user.uid),
-          where("packId", "==", pack.id)
-        );
-        const existingAttempts = await getDocs(attemptsQ);
-        const attemptCount = existingAttempts.size;
-
-        if (settings.maxRetakes && attemptCount >= settings.maxRetakes) {
-          alert(`You have reached the maximum number of attempts (${settings.maxRetakes}) for this module. Please contact your counselor to unlock.`);
-          return;
-        }
-
-        // 2. Cooldown check
-        if (settings.quizRetakeCooldownHours && attemptCount > 0) {
-          const lastAttempt = existingAttempts.docs
-            .map(d => d.data())
-            .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)[0];
-
-          if (lastAttempt?.timestamp) {
-            const lastTime = lastAttempt.timestamp.seconds * 1000;
-            const now = Date.now();
-            const hoursPassed = (now - lastTime) / (1000 * 60 * 60);
-            if (hoursPassed < settings.quizRetakeCooldownHours) {
-              alert(`Please wait ${Math.ceil(settings.quizRetakeCooldownHours - hoursPassed)} more hours before retaking this quiz.`);
-              return;
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("Retake check error:", err);
-    }
-
-    let correctCount = 0;
-    const detailedAnswers: Record<string, any> = {};
-
-    pack.questions.forEach((q) => {
-      const selectedOptId = answers[q.id];
-      const selectedOpt = q.options.find((o) => o.id === selectedOptId);
-      const correctOpt = q.options.find((o) => o.isCorrect);
-
-      detailedAnswers[q.id] = {
-        questionText: q.questionText,
-        selectedOptionId: selectedOptId || null,
-        selectedOptionText: selectedOpt?.text || "No Answer",
-        isCorrect: !!(selectedOptId && correctOpt && selectedOptId === correctOpt.id),
-        explanation: q.explanation || "",
-      };
-
-      if (detailedAnswers[q.id].isCorrect) {
-        correctCount++;
-      }
-    });
-
-    const score = Math.round((correctCount / pack.questions.length) * 100);
-    const requiredScore = pack.passScore || 80;
-    setScorePercentage(score);
-    setSubmitted(true);
-
-    // ── Log Attempt for Analytics ──────────────────────────────
-    try {
-      const attemptsQ = query(
-        collection(db, "quiz_attempts"),
-        where("userId", "==", user.uid),
-        where("packId", "==", pack.id)
-      );
-      const existingAttempts = await getDocs(attemptsQ);
-      const attemptNumber = existingAttempts.size + 1;
-
+      // 1. Log detailed attempt
       await addDoc(collection(db, "quiz_attempts"), {
-        userId: user.uid,
-        userName: user.displayName || "Student",
+        userId,
+        studentName: user?.displayName || "Student",
         packId: pack.id,
         packTitle: pack.title,
-        score,
-        attemptNumber,
-        answers: detailedAnswers,
-        timestamp: serverTimestamp(),
+        score: scorePercentage,
+        gamifiedScore,
+        totalTimeSpentSeconds: totalTimeSpent,
+        passed,
+        createdAt: serverTimestamp(),
+        details: questionLogs
       });
-    } catch (err) {
-      console.warn("Failed to log quiz attempt:", err);
-    }
 
-    if (score >= requiredScore) {
-      setShowSuccessModal(true);
-      sessionStorage.setItem("last_quiz_score", score.toString());
-
-      try {
-        const userRef = doc(db, "Users", user.uid);
+      // 2. Update Progress if passed
+      if (passed) {
+        const userRef = doc(db, "Users", userId);
         const uSnap = await getDoc(userRef);
         if (uSnap.exists()) {
           const uData = uSnap.data() as UserProfile;
           const moduleScores = uData.moduleScores || {};
           const prevScore = moduleScores[pack.id] || 0;
-          const newScores = { ...moduleScores, [pack.id]: Math.max(prevScore, score) };
+          const newScores = { ...moduleScores, [pack.id]: Math.max(prevScore, scorePercentage) };
 
           let updatePayload: any = {
             moduleScores: newScores,
             updatedAt: serverTimestamp(),
           };
 
-          // If it's a LearningModule with an order, handle progression
           if ("order" in pack) {
-            const currentOrder = pack.order;
-            const userLevel = uData.currentModuleLevel || 1;
-            if (userLevel === currentOrder) {
-              updatePayload.currentModuleLevel = currentOrder + 1;
+            const currentLevel = uData.currentModuleLevel || 1;
+            if (currentLevel === (pack as any).order) {
+              updatePayload.currentModuleLevel = currentLevel + 1;
             }
           }
-
           await updateDoc(userRef, updatePayload);
         }
-      } catch (err) {
-        console.warn("Failed to update progression:", err);
+        sessionStorage.setItem("last_quiz_score", scorePercentage.toString());
       }
-    } else {
-      setShowFailureModal(true);
+    } catch (err) {
+      console.error("Finish quiz error:", err);
     }
   };
 
   const handleRetake = () => {
-    // Reshuffle on retake
     if (pack && pack.questions) {
       const reshuffled = shuffleArray(pack.questions).map(q => ({
         ...q,
@@ -250,292 +227,227 @@ function ModuleDetailContent() {
       }));
       setPack({ ...pack, questions: reshuffled });
     }
-    setAnswers({});
-    setSubmitted(false);
-    setScorePercentage(null);
-    setToast(null);
-    setShowFailureModal(false);
-  };
-
-  const handleResourceClick = async (resId: string) => {
-    try {
-      const resRef = doc(db, "resources", resId);
-      const resSnap = await getDoc(resRef);
-      if (resSnap.exists()) {
-        await updateDoc(resRef, { clicks: (resSnap.data().clicks || 0) + 1 });
-      }
-    } catch (err) {
-      console.warn("Failed to increment clicks:", err);
-    }
+    setCurrentQuestionIndex(0);
+    setTimeLeft(QUESTION_TIMER_SECONDS);
+    setShowHint(false);
+    setQuizFinished(false);
+    setQuizStarted(true);
+    setCorrectCount(0);
+    setGamifiedScore(0);
+    setTotalTimeSpent(0);
+    setQuestionLogs([]);
+    setSelectedOptionId(null);
+    setIsAnswering(false);
   };
 
   if (loading || !pack) {
     return (
-      <div className="flex items-center justify-center p-12 text-gray-500 dark:text-gray-400 font-semibold">
-        <Sparkles className="w-5 h-5 animate-spin text-[#1a73e8] dark:text-blue-400" /> Loading quiz drill content...
-      </div>
+      <AppShell>
+        <div className="flex flex-col items-center justify-center p-20 gap-4">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+          <p className="text-sm font-black uppercase text-gray-500 tracking-widest text-center">Preparing Game Arena...</p>
+        </div>
+      </AppShell>
     );
   }
 
-  const passMark = pack.passScore || 80;
+  const currentQuestion = pack.questions[currentQuestionIndex];
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
-      {/* Toast Alert */}
-      {toast && (
-        <div
-          className={`fixed top-16 right-6 z-50 px-5 py-4 rounded-2xl shadow-xl flex items-center gap-3 text-xs font-bold border transition-all ${
-            toast.type === "success"
-              ? "bg-emerald-600 text-white border-emerald-500"
-              : "bg-rose-600 text-white border-rose-500"
-          }`}
-        >
-          {toast.type === "success" ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
-          <span>{toast.message}</span>
-        </div>
-      )}
+    <AppShell>
+      <div className="max-w-4xl mx-auto space-y-8 pb-20">
 
-      {/* Back Link & Title */}
-      <div className="space-y-2">
-        <button
-          onClick={() => router.push("/learning")}
-          className="text-xs font-bold text-[#1a73e8] dark:text-blue-400 hover:underline flex items-center gap-1"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Learning Drills
-        </button>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-900/40 text-[#1a73e8] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-            {'category' in pack ? pack.category : "UKVI Module"}
-          </span>
-          <span className="px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-            Pass Mark: {passMark}%
-          </span>
-        </div>
-
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight font-google">{pack.title}</h1>
-        {pack.description && <p className="text-xs text-gray-500 dark:text-gray-400">{pack.description}</p>}
-      </div>
-
-      {/* Section 4: Study Materials & Video Lessons Vault */}
-      {(pack.videoUrl || attachedResources.length > 0) && (
-        <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-200/80 dark:border-gray-700 shadow-sm space-y-4">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 font-google">
-            <Video className="w-5 h-5 text-[#1a73e8]" /> Study Materials & Video Lessons
-          </h2>
-
-          {/* Embedded Primary Video URL */}
-          {pack.videoUrl && (
-            <div className="space-y-3">
-              <div className="aspect-video w-full rounded-2xl overflow-hidden bg-gray-900 flex items-center justify-center">
-                <iframe
-                  src={pack.videoUrl}
-                  title={pack.title}
-                  className="w-full h-full border-none"
-                  allowFullScreen
-                />
-              </div>
-              <a
-                href={pack.videoUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 text-xs font-bold text-[#1a73e8] hover:underline"
-              >
-                ▶ Watch Lesson on Google Drive <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          )}
-
-          {/* Attached Google Drive Resources List */}
-          {attachedResources.length > 0 && (
-            <div className="space-y-3 pt-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                Downloadable Study Documents & PDF Guides
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {attachedResources.map((res) => (
-                  <div
-                    key={res.id}
-                    className="p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      {res.type === "video" ? (
-                        <Video className="w-5 h-5 text-purple-600 shrink-0" />
-                      ) : (
-                        <FileText className="w-5 h-5 text-blue-600 shrink-0" />
-                      )}
-                      <div className="truncate">
-                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{res.title}</p>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase">{res.type}</p>
-                      </div>
-                    </div>
-                    <a
-                      href={res.driveUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => handleResourceClick(res.id)}
-                      className="px-3 py-1.5 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold flex items-center gap-1 shrink-0 shadow-xs"
-                    >
-                      <Download className="w-3.5 h-3.5" /> Open
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Dynamic Multiple Choice Quiz Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 md:p-8 border border-gray-200/80 dark:border-gray-700 shadow-xs space-y-6">
-        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 font-google">
-              <HelpCircle className="w-5 h-5 text-[#1a73e8] dark:text-blue-400" /> Compliance Knowledge Check
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Answer all questions and score {passMark}%+ to pass.</p>
+        {/* ── Header Info ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+             <button onClick={() => router.push("/learning")} className="text-[10px] font-black uppercase text-blue-500 flex items-center gap-1 hover:underline mb-2">
+                <ArrowLeft className="w-3 h-3" /> Back to modules
+             </button>
+             <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{pack.title}</h1>
+             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">{pack.description}</p>
           </div>
-
-          {submitted && scorePercentage !== null && (
-            <span
-              className={`px-4 py-1.5 rounded-full text-xs font-extrabold border ${
-                scorePercentage >= passMark
-                  ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                  : "bg-rose-50 dark:bg-red-900/30 text-rose-700 dark:text-red-300 border-rose-200 dark:border-red-800"
-              }`}
-            >
-              Score: {scorePercentage}% {scorePercentage >= passMark ? "— PASSED" : "— FAILED"}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+             <div className="px-4 py-2 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-black text-amber-600 uppercase">{gamifiedScore} PTS</span>
+             </div>
+          </div>
         </div>
 
-        {/* Question List */}
-        <div className="space-y-6">
-          {pack.questions && pack.questions.map((q, qIdx) => (
-            <div key={q.id || qIdx} className="space-y-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/60 border border-gray-200/60 dark:border-gray-600">
-              <h3 className="font-bold text-gray-900 dark:text-white text-sm">
-                {qIdx + 1}. {q.questionText}
-              </h3>
+        {!quizStarted && !quizFinished ? (
+          /* ── START SCREEN ── */
+          <div className="bg-white dark:bg-[#1E293B] rounded-[40px] p-12 border border-gray-100 dark:border-slate-800 shadow-xl text-center space-y-8 animate-in fade-up duration-500">
+             <div className="w-24 h-24 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto">
+                <Sparkles className="w-12 h-12 text-blue-500 animate-pulse-scale" />
+             </div>
+             <div className="space-y-2">
+                <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Ready for the Arena?</h2>
+                <p className="text-sm text-gray-500 font-bold max-w-sm mx-auto leading-relaxed">
+                   10 seconds per question. Quick answers earn more bonus points. 80% score required to pass.
+                </p>
+             </div>
 
-              <div className="space-y-2">
-                {q.options && q.options.map((opt) => {
-                  const isSelected = answers[q.id] === opt.id;
-                  let optStyle = "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200";
-
-                  if (submitted) {
-                    if (opt.isCorrect) {
-                      optStyle = "bg-emerald-50 dark:bg-emerald-900/40 border-emerald-500 text-emerald-900 dark:text-emerald-200 font-bold";
-                    } else if (isSelected && !opt.isCorrect) {
-                      optStyle = "bg-rose-50 dark:bg-rose-900/40 border-rose-500 text-rose-900 dark:text-rose-200 font-bold";
-                    }
-                  } else if (isSelected) {
-                    optStyle = "bg-blue-50 dark:bg-blue-900/50 border-[#1a73e8] text-[#1a73e8] dark:text-blue-300 font-bold shadow-xs";
-                  }
-
-                  return (
-                    <div
-                      key={opt.id}
-                      onClick={() => handleSelectOption(q.id, opt.id)}
-                      className={`p-3.5 rounded-xl border text-xs cursor-pointer flex items-center justify-between transition-all ${optStyle}`}
-                    >
-                      <span>{opt.text}</span>
-                      {submitted && opt.isCorrect && (
-                        <span className="text-[10px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400">Correct Choice</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {submitted && q.explanation && (
-                <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200">
-                  <span className="font-bold">Explanation: </span> {q.explanation}
+             {attachedResources.length > 0 && (
+                <div className="bg-gray-50 dark:bg-[#0F172A] p-6 rounded-3xl space-y-4">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Study Materials</p>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {attachedResources.map(res => (
+                         <a key={res.id} href={res.driveUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-4 bg-white dark:bg-[#1E293B] rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-blue-500 transition-all text-left">
+                            {res.type === 'video' ? <Video className="w-5 h-5 text-blue-500" /> : <FileText className="w-5 h-5 text-rose-500" />}
+                            <span className="text-xs font-bold text-gray-700 dark:text-slate-300 truncate">{res.title}</span>
+                         </a>
+                      ))}
+                   </div>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+             )}
 
-        {/* Action Buttons */}
-        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-3">
-          {submitted ? (
-            <button
-              onClick={handleRetake}
-              className="px-6 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold text-xs flex items-center gap-2 transition-all"
-            >
-              <RotateCcw className="w-4 h-4" /> Retake Knowledge Check
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmitQuiz}
-              disabled={Object.keys(answers).length < (pack.questions?.length || 0)}
-              className="px-6 py-2.5 rounded-full bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-blue-500/20 disabled:opacity-50 transition-all"
-            >
-              <CheckCircle2 className="w-4 h-4" /> Submit Answers
-            </button>
-          )}
-        </div>
+             <button
+               onClick={() => setQuizStarted(true)}
+               className="px-12 py-5 bg-[#1a73e8] text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 mx-auto"
+             >
+                Enter Challenge <ArrowRight className="w-5 h-5" />
+             </button>
+          </div>
+        ) : quizStarted && !quizFinished ? (
+          /* ── GAME ARENA ── */
+          <div className="space-y-8 animate-in fade-in duration-300">
+             {/* Timer Bar */}
+             <div className="relative h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                <motion.div
+                  className={`h-full ${timeLeft <= 3 ? 'bg-rose-500' : 'bg-blue-500'}`}
+                  initial={{ width: "100%" }}
+                  animate={{ width: `${(timeLeft / QUESTION_TIMER_SECONDS) * 100}%` }}
+                  transition={{ duration: 1, ease: "linear" }}
+                />
+             </div>
+
+             <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Question {currentQuestionIndex + 1} of {pack.questions.length}</span>
+                <div className="flex items-center gap-2 text-blue-500">
+                   <Timer className={`w-4 h-4 ${timeLeft <= 3 ? 'animate-bounce text-rose-500' : ''}`} />
+                   <span className={`text-sm font-black ${timeLeft <= 3 ? 'text-rose-500' : ''}`}>{timeLeft}s</span>
+                </div>
+             </div>
+
+             <div className="bg-white dark:bg-[#1E293B] rounded-[40px] p-10 border border-gray-100 dark:border-slate-800 shadow-xl space-y-10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 text-blue-500/5"><HelpCircle className="w-32 h-32" /></div>
+
+                <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-tight relative z-10">
+                   {currentQuestion.questionText}
+                </h2>
+
+                <div className="grid grid-cols-1 gap-4 relative z-10">
+                   {currentQuestion.options.map((opt, idx) => {
+                      const isSelected = selectedOptionId === opt.id;
+                      const isCorrect = opt.isCorrect;
+
+                      let style = "border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-[#0F172A] hover:border-blue-500 dark:hover:border-blue-500";
+                      if (isAnswering) {
+                         if (isCorrect) style = "border-emerald-500 bg-emerald-500/10 text-emerald-600";
+                         else if (isSelected) style = "border-rose-500 bg-rose-500/10 text-rose-600";
+                         else style = "opacity-40 border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-[#0F172A]";
+                      }
+
+                      return (
+                         <button
+                           key={opt.id}
+                           onClick={() => handleAnswerSelect(opt.id)}
+                           disabled={isAnswering}
+                           className={`p-6 rounded-3xl border-2 text-left transition-all flex items-center justify-between group ${style}`}
+                         >
+                            <div className="flex items-center gap-4">
+                               <div className="w-8 h-8 rounded-xl bg-white dark:bg-[#1E293B] border border-inherit flex items-center justify-center text-[10px] font-black uppercase text-gray-400">
+                                  {String.fromCharCode(65 + idx)}
+                               </div>
+                               <span className="text-sm font-bold">{opt.text}</span>
+                            </div>
+                            {isAnswering && isCorrect && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
+                            {isAnswering && isSelected && !isCorrect && <X className="w-5 h-5 text-rose-500" />}
+                         </button>
+                      );
+                   })}
+                </div>
+
+                <AnimatePresence>
+                   {showHint && currentQuestion.explanation && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-6 rounded-3xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 flex items-start gap-4"
+                      >
+                         <Lightbulb className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                         <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">Delayed Hint Active</p>
+                            <p className="text-xs font-bold text-blue-900 dark:text-blue-300 leading-relaxed">{currentQuestion.explanation}</p>
+                         </div>
+                      </motion.div>
+                   )}
+                </AnimatePresence>
+             </div>
+          </div>
+        ) : (
+          /* ── RESULTS SCREEN ── */
+          <div className="bg-white dark:bg-[#1E293B] rounded-[40px] p-12 border border-gray-100 dark:border-slate-800 shadow-xl text-center space-y-10 animate-in fade-up duration-500">
+             <div className="relative inline-block">
+                <div className="w-32 h-32 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mx-auto border-4 border-amber-100 dark:border-amber-800 shadow-2xl">
+                   <Trophy className="w-16 h-16 text-amber-500" />
+                </div>
+                <motion.div
+                   initial={{ scale: 0 }}
+                   animate={{ scale: 1 }}
+                   className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-2 rounded-xl shadow-lg border-4 border-white dark:border-[#1E293B]"
+                >
+                   <span className="text-xs font-black uppercase px-2">{Math.round((correctCount / pack.questions.length) * 100)}%</span>
+                </motion.div>
+             </div>
+
+             <div className="space-y-2">
+                <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+                   {correctCount >= (pack.questions.length * 0.8) ? 'Challenge Conquered!' : 'Arena Defeated'}
+                </h2>
+                <p className="text-gray-500 font-bold uppercase tracking-widest">You earned <span className="text-[#1a73e8]">{gamifiedScore} total points</span></p>
+             </div>
+
+             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                   { label: 'Accuracy', val: `${Math.round((correctCount / pack.questions.length) * 100)}%`, icon: Award, c: 'text-emerald-500' },
+                   { label: 'Avg Speed', val: `${(totalTimeSpent / pack.questions.length).toFixed(1)}s`, icon: Timer, c: 'text-blue-500' },
+                   { label: 'Correct', val: correctCount, icon: CheckCircle2, c: 'text-purple-500' },
+                   { label: 'Failed', val: pack.questions.length - correctCount, icon: X, c: 'text-rose-500' },
+                ].map((stat, i) => (
+                   <div key={i} className="bg-gray-50 dark:bg-[#0F172A] p-4 rounded-2xl border border-gray-100 dark:border-slate-800">
+                      <stat.icon className={`w-4 h-4 mx-auto mb-2 ${stat.c}`} />
+                      <p className="text-lg font-black dark:text-white leading-none">{stat.val}</p>
+                      <p className="text-[9px] font-black uppercase text-gray-400 mt-1">{stat.label}</p>
+                   </div>
+                ))}
+             </div>
+
+             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button
+                  onClick={handleRetake}
+                  className="w-full sm:w-auto px-10 py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black rounded-full text-xs uppercase tracking-widest hover:scale-105 transition-all flex items-center justify-center gap-2"
+                >
+                   <RotateCcw className="w-4 h-4" /> Re-Enter Arena
+                </button>
+                <button
+                  onClick={() => router.push("/learning")}
+                  className="w-full sm:w-auto px-10 py-5 bg-blue-600 text-white font-black rounded-full text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-blue-500/20"
+                >
+                   Next Mission
+                </button>
+             </div>
+          </div>
+        )}
       </div>
-
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border border-emerald-200 dark:border-emerald-900 animate-in zoom-in duration-300">
-            <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-              <Sparkles className="w-10 h-10" />
-            </div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white font-google">Congratulations!</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              You passed with <span className="font-black text-emerald-600 dark:text-emerald-400">{scorePercentage}%</span>.
-              {"order" in pack ? `Module ${pack.order + 1} is now unlocked!` : "You have mastered this drill!"}
-            </p>
-            <button
-              onClick={() => router.push("/learning")}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/20 transition-all"
-            >
-              Continue Learning
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Failure Modal */}
-      {showFailureModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border border-rose-200 dark:border-rose-900">
-            <div className="w-20 h-20 bg-rose-100 dark:bg-rose-900/50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-              <AlertTriangle className="w-10 h-10" />
-            </div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white font-google">Not Quite There</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              You scored <span className="font-black text-rose-600 dark:text-rose-400">{scorePercentage}%</span>.
-              You need <span className="font-bold">{passMark}%</span> to pass. Please review the material and try again.
-            </p>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleRetake}
-                className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl shadow-lg shadow-rose-500/20 transition-all"
-              >
-                Try Again
-              </button>
-              <button
-                onClick={() => router.push("/learning")}
-                className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-2xl transition-all"
-              >
-                Exit to Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </AppShell>
   );
 }
 
 export default function ModuleDetailPage() {
   return (
     <AppShell>
-      <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading module drill...</div>}>
+      <Suspense fallback={<div className="p-8 text-center text-gray-500"><Loader2 className="animate-spin inline mr-2" /> Entering Arena...</div>}>
         <ModuleDetailContent />
       </Suspense>
     </AppShell>

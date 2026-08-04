@@ -23,7 +23,9 @@ import {
   Settings,
   Sun,
   Moon,
-  LayoutGrid
+  LayoutGrid,
+  Trophy,
+  History
 } from "lucide-react";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -46,6 +48,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const studentLinks = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Leaderboard", href: "/student/leaderboard", icon: Trophy },
+    { name: "My History", href: "/student/history", icon: History },
     { name: "Library", href: "/student/library", icon: BookOpen },
     { name: "Learning Drills", href: "/learning", icon: FileCheck },
     { name: "Interview Pack", href: "/interview-pack", icon: ShieldCheck },

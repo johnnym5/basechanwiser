@@ -10,6 +10,9 @@ import {
   ShieldCheck,
   Search,
   FileText,
+  FileCheck,
+  DollarSign,
+  User,
   X,
   CheckCircle2,
   MoreVertical,
@@ -109,6 +112,8 @@ export default function CounselorAnalyticsDashboardPage() {
   const [evalNotes, setEvalNotes] = useState("");
   const [isSavingEval, setIsSavingEval] = useState(false);
   const [evalSuccessToast, setEvalSuccessToast] = useState<string | null>(null);
+  const [showDossier, setShowDossier] = useState<StudentTableRow | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const [students, setStudents] = useState<StudentTableRow[]>([]);
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
@@ -382,6 +387,22 @@ export default function CounselorAnalyticsDashboardPage() {
     </div>
   );
 
+  const handleVerifyDossier = async (student: StudentTableRow) => {
+    if (!student.uid) return;
+    setIsVerifying(true);
+    try {
+      await setDoc(doc(db, "Interview_Packs", student.uid), { status: 'Verified', updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(doc(db, "Users", student.uid), { readinessStatus: 'Green' }, { merge: true });
+      showToast("Dossier Verified & Student Set to Green!");
+      setShowDossier(null);
+      fetchRealData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   return (
     <AppShell>
       <div className="max-w-[1600px] mx-auto space-y-8 pb-20">
@@ -604,6 +625,7 @@ export default function CounselorAnalyticsDashboardPage() {
                              <button onClick={() => setActiveMenuUid(activeMenuUid === s.uid ? null : s.uid)} className="p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-[#0F172A] transition-all"><MoreVertical className="w-4 h-4" /></button>
                              {activeMenuUid === s.uid && (
                                 <div className="absolute right-12 top-5 w-56 bg-white dark:bg-[#1E293B] rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-800 py-2 z-[100] text-left animate-in fade-in slide-in-from-right-2">
+                                   <button onClick={() => { setShowDossier(s); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 flex items-center gap-3"><FileCheck className="w-4 h-4 text-emerald-500" /> View Compliance Dossier</button>
                                    <button onClick={() => { setHistoryStudent(s); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 flex items-center gap-3"><History className="w-4 h-4 text-blue-500" /> Full Audit History</button>
                                    <button onClick={() => { setSelectedStudent(s); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 flex items-center gap-3"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Evaluate Readiness</button>
                                    <div className="border-t border-gray-50 dark:border-slate-800 my-1" />
@@ -633,6 +655,99 @@ export default function CounselorAnalyticsDashboardPage() {
                <button onClick={() => setShowBulkPackModal(true)} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:text-blue-400 transition-colors"><FolderKanban className="w-4 h-4" /> Assign</button>
                <button onClick={() => setSelectedUids([])} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all"><X className="w-4 h-4" /></button>
             </div>
+          </div>
+        )}
+
+        {showDossier && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+             <div className="bg-white dark:bg-[#1E293B] w-full max-w-4xl max-h-[90vh] rounded-[40px] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in duration-200">
+                <div className="p-8 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0F172A]/50">
+                   <div>
+                      <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Student Compliance Dossier</h2>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{showDossier.name} • {showDossier.email}</p>
+                   </div>
+                   <button onClick={() => setShowDossier(null)} className="p-3 hover:bg-white dark:hover:bg-slate-800 rounded-2xl transition-all"><X className="w-6 h-6 text-gray-400" /></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-10 space-y-12">
+                   {showDossier.pack ? (
+                     <>
+                        {/* Summary */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                           <div className="p-5 rounded-3xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
+                              <p className="text-[9px] font-black text-blue-500 uppercase">App ID</p>
+                              <p className="text-sm font-black dark:text-white">{showDossier.pack.applicationId || "N/A"}</p>
+                           </div>
+                           <div className="p-5 rounded-3xl bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30">
+                              <p className="text-[9px] font-black text-purple-500 uppercase">CAS Ref</p>
+                              <p className="text-sm font-black dark:text-white">{showDossier.pack.casNumber || "N/A"}</p>
+                           </div>
+                           <div className="p-5 rounded-3xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30">
+                              <p className="text-[9px] font-black text-amber-500 uppercase">Balance Due</p>
+                              <p className="text-sm font-black dark:text-white">£{(showDossier.pack.tuitionAmount || 0) - (showDossier.pack.depositPaid || 0)}</p>
+                           </div>
+                           <div className="p-5 rounded-3xl bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30">
+                              <p className="text-[9px] font-black text-emerald-500 uppercase">Status</p>
+                              <p className="text-sm font-black dark:text-white">{showDossier.pack.status}</p>
+                           </div>
+                        </div>
+
+                        {/* Documents */}
+                        <div className="space-y-4">
+                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-slate-800 pb-2">Verification Documents</h4>
+                           <div className="flex flex-wrap gap-4">
+                              {showDossier.pack.sopUrl && <a href={showDossier.pack.sopUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 hover:border-blue-500 transition-all font-bold text-xs"><FileText className="w-4 h-4 text-blue-500" /> Statement of Purpose</a>}
+                              {showDossier.pack.cvUrl && <a href={showDossier.pack.cvUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 hover:border-blue-500 transition-all font-bold text-xs"><User className="w-4 h-4 text-purple-500" /> Professional CV</a>}
+                              {showDossier.pack.financialEvidenceUrl && <a href={showDossier.pack.financialEvidenceUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 hover:border-blue-500 transition-all font-bold text-xs"><DollarSign className="w-4 h-4 text-emerald-500" /> Financial Evidence</a>}
+                           </div>
+                        </div>
+
+                        {/* Deep Dives */}
+                        <div className="space-y-8">
+                           <div className="space-y-3">
+                              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sponsorship & Accommodation</h4>
+                              <div className="p-6 rounded-3xl bg-gray-50 dark:bg-[#0F172A] space-y-4">
+                                 <p className="text-xs leading-relaxed dark:text-slate-300"><span className="font-black text-gray-900 dark:text-white uppercase mr-2">Sponsor:</span> {showDossier.pack.sponsorInfo}</p>
+                                 <p className="text-xs leading-relaxed dark:text-slate-300"><span className="font-black text-gray-900 dark:text-white uppercase mr-2">Accommodation:</span> {showDossier.pack.accommodationDetails}</p>
+                              </div>
+                           </div>
+
+                           <div className="space-y-3">
+                              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Intent & Career Alignment</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                 <div className="p-6 rounded-3xl bg-gray-50 dark:bg-[#0F172A] space-y-2">
+                                    <p className="text-[9px] font-black text-blue-500 uppercase">Why UK/Uni?</p>
+                                    <p className="text-xs leading-relaxed dark:text-slate-300 italic">"{showDossier.pack.reasonsForUniversity || showDossier.pack.whyUniversity}"</p>
+                                 </div>
+                                 <div className="p-6 rounded-3xl bg-gray-50 dark:bg-[#0F172A] space-y-2">
+                                    <p className="text-[9px] font-black text-purple-500 uppercase">Future Plans</p>
+                                    <p className="text-xs leading-relaxed dark:text-slate-300 italic">"{showDossier.pack.careerPlans}"</p>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </>
+                   ) : (
+                     <div className="text-center py-20">
+                        <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-400 font-black uppercase tracking-widest">Student has not started the dossier.</p>
+                     </div>
+                   )}
+                </div>
+
+                {showDossier.pack && showDossier.pack.status !== 'Verified' && (
+                  <div className="p-8 bg-gray-50 dark:bg-[#0F172A] border-t border-gray-100 dark:border-slate-800 flex justify-center">
+                     <button
+                       onClick={() => handleVerifyDossier(showDossier)}
+                       disabled={isVerifying}
+                       className="px-12 py-5 bg-emerald-600 text-white font-black rounded-full text-xs uppercase tracking-widest shadow-2xl shadow-emerald-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3"
+                     >
+                        {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                        Verify & Approve Candidate
+                     </button>
+                  </div>
+                )}
+             </div>
           </div>
         )}
 

@@ -11,7 +11,7 @@ import { LearningModule, UserProfile } from "@/types";
 import ResourceVaultModal from "@/components/common/ResourceVaultModal";
 
 export default function LearningModulesPage() {
-  const { user } = useAuth();
+  const { user, userId } = useAuth();
   const [modules, setModules] = useState<LearningModule[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,13 +19,12 @@ export default function LearningModulesPage() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!userId) return;
       try {
         // 1. Get user profile
-        if (user) {
-          const userSnap = await getDoc(doc(db, "Users", user.uid));
-          if (userSnap.exists()) {
-            setUserProfile({ uid: userSnap.id, ...userSnap.data() } as UserProfile);
-          }
+        const userSnap = await getDoc(doc(db, "Users", userId));
+        if (userSnap.exists()) {
+          setUserProfile({ uid: userSnap.id, ...userSnap.data() } as UserProfile);
         }
 
         // 2. Get all learning modules from Firestore, ordered by 'order'
@@ -44,7 +43,7 @@ export default function LearningModulesPage() {
       }
     }
     fetchData();
-  }, [user]);
+  }, [userId]);
 
   const currentLevel = userProfile?.currentModuleLevel || 1;
   const moduleScores = userProfile?.moduleScores || {};

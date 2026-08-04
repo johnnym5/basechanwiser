@@ -88,19 +88,37 @@ export interface InterviewPack {
   userId: string;
   studentName: string;
   studentEmail: string;
-  passportNo: string;
+  status: 'Not Started' | 'In Progress' | 'Submitted' | 'Verified';
+  updatedAt: any;
+  createdAt?: any;
+
+  // Document Uploads / Links
+  sopUrl: string;
+  cvUrl: string;
+  financialEvidenceUrl: string;
+
+  // Academic & Admission Details
+  applicationId: string;
   casNumber: string;
-  offerLetterLink: string;
   tuitionAmount: number;
   depositPaid: number;
+  universityRanking: string;
+  modulesToStudy: string[];
+
+  // Compliance & Intent (Text Fields)
   sponsorName: string;
   sponsorIncome: number;
+  sponsorInfo: string; // Who is paying and their occupation
+  accommodationDetails: string; // Where they will live, distance to campus
+  careerPlans: string; // Target jobs, expected salary back home
+  reasonsForCourse: string;
+  reasonsForUniversity: string;
+  reasonsForUK: string;
   studyGapReason: string;
-  careerPlans: string;
-  whyUniversity: string;
-  status: "Draft" | "Submitted";
-  createdAt?: any;
-  updatedAt?: any;
+  whyUniversity: string; // legacy mapping
+
+  // Logistics
+  timeline: string; // Intended travel dates, visa application date
 }
 
 export type TrafficLightStatus = "Green" | "Yellow" | "Orange" | "Red" | "Gray";
