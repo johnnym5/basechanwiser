@@ -7,28 +7,27 @@
 ## 🌟 Key Features
 
 ### 1. Smart Authentication & Domain Role Matrix
-- **Passwordless Guest & Staff Login**: Collects full name and email for quick access.
-- **Admin Password Login**: Direct email and password authentication for administrative operations.
-- **Domain Role Routing**:
-  - **Admin**: Emails ending strictly in `@basechaninternational.com`
-  - **Counselor**: Staff emails ending in `*.basechaninternational@gmail.com`
-  - **Student**: Standard students and guests
+- **Integrated Google Sign-In**: Unified login for staff and students.
+- **Strict Role-Based Access Control (RBAC)**: 
+  - Roles are automatically assigned based on official organization email domains.
+  - Supports Super Admin, Admin, and Student tiers.
+- **Account Linking**: Automatically merges duplicate login sessions under a single organization profile.
 
-### 2. Student Workspace & Interview Pack
-- **Interactive Progress Tracker**: Circular readiness status percentage ring.
-- **Foundation Learning Modules**: Video learning with dynamic 10-question MCQ knowledge checks (80%+ passing threshold required).
-- **Compliance Interview Pack**: 3-step compliance form covering Personal/Passport details, Financials/Sponsorship, and Academic/Career goals.
+### 2. Student Workspace & Interview Journey
+- **Interactive Progress Tracker**: Gamified dashboard with "Next Best Action" guidance and readiness gauges.
+- **Foundation Learning Path**: 5-module UKVI credibility track with embedded video lessons and randomized MCQ assessments.
+- **Resource Vault**: In-app viewer for PDFs, Videos, and Word templates without external redirects.
 
-### 3. Counselor Traffic Light Portal
-- **Traffic Light Dashboard**: Material Design 3 chip filters for Green (Ready), Yellow (Needs Work), and Red (Urgent).
-- **Real-Time Data Integration**: Direct Firestore query across registered student profiles and submitted interview packs.
-- **Junior Evaluation System**: Slide-over drawer for reviewing student data, assigning evaluation outcomes (Pass, Retry, Escalate), and committing readiness status.
-- **Google Forms-Style Module Editor**: Create, edit, and publish custom learning video modules and MCQ quiz questions.
+### 3. Counselor & Operations Hub
+- **Analytics Control Center**: Visual KPI cards, pie charts for readiness distribution, and bar charts for module performance.
+- **Student Data Table**: Comprehensive management of cohort progress, bulk actions, and evaluation logs.
+- **Compliance Tooling**: Manage the Question Pack Library, Resource Library, and system-wide logic parameters (pass marks, cooldowns).
+- **Maintenance Mode**: One-click system lock for students during critical updates.
 
 ### 4. UI/UX Excellence
-- **Google Sans / Material Design 3**: Clean sans-serif typography, soft rounded corners (`16px`), and elevated cards.
-- **Auto-Expanding Sidebar**: Collapses to a compact 68px icon rail and dynamically expands to 256px on mouse hover.
-- **Dark Mode Support**: Full light/dark mode theme context with persistent `localStorage` and high-contrast color palettes.
+- **Material Design 3**: Professional typography, 32px rounded corners, and premium elevations.
+- **Universal App Shell**: Fixed, hover-expandable sidebar for desktop and safe-area optimized bottom navigation for mobile.
+- **Global Theme Engine**: Persistent Dark and Light modes with system matching capabilities.
 
 ---
 
@@ -36,9 +35,10 @@
 
 - **Framework**: [Next.js 14 (App Router)](https://nextjs.org/)
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS (Material 3 Utilities)
+- **Styling**: Tailwind CSS
 - **Backend & Database**: Firebase Authentication & Firestore Database
-- **Hosting**: Firebase Hosting (Static Export)
+- **Cloud Storage**: Firebase Storage
+- **Charts**: Recharts
 - **Icons**: Lucide React
 
 ---
@@ -52,7 +52,7 @@
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/johnnym5/basechanwiser.git
+   git clone [REDACTED_REPO_URL]
    cd basechanwiser
    ```
 
@@ -62,7 +62,7 @@
    ```
 
 3. **Set up Environment Variables**:
-   Create a `.env.local` file in the root directory:
+   Create a `.env.local` file in the root directory and populate it with your Firebase configuration:
    ```env
    NEXT_PUBLIC_FIREBASE_API_KEY=
    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
@@ -82,18 +82,16 @@
 
 ## 📦 Production Deployment
 
-### Firebase Hosting Deployment
+### Build and Deploy
 ```bash
-# Build production static export
+# Build production assets
 npm run build
 
-# Deploy to Firebase Hosting & Firestore
+# Deploy to organization hosting
 firebase deploy
 ```
-
-Live Hosting URL: [https://basechanwiser.web.app](https://basechanwiser.web.app)
 
 ---
 
 ## 📄 License
-Internal proprietary application for BASECHAN International.
+Internal proprietary application. Unauthorized distribution or reproduction is strictly prohibited.

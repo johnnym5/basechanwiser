@@ -56,7 +56,7 @@ export default function StudentLibraryPage() {
                   </div>
                   <div className="p-8 pt-0">
                      <Link
-                       href={`/student/library/${res.id}`}
+                       href={`/student/library/viewer?id=${res.id}`}
                        className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black rounded-[24px] text-xs uppercase tracking-widest flex items-center justify-center gap-2 group-hover:bg-[#1a73e8] group-hover:text-white transition-all"
                      >
                         Start Learning <ArrowRight className="w-4 h-4" />

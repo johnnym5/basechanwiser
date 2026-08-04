@@ -78,7 +78,7 @@ export default function AIAssistantFab() {
 
   // Context route title helper
   const getRouteLabel = () => {
-    if (pathname.includes("/counselor/dashboard")) return "Counselor Traffic Light Dashboard";
+    if (pathname.includes("/counselor/dashboard")) return "Counselor Dashboard Dashboard";
     if (pathname.includes("/counselor/students")) return "Student Directory & Pack Manager";
     if (pathname.includes("/counselor/packs")) return "Question Packs Library";
     if (pathname.includes("/counselor/settings")) return "Settings & Resource Vault";
@@ -230,11 +230,10 @@ export default function AIAssistantFab() {
       {/* Toast Notification inside Copilot overlay */}
       {toast && (
         <div
-          className={`fixed top-20 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border transition-all ${
-            toast.type === "success"
+          className={`fixed top-20 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border transition-all ${toast.type === "success"
               ? "bg-emerald-600 text-white border-emerald-500"
               : "bg-rose-600 text-white border-rose-500"
-          }`}
+            }`}
         >
           {toast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           <span>{toast.message}</span>
@@ -303,9 +302,8 @@ export default function AIAssistantFab() {
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex gap-2.5 ${
-                  msg.sender === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex gap-2.5 ${msg.sender === "user" ? "justify-end" : "justify-start"
+                  }`}
               >
                 {msg.sender === "assistant" && (
                   <div className="w-7 h-7 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-[#1a73e8] dark:text-blue-300 flex items-center justify-center shrink-0 mt-0.5 border border-blue-200 dark:border-blue-800">
@@ -314,11 +312,10 @@ export default function AIAssistantFab() {
                 )}
 
                 <div
-                  className={`max-w-[82%] rounded-2xl p-3.5 space-y-2 leading-relaxed ${
-                    msg.sender === "user"
+                  className={`max-w-[82%] rounded-2xl p-3.5 space-y-2 leading-relaxed ${msg.sender === "user"
                       ? "bg-[#1a73e8] text-white rounded-br-xs shadow-xs"
                       : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-bl-xs shadow-xs"
-                  }`}
+                    }`}
                 >
                   {/* Message Content rendered formatted */}
                   <div className="whitespace-pre-wrap font-sans text-xs">

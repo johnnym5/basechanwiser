@@ -45,22 +45,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileDrawerOpen]);
 
   const studentLinks = [
-    { name: "Dashboard",         href: "/dashboard",       icon: LayoutDashboard },
-    { name: "Library",           href: "/student/library", icon: BookOpen },
-    { name: "Learning Drills",   href: "/learning",        icon: FileCheck },
-    { name: "Interview Pack",    href: "/interview-pack",  icon: ShieldCheck },
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Library", href: "/student/library", icon: BookOpen },
+    { name: "Learning Drills", href: "/learning", icon: FileCheck },
+    { name: "Interview Pack", href: "/interview-pack", icon: ShieldCheck },
   ];
 
   const counselorLinks = [
     {
-      name: "Traffic Light",
+      name: "Dashboard",
       href: userProfile?.defaultDashboard === 'table' ? "/counselor/dashboard?view=table" : "/counselor/dashboard",
       icon: ShieldCheck
     },
-    { name: "Students",          href: "/counselor/students",           icon: Users },
-    { name: "Resource Library",  href: "/counselor/library",            icon: FolderKanban },
-    { name: "Question Packs",    href: "/counselor/packs",              icon: LayoutGrid },
-    { name: "Settings & Vault",  href: "/counselor/settings",           icon: Settings },
+    { name: "Students", href: "/counselor/students", icon: Users },
+    { name: "Resource Library", href: "/counselor/library", icon: FolderKanban },
+    { name: "Question Packs", href: "/counselor/packs", icon: LayoutGrid },
+    { name: "Settings & Vault", href: "/counselor/settings", icon: Settings },
   ];
 
   const adminLinks = counselorLinks;
@@ -73,7 +73,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
-  const displayName  = userProfile?.displayName || user?.displayName || "User";
+  const displayName = userProfile?.displayName || user?.displayName || "User";
   const displayEmail = userProfile?.email || user?.email || "Staff Member";
 
   // Shared nav-link renderer
@@ -85,11 +85,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         href={link.href}
         onClick={onClick}
         title={link.name}
-        className={`group/link flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap touch-target ${
-          isActive
+        className={`group/link flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap touch-target ${isActive
             ? "bg-blue-100 dark:bg-blue-900/40 text-[#1a73e8] dark:text-blue-300"
             : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-        }`}
+          }`}
       >
         <Icon className={`w-5 h-5 shrink-0 ${isActive ? "text-[#1a73e8] dark:text-blue-300" : "text-gray-500 dark:text-gray-400"}`} />
         <span className="truncate">{link.name}</span>
@@ -119,11 +118,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 key={link.name}
                 href={link.href}
                 title={link.name}
-                className={`flex items-center gap-4 px-3 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-                  isActive
+                className={`flex items-center gap-4 px-3 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${isActive
                     ? "bg-blue-50 dark:bg-blue-500/10 text-[#1a73e8] dark:text-blue-500"
                     : "text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <Icon className={`w-6 h-6 shrink-0 ${isActive ? "text-[#1a73e8] dark:text-blue-500" : "text-gray-400 dark:text-slate-500"}`} />
                 <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 truncate">{link.name}</span>
@@ -134,14 +132,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="px-4 py-6 border-t border-gray-100 dark:border-slate-800">
-           <button
-              onClick={handleSignOut}
-              className="flex items-center gap-4 px-3 py-3 rounded-xl text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all w-full overflow-hidden"
-              title="Sign Out"
-            >
-              <LogOut className="w-6 h-6 shrink-0" />
-              <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200">Sign Out</span>
-            </button>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-4 px-3 py-3 rounded-xl text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all w-full overflow-hidden"
+            title="Sign Out"
+          >
+            <LogOut className="w-6 h-6 shrink-0" />
+            <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200">Sign Out</span>
+          </button>
         </div>
       </aside>
 
@@ -179,15 +177,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </button>
 
             {/* Role pill */}
-            <span className={`hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${
-              role === "Super Admin"
+            <span className={`hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${role === "Super Admin"
                 ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800"
                 : role === "Admin"
-                ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-                : role === "Counselor"
-                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-            }`}>
+                  ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                  : role === "Counselor"
+                    ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                    : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+              }`}>
               {role || "Student"}
             </span>
 
@@ -281,9 +278,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={link.name}
                 href={link.href}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-colors ${
-                  isActive ? "text-[#1a73e8] dark:text-blue-400 font-bold" : "text-gray-500 dark:text-slate-500"
-                }`}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-colors ${isActive ? "text-[#1a73e8] dark:text-blue-400 font-bold" : "text-gray-500 dark:text-slate-500"
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-[10px] uppercase tracking-tighter">{link.name.split(" ")[0]}</span>

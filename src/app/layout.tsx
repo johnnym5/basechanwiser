@@ -7,7 +7,7 @@ import SystemGuard from "@/components/layout/SystemGuard";
 export const metadata: Metadata = {
   title: "BASECHANWISER — Student Compliance & Operations Platform",
   description:
-    "Google Material Design 3 student compliance routing, traffic light dashboard, and Google Forms style module editor.",
+    "Google Material Design 3 student compliance routing, Dashboard dashboard, and Google Forms style module editor.",
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",
