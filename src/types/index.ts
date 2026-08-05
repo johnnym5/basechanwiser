@@ -2,6 +2,7 @@ export type AppRole = "Super Admin" | "Admin" | "Counselor" | "Student";
 
 export interface UserProfile {
   uid: string;
+  studentId?: string; // Unique short ID (e.g. BW-12345)
   email: string | null;
   displayName: string | null;
   role: AppRole;
@@ -12,6 +13,9 @@ export interface UserProfile {
   currentModuleLevel?: number;
   moduleScores?: Record<string, number>;
   readinessStatus?: TrafficLightStatus;
+  learningProgress?: number;
+  gamifiedScore?: number;
+  dayStreak?: number;
 
   // Advanced Counselor/Admin Preferences
   themePreference?: "light" | "dark" | "system";
@@ -92,10 +96,10 @@ export interface InterviewPack {
   updatedAt: any;
   createdAt?: any;
 
-  // Document Uploads / Links
-  sopUrl: string;
-  cvUrl: string;
-  financialEvidenceUrl: string;
+  // Document Confirmation (Sent locally to counselor)
+  hasSop: boolean;
+  hasCv: boolean;
+  hasFinancials: boolean;
 
   // Academic & Admission Details
   applicationId: string;

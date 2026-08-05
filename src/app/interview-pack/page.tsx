@@ -39,9 +39,9 @@ export default function InterviewPackPage() {
   // Form State
   const [formData, setFormData] = useState<Partial<InterviewPack>>({
     status: 'Not Started',
-    sopUrl: "",
-    cvUrl: "",
-    financialEvidenceUrl: "",
+    hasSop: false,
+    hasCv: false,
+    hasFinancials: false,
     applicationId: "",
     casNumber: "",
     tuitionAmount: 0,
@@ -195,22 +195,40 @@ export default function InterviewPackPage() {
                 {currentStep === 1 && (
                   <div className="space-y-8">
                      <div className="pb-4 border-b border-gray-50 dark:border-slate-800">
-                        <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Document Verification</h3>
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Provide cloud links to your key compliance documents.</p>
+                        <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Document Confirmation</h3>
+                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Confirm that you have sent these documents locally to your counselor.</p>
                      </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-2">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Statement of Purpose (Link)</label>
-                           <input value={formData.sopUrl} onChange={e => handleChange('sopUrl', e.target.value)} className={inputClasses} placeholder="https://..." />
-                        </div>
-                        <div className="space-y-2">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Professional CV (Link)</label>
-                           <input value={formData.cvUrl} onChange={e => handleChange('cvUrl', e.target.value)} className={inputClasses} placeholder="https://..." />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Financial Evidence / Bank Statement (Link)</label>
-                           <input value={formData.financialEvidenceUrl} onChange={e => handleChange('financialEvidenceUrl', e.target.value)} className={inputClasses} placeholder="Google Drive Link" />
-                        </div>
+                     <div className="space-y-6">
+                        {[
+                          { key: 'hasSop', label: 'Statement of Purpose (SOP)', icon: FileText, color: 'text-blue-500' },
+                          { key: 'hasCv', label: 'Professional CV', icon: User, color: 'text-purple-500' },
+                          { key: 'hasFinancials', label: 'Financial Evidence / Bank Statement', icon: DollarSign, color: 'text-emerald-500' },
+                        ].map((docItem) => (
+                          <div key={docItem.key} className="p-6 rounded-[32px] bg-gray-50 dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 flex items-center justify-between gap-4">
+                             <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-2xl bg-white dark:bg-[#1E293B] shadow-sm ${docItem.color}`}>
+                                   <docItem.icon className="w-5 h-5" />
+                                </div>
+                                <span className="text-sm font-bold text-gray-900 dark:text-white">{docItem.label}</span>
+                             </div>
+                             <div className="flex bg-white dark:bg-[#1E293B] p-1 rounded-2xl border border-gray-100 dark:border-slate-800">
+                                <button
+                                  type="button"
+                                  onClick={() => handleChange(docItem.key as any, true)}
+                                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData[docItem.key as keyof InterviewPack] === true ? 'bg-emerald-500 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900'}`}
+                                >
+                                   Yes
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleChange(docItem.key as any, false)}
+                                  className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${formData[docItem.key as keyof InterviewPack] === false ? 'bg-rose-500 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900'}`}
+                                >
+                                   No
+                                </button>
+                             </div>
+                          </div>
+                        ))}
                      </div>
                   </div>
                 )}

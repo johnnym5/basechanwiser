@@ -66,6 +66,7 @@ import ResourceVaultModal from "@/components/common/ResourceVaultModal";
 
 interface StudentTableRow {
   uid: string;
+  studentId?: string;
   name: string;
   email: string;
   location: string;
@@ -170,6 +171,7 @@ export default function CounselorAnalyticsDashboardPage() {
 
             return {
               uid: d.id,
+              studentId: uData.studentId || "N/A",
               name: uData.displayName || "Student",
               email: uData.email || "N/A",
               location: uData.office || uData.officeLocation || "Head Office",
@@ -594,8 +596,8 @@ export default function CounselorAnalyticsDashboardPage() {
                             <div className="flex items-center gap-3">
                                <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-[#0F172A] flex items-center justify-center font-black text-[#1a73e8]">{s.name.charAt(0)}</div>
                                <div>
-                                  <p className="font-black text-gray-900 dark:text-white text-sm">{s.name}</p>
-                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{s.email}</p>
+                                  <p className="font-black text-gray-900 dark:text-white text-sm leading-none mb-1">{s.name}</p>
+                                  <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">{s.studentId}</p>
                                </div>
                             </div>
                           </td>
@@ -693,13 +695,25 @@ export default function CounselorAnalyticsDashboardPage() {
                            </div>
                         </div>
 
-                        {/* Documents */}
+                        {/* Document Confirmation Status */}
                         <div className="space-y-4">
-                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-slate-800 pb-2">Verification Documents</h4>
-                           <div className="flex flex-wrap gap-4">
-                              {showDossier.pack.sopUrl && <a href={showDossier.pack.sopUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 hover:border-blue-500 transition-all font-bold text-xs"><FileText className="w-4 h-4 text-blue-500" /> Statement of Purpose</a>}
-                              {showDossier.pack.cvUrl && <a href={showDossier.pack.cvUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 hover:border-blue-500 transition-all font-bold text-xs"><User className="w-4 h-4 text-purple-500" /> Professional CV</a>}
-                              {showDossier.pack.financialEvidenceUrl && <a href={showDossier.pack.financialEvidenceUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 hover:border-blue-500 transition-all font-bold text-xs"><DollarSign className="w-4 h-4 text-emerald-500" /> Financial Evidence</a>}
+                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-slate-800 pb-2">Document Submission Status (Sent Locally)</h4>
+                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                              {[
+                                { label: 'Statement of Purpose', val: showDossier.pack.hasSop, icon: FileText, color: 'text-blue-500' },
+                                { label: 'Professional CV', val: showDossier.pack.hasCv, icon: User, color: 'text-purple-500' },
+                                { label: 'Financial Evidence', val: showDossier.pack.hasFinancials, icon: DollarSign, color: 'text-emerald-500' },
+                              ].map((docItem, idx) => (
+                                <div key={idx} className="p-4 rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                                   <div className="flex items-center gap-3">
+                                      <docItem.icon className={`w-4 h-4 ${docItem.color}`} />
+                                      <span className="text-[10px] font-bold dark:text-slate-300">{docItem.label}</span>
+                                   </div>
+                                   <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase ${docItem.val ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                      {docItem.val ? 'Sent' : 'Pending'}
+                                   </span>
+                                </div>
+                              ))}
                            </div>
                         </div>
 

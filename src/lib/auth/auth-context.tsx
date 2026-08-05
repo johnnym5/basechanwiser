@@ -40,6 +40,11 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
 });
 
+const generateStudentId = () => {
+  const randomNum = Math.floor(10000 + Math.random() * 90000);
+  return `BW-${randomNum}`;
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -112,19 +117,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // ── 3. Existing user by UID ──────────────────────────────────
     if (existingProfile) {
+      const updates: any = {
+        lastLoginAt: serverTimestamp(),
+        role: computedRole // Enforce role
+      };
+
+      if (!existingProfile.studentId) {
+        updates.studentId = generateStudentId();
+        existingProfile.studentId = updates.studentId;
+      }
+
       setUserProfile({ ...existingProfile, role: computedRole });
       setRole(computedRole);
 
-      await updateDoc(userRef, {
-        lastLoginAt: serverTimestamp(),
-        role: computedRole // Enforce role
-      });
+      await updateDoc(userRef, updates);
       return;
     }
 
     // ── 4. New user — create Firestore document ──────────────────
     const profileData = {
       uid: currentUser.uid,
+      studentId: generateStudentId(),
       displayName: recoveredName || currentUser.displayName || "New Student",
       email: effectiveEmail || "guest@basechanwiser.local",
       photoURL: currentUser.photoURL || "",

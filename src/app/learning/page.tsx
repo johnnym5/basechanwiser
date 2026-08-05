@@ -27,16 +27,14 @@ export default function LearningModulesPage() {
           setUserProfile({ uid: userSnap.id, ...userSnap.data() } as UserProfile);
         }
 
-        // 2. Get all learning modules from Firestore, ordered by 'order'
-        const modulesSnap = await getDocs(query(collection(db, "learning_modules"), orderBy("order", "asc")));
-        if (!modulesSnap.empty) {
-          const allModules = modulesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as LearningModule));
-          setModules(allModules);
-        } else {
-          setModules([]);
-        }
+        // 2. Get all learning modules from Firestore (Repaired logic to prevent duplication)
+        const modulesQuery = query(collection(db, "learning_modules"), orderBy("order", "asc"));
+        const modulesSnap = await getDocs(modulesQuery);
+
+        const allModules = modulesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as LearningModule));
+        setModules(allModules); // Completely replace state
       } catch (err) {
-        console.warn("Learning modules fetch error:", err);
+        console.error("Error fetching learning track:", err);
         setModules([]);
       } finally {
         setLoading(false);

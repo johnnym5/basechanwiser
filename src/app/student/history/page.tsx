@@ -30,16 +30,20 @@ interface AttemptDetail {
 interface QuizAttempt {
   id: string;
   packTitle: string;
-  score: number;
+  score: number; // For Accuracy %
+  scorePercentage: number; // Standard field
   gamifiedScore: number;
+  correctAnswers: number;
+  totalQuestions: number;
   totalTimeSpentSeconds: number;
   passed: boolean;
   createdAt: any;
   details: AttemptDetail[];
+  historyDetails: AttemptDetail[];
 }
 
 export default function ActivityHistoryPage() {
-  const { userId } = useAuth();
+  const { user, userId } = useAuth(); // Use auth for current user
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -48,15 +52,19 @@ export default function ActivityHistoryPage() {
     async function fetchHistory() {
       if (!userId) return;
       try {
+        const historyRef = collection(db, "quiz_attempts");
+        // Fixed Query Pipeline
         const q = query(
-          collection(db, "quiz_attempts"),
+          historyRef,
           where("userId", "==", userId),
           orderBy("createdAt", "desc")
         );
         const snap = await getDocs(q);
-        setAttempts(snap.docs.map(d => ({ id: d.id, ...d.data() } as QuizAttempt)));
+        // Correct state replacement to prevent duplication
+        const historyData = snap.docs.map(d => ({ id: d.id, ...d.data() } as QuizAttempt));
+        setAttempts(historyData);
       } catch (err) {
-        console.error("History fetch error:", err);
+        console.error("Error fetching history:", err);
       } finally {
         setLoading(false);
       }

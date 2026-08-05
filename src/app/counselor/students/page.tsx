@@ -13,10 +13,27 @@ import {
   Check,
   AlertCircle,
   Sparkles,
+  Plus,
+  Edit3,
+  Trash2,
+  Eye,
+  MoreVertical,
+  UserPlus,
+  Building,
+  Mail,
+  User,
+  ExternalLink,
+  Loader2
 } from "lucide-react";
-import { collection, onSnapshot, doc, setDoc, query } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, query, deleteDoc, serverTimestamp, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { UserProfile, QuestionPack } from "@/types";
+import Link from "next/link";
+
+const generateStudentId = () => {
+  const randomNum = Math.floor(10000 + Math.random() * 90000);
+  return `BW-${randomNum}`;
+};
 
 export default function CounselorStudentsPage() {
   const { role, loading: authLoading } = useAuth();
@@ -34,10 +51,25 @@ export default function CounselorStudentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
+  // CRUD Modal States
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [formData, setFormData] = useState({
+    uid: "",
+    displayName: "",
+    email: "",
+    office: "London HQ",
+    role: "Student" as any,
+    studentId: ""
+  });
+
   // Assignment Modal State
   const [selectedStudent, setSelectedStudent] = useState<UserProfile | null>(null);
   const [assignedIds, setAssignedIds] = useState<string[]>([]);
   const [isSavingAssignments, setIsSavingAssignments] = useState(false);
+
+  const [activeMenuUid, setActiveMenuUid] = useState<string | null>(null);
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
@@ -90,6 +122,90 @@ export default function CounselorStudentsPage() {
       unsubscribePacks();
     };
   }, []);
+
+  const handleCreateStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email || !formData.displayName) return;
+    setIsProcessing(true);
+    try {
+      const dummyUid = `student_${Date.now()}`;
+      const studentId = generateStudentId();
+      await setDoc(doc(db, "Users", dummyUid), {
+        uid: dummyUid,
+        studentId,
+        displayName: formData.displayName,
+        email: formData.email,
+        office: formData.office,
+        role: "Student",
+        suspended: false,
+        currentModuleLevel: 1,
+        moduleScores: {},
+        readinessStatus: "Gray",
+        learningProgress: 0,
+        createdAt: serverTimestamp(),
+      });
+
+      showToast(`Student profile for ${formData.displayName} created! ID: ${studentId}`, "success");
+      setShowAddModal(false);
+      setFormData({ uid: "", displayName: "", email: "", office: "London HQ", role: "Student", studentId: "" });
+    } catch (err: any) {
+      showToast(`Failed to create student: ${err.message}`, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleEditStudent = (student: UserProfile) => {
+    setFormData({
+      uid: student.uid,
+      displayName: student.displayName || "",
+      email: student.email || "",
+      office: student.office || "London HQ",
+      role: student.role || "Student",
+      studentId: student.studentId || ""
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.uid) return;
+    setIsProcessing(true);
+    try {
+      await setDoc(doc(db, "Users", formData.uid), {
+        displayName: formData.displayName,
+        office: formData.office,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      showToast("Student profile updated successfully.", "success");
+      setShowEditModal(false);
+    } catch (err: any) {
+      showToast(`Update failed: ${err.message}`, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteStudent = async (uid: string, name: string) => {
+    if (!confirm(`Are you sure you want to PERMANENTLY delete student ${name}? This will also delete their quiz history.`)) return;
+    setIsProcessing(true);
+    try {
+      // 1. Delete attempts
+      const q = query(collection(db, "quiz_attempts"), where("userId", "==", uid));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        await deleteDoc(d.ref);
+      }
+      // 2. Delete user
+      await deleteDoc(doc(db, "Users", uid));
+      showToast("Student account and history purged.", "success");
+    } catch (err: any) {
+      showToast(`Delete failed: ${err.message}`, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const openAssignmentModal = (student: UserProfile) => {
     setSelectedStudent(student);
@@ -153,12 +269,19 @@ export default function CounselorStudentsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2 font-google">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#1a73e8] dark:text-blue-400" /> Student Directory
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#1a73e8] dark:text-blue-400" /> Student CRM Directory
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Manage student accounts and assign compliance Question Packs in real time.
+              Manage student accounts, track portfolio data, and assign compliance Question Packs.
             </p>
           </div>
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-6 py-3 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-black rounded-full text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2 active:scale-95"
+          >
+            <UserPlus className="w-4 h-4" /> Add Student
+          </button>
         </div>
 
         {/* Search Bar */}
@@ -181,11 +304,11 @@ export default function CounselorStudentsPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase font-bold text-[10px] tracking-wider border-b border-gray-200 dark:border-gray-600">
                 <tr>
-                  <th className="p-4">Student Name</th>
+                  <th className="p-4">Student Identity</th>
                   <th className="p-4">Office</th>
                   <th className="p-4">Assigned Packs</th>
                   <th className="p-4">Readiness</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="p-4 text-right">Portfolio Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 font-medium text-gray-800 dark:text-gray-200">
@@ -199,29 +322,65 @@ export default function CounselorStudentsPage() {
                   filteredStudents.map((student) => {
                     const assignedCount = student.assignedPackIds ? student.assignedPackIds.length : availablePacks.filter((p) => p.isDefault).length;
                     return (
-                      <tr key={student.uid} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors">
+                      <tr key={student.uid} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors group">
                         <td className="p-4">
-                          <p className="font-bold text-gray-900 dark:text-white">{student.displayName || "Student User"}</p>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400">{student.email}</p>
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center font-black text-[#1a73e8] text-xs">
+                              {(student.displayName || "S").charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                               <p className="font-black text-gray-900 dark:text-white leading-none mb-1">{student.displayName || "Student User"}</p>
+                               <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                                  <span className="text-blue-500">{student.studentId || "NO-ID"}</span>
+                                  <span>•</span>
+                                  <span>{student.email}</span>
+                               </div>
+                            </div>
+                          </div>
                         </td>
-                        <td className="p-4 text-gray-600 dark:text-gray-300">{student.office || "London HQ"}</td>
+                        <td className="p-4 text-gray-600 dark:text-gray-300 font-bold">{student.office || "London HQ"}</td>
                         <td className="p-4">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-[#1a73e8] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                            <FolderKanban className="w-3.5 h-3.5" /> {assignedCount} Packs
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-50 dark:bg-blue-900/30 text-[#1a73e8] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                            <FolderKanban className="w-3 h-3" /> {assignedCount} Packs
                           </span>
                         </td>
                         <td className="p-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-extrabold border ${
-                            student.readinessStatus === "Green" ? "bg-[#e6f4ea] dark:bg-emerald-900/30 text-[#1e8e3e] dark:text-emerald-300 border-[#ceead6] dark:border-emerald-800"
-                            : student.readinessStatus === "Yellow" ? "bg-[#fef7e0] dark:bg-amber-900/30 text-[#b06000] dark:text-amber-300 border-[#feefc3] dark:border-amber-800"
-                            : "bg-[#fce8e6] dark:bg-red-900/30 text-[#d93025] dark:text-red-300 border-[#fad2cf] dark:border-red-800"
+                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
+                            student.readinessStatus === "Green" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                            : student.readinessStatus === "Yellow" ? "bg-amber-50 text-amber-600 border-amber-200"
+                            : "bg-rose-50 text-rose-600 border-rose-200"
                           }`}>● {student.readinessStatus || "Red"}</span>
                         </td>
                         <td className="p-4 text-right">
-                          <button onClick={() => openAssignmentModal(student)}
-                            className="px-3.5 py-2 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold transition-all shadow-xs active:scale-95">
-                            Assign Packs
-                          </button>
+                           <div className="flex items-center justify-end gap-2">
+                              <Link
+                                href={`/counselor/students/${student.uid}`}
+                                className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                title="View Portfolio"
+                              >
+                                 <Eye className="w-4 h-4" />
+                              </Link>
+                              <button
+                                onClick={() => handleEditStudent(student)}
+                                className="p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shadow-sm"
+                                title="Edit Info"
+                              >
+                                 <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => openAssignmentModal(student)}
+                                className="px-4 py-2.5 rounded-xl bg-[#1a73e8] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#1557b0] transition-all shadow-md active:scale-95"
+                              >
+                                Assign
+                              </button>
+                              <button
+                                onClick={() => handleDeleteStudent(student.uid, student.displayName || "")}
+                                className="p-2.5 rounded-xl text-rose-300 hover:bg-rose-50 hover:text-rose-600 transition-all"
+                                title="Purge Account"
+                              >
+                                 <Trash2 className="w-4 h-4" />
+                              </button>
+                           </div>
                         </td>
                       </tr>
                     );
@@ -247,35 +406,116 @@ export default function CounselorStudentsPage() {
               const assignedCount = student.assignedPackIds ? student.assignedPackIds.length : availablePacks.filter((p) => p.isDefault).length;
               const status = student.readinessStatus;
               return (
-                <div key={student.uid} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-xs space-y-3">
+                <div key={student.uid} className="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm space-y-4">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-[#1a73e8] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                      <div className="w-12 h-12 rounded-2xl bg-[#1a73e8] text-white flex items-center justify-center font-black text-lg shrink-0 shadow-lg shadow-blue-500/10">
                         {(student.displayName || "S").charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-xs text-gray-900 dark:text-white truncate">{student.displayName || "Student User"}</p>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{student.email}</p>
+                        <p className="font-black text-sm text-gray-900 dark:text-white truncate">{student.displayName || "Student User"}</p>
+                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">{student.studentId || "NO-ID"}</p>
                       </div>
                     </div>
-                    <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${
-                      status === "Green" ? "bg-[#e6f4ea] text-[#1e8e3e] border-[#ceead6]"
-                      : status === "Yellow" ? "bg-[#fef7e0] text-[#b06000] border-[#feefc3]"
-                      : "bg-[#fce8e6] text-[#d93025] border-[#fad2cf]"
+                    <span className={`shrink-0 px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
+                      status === "Green" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                      : status === "Yellow" ? "bg-amber-50 text-amber-600 border-amber-200"
+                      : "bg-rose-50 text-rose-600 border-rose-200"
                     }`}>● {status || "Red"}</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500 dark:text-gray-400">{student.office || "London HQ"} · <span className="text-[#1a73e8] font-bold">{assignedCount} packs</span></span>
-                    <button onClick={() => openAssignmentModal(student)}
-                      className="px-3.5 py-2 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold active:scale-95 touch-target">
-                      Assign Packs
-                    </button>
+                  <div className="flex items-center justify-between border-t border-gray-50 dark:border-slate-800 pt-4">
+                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{student.office || "London HQ"}</span>
+                     <div className="flex items-center gap-2">
+                        <Link href={`/counselor/students/${student.uid}`} className="p-2.5 rounded-xl bg-blue-50 text-blue-600"><Eye className="w-4 h-4" /></Link>
+                        <button onClick={() => handleEditStudent(student)} className="p-2.5 rounded-xl bg-gray-50 text-gray-400"><Edit3 className="w-4 h-4" /></button>
+                        <button onClick={() => openAssignmentModal(student)} className="p-2.5 rounded-xl bg-gray-50 text-gray-900 dark:text-white"><FolderKanban className="w-4 h-4" /></button>
+                     </div>
                   </div>
                 </div>
               );
             })
           )}
         </div>
+
+        {/* ── MODAL: Add Student ── */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4">
+             <div className="bg-white dark:bg-[#1E293B] w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in duration-200 border border-gray-100 dark:border-slate-800">
+                <div className="flex justify-between items-start mb-8">
+                   <div className="space-y-1">
+                      <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Register New Scholar</h2>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Manual database entry for student tracking.</p>
+                   </div>
+                   <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all"><X className="w-6 h-6 text-gray-400" /></button>
+                </div>
+
+                <form onSubmit={handleCreateStudent} className="space-y-6">
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2"><User className="w-3 h-3" /> Full Name</label>
+                      <input type="text" required value={formData.displayName} onChange={e => setFormData({...formData, displayName: e.target.value})} className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500" placeholder="John Doe" />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2"><Mail className="w-3 h-3" /> Email Address</label>
+                      <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500" placeholder="john@example.com" />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2"><Building className="w-3 h-3" /> Assigned Office</label>
+                      <select value={formData.office} onChange={e => setFormData({...formData, office: e.target.value})} className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500">
+                         <option value="London HQ">London HQ</option>
+                         <option value="Lagos">Lagos</option>
+                         <option value="Abuja">Abuja</option>
+                         <option value="Benin">Benin</option>
+                      </select>
+                   </div>
+
+                   <button type="submit" disabled={isProcessing} className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-3xl text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+                      {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      Finalize Entry
+                   </button>
+                </form>
+             </div>
+          </div>
+        )}
+
+        {/* ── MODAL: Edit Student ── */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4">
+             <div className="bg-white dark:bg-[#1E293B] w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in duration-200 border border-gray-100 dark:border-slate-800">
+                <div className="flex justify-between items-start mb-8">
+                   <div className="space-y-1">
+                      <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Edit Scholar Data</h2>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Update information for {formData.studentId}</p>
+                   </div>
+                   <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all"><X className="w-6 h-6 text-gray-400" /></button>
+                </div>
+
+                <form onSubmit={handleUpdateStudent} className="space-y-6">
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2"><User className="w-3 h-3" /> Full Name</label>
+                      <input type="text" required value={formData.displayName} onChange={e => setFormData({...formData, displayName: e.target.value})} className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500" />
+                   </div>
+                   <div className="space-y-2 opacity-50 cursor-not-allowed">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2"><Mail className="w-3 h-3" /> Email Address (Read-Only)</label>
+                      <input type="email" disabled value={formData.email} className="w-full bg-gray-100 dark:bg-slate-800 border-none rounded-2xl p-4 text-sm font-bold" />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2"><Building className="w-3 h-3" /> Assigned Office</label>
+                      <select value={formData.office} onChange={e => setFormData({...formData, office: e.target.value})} className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500">
+                         <option value="London HQ">London HQ</option>
+                         <option value="Lagos">Lagos</option>
+                         <option value="Abuja">Abuja</option>
+                         <option value="Benin">Benin</option>
+                      </select>
+                   </div>
+
+                   <button type="submit" disabled={isProcessing} className="w-full py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black rounded-3xl text-sm uppercase tracking-widest shadow-2xl transition-all flex items-center justify-center gap-3">
+                      {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      Save Updates
+                   </button>
+                </form>
+             </div>
+          </div>
+        )}
 
         {/* Pack Assignment Panel — side drawer on md+, bottom sheet on mobile */}
         {selectedStudent && (

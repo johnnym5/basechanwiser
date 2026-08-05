@@ -18,6 +18,7 @@ import {
   TrendingUp,
   ChevronDown,
   ChevronUp,
+  History as HistoryIcon,
   Timer,
   Zap,
   BookOpen,
@@ -231,7 +232,7 @@ export default function StudentPortfolioPage() {
               {/* ── ACTIVITY HISTORY ── */}
               <div className="space-y-4">
                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white flex items-center gap-2">
-                    <History className="w-4 h-4 text-blue-500" /> Quiz Audit Trail
+                    <HistoryIcon className="w-4 h-4 text-blue-500" /> Quiz Audit Trail
                  </h3>
                  <div className="space-y-3">
                     {attempts.length === 0 ? (

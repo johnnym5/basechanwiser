@@ -22,13 +22,15 @@ import {
   HelpCircle,
   ChevronRight,
   Star,
-  Info
+  Info,
+  History,
+  XCircle
 } from "lucide-react";
-import { doc, getDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, orderBy, where, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import ResourceVaultModal from "@/components/common/ResourceVaultModal";
 import ReactConfetti from "react-confetti";
-import { LearningModule } from "@/types";
+import { LearningModule, UserProfile } from "@/types";
 
 const MOTIVATIONAL_PHRASES = [
   "You're 1 step closer to your UK university journey! 🇬🇧",
@@ -65,10 +67,11 @@ export default function StudentDashboardPage() {
     async function fetchData() {
       if (!userId) return;
       try {
-        // 1. Fetch modules
-        const modSnap = await getDocs(query(collection(db, "learning_modules"), orderBy("order", "asc")));
+        // 1. Fetch modules (Repaired logic to prevent duplication)
+        const modulesQuery = query(collection(db, "learning_modules"), orderBy("order", "asc"));
+        const modSnap = await getDocs(modulesQuery);
         const mods = modSnap.docs.map(d => ({ id: d.id, ...d.data() } as LearningModule));
-        setModules(mods);
+        setModules(mods); // Completely replace state
 
         // 2. Fetch profile directly for real-time gamification fields
         const userRef = doc(db, "Users", userId);
@@ -93,7 +96,8 @@ export default function StudentDashboardPage() {
           limit(5)
         );
         const attemptsSnap = await getDocs(attemptsQ);
-        setAttempts(attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const recentAttempts = attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setAttempts(recentAttempts); // Completely replace state
 
         // Check if we should show confetti
         const lastScore = sessionStorage.getItem("last_quiz_score");
@@ -104,7 +108,7 @@ export default function StudentDashboardPage() {
         }
 
       } catch (err) {
-        console.warn("Fetch dashboard data error:", err);
+        console.error("Error fetching dashboard data:", err);
       } finally {
         setLoading(false);
       }

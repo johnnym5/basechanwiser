@@ -37,7 +37,7 @@ const QUESTION_TIMER_SECONDS = 10;
 function ModuleDetailContent() {
   const searchParams = useSearchParams();
   const packId = searchParams.get("packId") || searchParams.get("id");
-  const { user, userId } = useAuth();
+  const { user, userId, userProfile } = useAuth();
   const router = useRouter();
 
   const [pack, setPack] = useState<LearningModule | QuestionPack | null>(null);
@@ -175,19 +175,26 @@ function ModuleDetailContent() {
     const passed = scorePercentage >= passThreshold;
 
     try {
-      // 1. Log detailed attempt
-      await addDoc(collection(db, "quiz_attempts"), {
+      // 1. Log detailed attempt (Repaired Pipeline)
+      const attemptPayload = {
         userId,
+        studentId: userProfile?.studentId || "N/A",
         studentName: user?.displayName || "Student",
         packId: pack.id,
         packTitle: pack.title,
-        score: scorePercentage,
+        score: scorePercentage, // Compatibility with existing History UI
+        scorePercentage, // Pipeline standard
         gamifiedScore,
+        correctAnswers: correctCount,
+        totalQuestions,
         totalTimeSpentSeconds: totalTimeSpent,
         passed,
         createdAt: serverTimestamp(),
-        details: questionLogs
-      });
+        details: questionLogs, // Compatibility
+        historyDetails: questionLogs // Pipeline standard
+      };
+
+      await addDoc(collection(db, "quiz_attempts"), attemptPayload);
 
       // 2. Update Progress if passed
       if (passed) {
@@ -201,6 +208,7 @@ function ModuleDetailContent() {
 
           let updatePayload: any = {
             moduleScores: newScores,
+            gamifiedScore: (uData.gamifiedScore || 0) + gamifiedScore,
             updatedAt: serverTimestamp(),
           };
 
@@ -215,7 +223,8 @@ function ModuleDetailContent() {
         sessionStorage.setItem("last_quiz_score", scorePercentage.toString());
       }
     } catch (err) {
-      console.error("Finish quiz error:", err);
+      console.error("Failed to save quiz history:", err);
+      alert("There was an error saving your score. Please check your connection.");
     }
   };
 
@@ -242,20 +251,17 @@ function ModuleDetailContent() {
 
   if (loading || !pack) {
     return (
-      <AppShell>
-        <div className="flex flex-col items-center justify-center p-20 gap-4">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-          <p className="text-sm font-black uppercase text-gray-500 tracking-widest text-center">Preparing Game Arena...</p>
-        </div>
-      </AppShell>
+      <div className="flex flex-col items-center justify-center p-20 gap-4">
+        <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+        <p className="text-sm font-black uppercase text-gray-500 tracking-widest text-center">Preparing Game Arena...</p>
+      </div>
     );
   }
 
   const currentQuestion = pack.questions[currentQuestionIndex];
 
   return (
-    <AppShell>
-      <div className="max-w-4xl mx-auto space-y-8 pb-20">
+    <div className="max-w-4xl mx-auto space-y-8 pb-20">
 
         {/* ── Header Info ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -440,7 +446,6 @@ function ModuleDetailContent() {
           </div>
         )}
       </div>
-    </AppShell>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import AppShell from "@/components/layout/app-shell";
+import { useAuth } from "@/lib/auth/auth-context";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { Trophy, Medal, Crown, Star, Sparkles, Loader2, User } from "lucide-react";
@@ -9,6 +10,7 @@ import { motion } from "framer-motion";
 
 interface LeaderboardEntry {
   userId: string;
+  studentId?: string;
   studentName: string;
   gamifiedScore: number;
   packTitle: string;
@@ -17,6 +19,7 @@ interface LeaderboardEntry {
 }
 
 export default function LeaderboardPage() {
+  const { userId: currentUserId } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,7 +83,9 @@ export default function LeaderboardPage() {
                           <User className="w-8 h-8 text-slate-400" />
                           <div className="absolute -bottom-2 bg-slate-300 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-md">#2</div>
                        </div>
-                       <p className="mt-4 font-black dark:text-white uppercase tracking-tighter truncate px-4">{topThree[1].studentName}</p>
+                       <p className="mt-4 font-black dark:text-white uppercase tracking-tighter truncate px-4">
+                          {topThree[1].userId === currentUserId ? topThree[1].studentName : (topThree[1].studentId || "BW-STUDENT")}
+                       </p>
                        <p className="text-[10px] font-bold text-slate-500 uppercase">{topThree[1].gamifiedScore.toLocaleString()} PTS</p>
                     </div>
                     <div className="h-32 bg-gradient-to-t from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-900/50 rounded-t-[32px] border-x border-t border-slate-300/30" />
@@ -102,7 +107,9 @@ export default function LeaderboardPage() {
                           <User className="w-10 h-10 text-amber-600" />
                           <div className="absolute -bottom-2 bg-amber-500 text-white text-[10px] font-black px-3 py-1 rounded-md">#1</div>
                        </div>
-                       <p className="mt-4 text-lg font-black dark:text-white uppercase tracking-tighter truncate px-4">{topThree[0].studentName}</p>
+                       <p className="mt-4 text-lg font-black dark:text-white uppercase tracking-tighter truncate px-4">
+                          {topThree[0].userId === currentUserId ? topThree[0].studentName : (topThree[0].studentId || "BW-STUDENT")}
+                       </p>
                        <p className="text-xs font-bold text-amber-600 uppercase">{topThree[0].gamifiedScore.toLocaleString()} PTS</p>
                     </div>
                     <div className="h-48 bg-gradient-to-t from-amber-500/20 to-amber-500/5 dark:from-amber-900/40 dark:to-amber-900/10 rounded-t-[40px] border-x border-t border-amber-500/30" />
@@ -122,7 +129,9 @@ export default function LeaderboardPage() {
                           <User className="w-6 h-6 text-orange-400" />
                           <div className="absolute -bottom-2 bg-orange-400 text-white text-[10px] font-black px-2 py-0.5 rounded-md">#3</div>
                        </div>
-                       <p className="mt-4 font-black dark:text-white uppercase tracking-tighter truncate px-4">{topThree[2].studentName}</p>
+                       <p className="mt-4 font-black dark:text-white uppercase tracking-tighter truncate px-4">
+                          {topThree[2].userId === currentUserId ? topThree[2].studentName : (topThree[2].studentId || "BW-STUDENT")}
+                       </p>
                        <p className="text-[10px] font-bold text-orange-500 uppercase">{topThree[2].gamifiedScore.toLocaleString()} PTS</p>
                     </div>
                     <div className="h-24 bg-gradient-to-t from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-900/10 rounded-t-[24px] border-x border-t border-orange-400/30" />
@@ -148,8 +157,12 @@ export default function LeaderboardPage() {
                            <td className="px-8 py-6 font-black text-gray-400">#{idx + 1}</td>
                            <td className="px-8 py-6">
                               <div className="flex items-center gap-3">
-                                 <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-[#0F172A] flex items-center justify-center font-black text-blue-500 text-xs">{entry.studentName.charAt(0)}</div>
-                                 <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tighter">{entry.studentName}</span>
+                                 <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-[#0F172A] flex items-center justify-center font-black text-blue-500 text-xs">
+                                    {(entry.userId === currentUserId ? entry.studentName : (entry.studentId || "B")).charAt(0)}
+                                 </div>
+                                 <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+                                    {entry.userId === currentUserId ? entry.studentName : (entry.studentId || "BW-STUDENT")}
+                                 </span>
                               </div>
                            </td>
                            <td className="px-8 py-6">
