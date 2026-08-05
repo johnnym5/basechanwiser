@@ -26,7 +26,8 @@ import {
   LayoutGrid,
   Trophy,
   History,
-  MessageSquare
+  MessageSquare,
+  BarChart3,
 } from "lucide-react";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -65,9 +66,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { name: "Settings", href: "/counselor/settings", icon: Settings },
   ];
 
-  const adminLinks = counselorLinks;
+  const adminLinks = [
+    ...counselorLinks,
+    { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  ];
 
-  const navLinks = (role === "Admin" || role === "Super Admin") ? adminLinks : role === "Counselor" ? counselorLinks : studentLinks;
+  const complianceLinks = [
+    { name: "Analytics", href: "/head-of-compliance/dashboard", icon: BarChart3 },
+    { name: "Settings", href: "/counselor/settings", icon: Settings },
+  ];
+
+  const navLinks =
+    role === "Head of Compliance"
+      ? complianceLinks
+      : role === "Admin" || role === "Super Admin"
+        ? adminLinks
+        : role === "Counselor"
+          ? counselorLinks
+          : studentLinks;
 
   const handleSignOut = async () => {
     setMobileDrawerOpen(false);
@@ -181,6 +197,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             {/* Role pill */}
             <span className={`hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${role === "Super Admin"
                 ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800"
+                : role === "Head of Compliance"
+                  ? "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800"
                 : role === "Admin"
                   ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
                   : role === "Counselor"

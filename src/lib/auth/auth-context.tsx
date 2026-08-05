@@ -16,6 +16,12 @@ import { auth, db } from "@/lib/firebase/config";
 import { evaluateDomainRole } from "./domain-roles";
 import { AppRole, UserProfile } from "@/types";
 
+function resolveUserRole(domainRole: AppRole, storedRole?: AppRole | null): AppRole {
+  if (storedRole === "Head of Compliance") return "Head of Compliance";
+  if (domainRole === "Super Admin") return "Super Admin";
+  return domainRole;
+}
+
 interface AuthContextType {
   user: FirebaseUser | null;
   userProfile: UserProfile | null;
@@ -66,11 +72,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const effectiveEmail = recoveredEmail || currentUser.email || undefined;
-    const computedRole = evaluateDomainRole(
+    const domainRole = evaluateDomainRole(
       effectiveEmail,
       currentUser.isAnonymous
     );
-    setRole(computedRole);
 
     // ── 1. Check for Existing Account by Email (Enforce Uniqueness) ────
     if (effectiveEmail) {
@@ -82,6 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!querySnapshot.empty) {
           const existingDoc = querySnapshot.docs[0];
           const { uid, ...existingData } = existingDoc.data() as UserProfile;
+          const computedRole = resolveUserRole(domainRole, existingData.role);
 
           // If the UID is different, it's an account linking case
           if (existingDoc.id !== currentUser.uid) {
@@ -93,7 +99,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           await updateDoc(doc(db, "Users", existingDoc.id), {
             lastLoginAt: serverTimestamp(),
-            role: computedRole // Enforce role on every login
+            role: computedRole,
           });
           return;
         }
@@ -117,9 +123,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // ── 3. Existing user by UID ──────────────────────────────────
     if (existingProfile) {
+      const computedRole = resolveUserRole(domainRole, existingProfile.role);
       const updates: any = {
         lastLoginAt: serverTimestamp(),
-        role: computedRole // Enforce role
+        role: computedRole,
       };
 
       if (!existingProfile.studentId) {
@@ -135,6 +142,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     // ── 4. New user — create Firestore document ──────────────────
+    const computedRole = domainRole;
     const profileData = {
       uid: currentUser.uid,
       studentId: generateStudentId(),
@@ -154,6 +162,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     setUserProfile(profileData as unknown as UserProfile);
+    setRole(computedRole);
     await setDoc(userRef, profileData, { merge: true });
     console.log("[Auth] New user registered:", currentUser.uid);
   };

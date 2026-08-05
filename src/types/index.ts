@@ -1,4 +1,4 @@
-export type AppRole = "Super Admin" | "Admin" | "Counselor" | "Student";
+export type AppRole = "Super Admin" | "Head of Compliance" | "Admin" | "Counselor" | "Student";
 
 export interface UserProfile {
   uid: string;
@@ -136,4 +136,66 @@ export interface JuniorEvaluation {
   trafficLight: TrafficLightStatus;
   notes: string;
   createdAt?: any;
+}
+
+// ── Module 12: Compliance Analytics Dashboard ──────────────────
+
+export interface AnalyticsGlobalKPIs {
+  totalPipeline: number;
+  globalPassRate: number;
+  averagePrepTimeDays: number;
+  highRiskAlert: number;
+}
+
+export interface OfficePerformance {
+  office: string;
+  totalStudents: number;
+  passRate: number;
+}
+
+export interface ReadinessFunnelStage {
+  stage: string;
+  count: number;
+}
+
+export interface CounselorWorkloadItem {
+  counselorId: string;
+  counselorName: string;
+  studentCount: number;
+}
+
+export interface FailureReasonItem {
+  reason: string;
+  count: number;
+}
+
+export interface StudentRosterRow {
+  uid: string;
+  studentId?: string;
+  displayName: string;
+  email: string;
+  office: string;
+  readinessStatus: string;
+  learningProgress: number;
+  createdAt?: string;
+}
+
+export interface CounselorPerformanceRow {
+  counselorId: string;
+  counselorName: string;
+  office: string;
+  assignedStudents: number;
+  evaluationsSubmitted: number;
+  passRate: number;
+}
+
+export interface AnalyticsDashboardData {
+  kpis: AnalyticsGlobalKPIs;
+  officePerformance: OfficePerformance[];
+  readinessFunnel: ReadinessFunnelStage[];
+  counselorWorkload: CounselorWorkloadItem[];
+  failureReasons: FailureReasonItem[];
+  studentRoster: StudentRosterRow[];
+  counselorPerformance: CounselorPerformanceRow[];
+  generatedAt: string;
 }

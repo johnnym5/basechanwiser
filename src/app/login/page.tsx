@@ -24,7 +24,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && role) {
-      if (role === "Super Admin" || role === "Admin" || role === "Counselor") {
+      if (role === "Super Admin") {
+        router.push("/admin/analytics");
+      } else if (role === "Head of Compliance") {
+        router.push("/head-of-compliance/dashboard");
+      } else if (role === "Admin" || role === "Counselor") {
         router.push("/counselor/dashboard");
       } else {
         // Check for maintenance mode for students
