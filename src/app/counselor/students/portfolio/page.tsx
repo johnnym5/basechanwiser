@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
+import { useAuth } from '@/lib/auth/auth-context';
+import InterviewEvaluationModal from '@/components/counselor/InterviewEvaluationModal';
 import AppShell from "@/components/layout/app-shell";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -42,7 +44,43 @@ function PortfolioContent() {
   const [interviewPack, setInterviewPack] = useState<InterviewPack | null>(null);
   const [allModules, setAllModules] = useState<LearningModule[]>([]);
   const [loading, setLoading] = useState(true);
+   const { user, userProfile } = useAuth();
+   const [evalOpen, setEvalOpen] = useState(false);
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null);
+
+   // Run Readiness button component
+   function RunReadinessButton({ studentId, onUpdate }: { studentId: string; onUpdate?: () => void }) {
+      const { user } = useAuth();
+      const [running, setRunning] = useState(false);
+
+      const run = async () => {
+         if (!user) return alert('Please sign in as a counselor to run this check.');
+         setRunning(true);
+         try {
+            const token = await user.getIdToken();
+            const res = await fetch('/api/engine/evaluate', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+               body: JSON.stringify({ studentId }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'Failed');
+            if (onUpdate) await onUpdate();
+            alert('Readiness check completed: ' + (data?.result?.status || 'OK'));
+         } catch (e: any) {
+            console.error('Run readiness error', e);
+            alert('Readiness check failed: ' + (e?.message || String(e)));
+         } finally {
+            setRunning(false);
+         }
+      };
+
+      return (
+         <button onClick={run} disabled={running} className="py-3 px-4 bg-amber-500 text-white rounded-2xl font-black text-sm">
+            {running ? 'Running...' : 'Run Readiness Check'}
+         </button>
+      );
+   }
 
   useEffect(() => {
     async function fetchPortfolio() {
@@ -87,7 +125,17 @@ function PortfolioContent() {
       <div className="flex flex-col items-center justify-center p-20 gap-4">
         <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
         <p className="text-xs font-black uppercase text-gray-400 tracking-widest">Gathering Dossier...</p>
-      </div>
+            {evalOpen && student && (
+               <InterviewEvaluationModal
+                  studentId={student.uid}
+                  studentName={student.displayName || student.uid}
+                  open={evalOpen}
+                  onClose={() => setEvalOpen(false)}
+                  counselorId={user?.uid || ''}
+                  counselorName={userProfile?.displayName || user?.displayName || 'Counselor'}
+               />
+            )}
+         </div>
     );
   }
 
@@ -106,7 +154,7 @@ function PortfolioContent() {
     ? Math.round(attempts.reduce((acc, a) => acc + (a.score || a.scorePercentage || 0), 0) / attempts.length)
     : 0;
 
-  const statusColor = student.readinessStatus === "Green" ? "text-emerald-500" : student.readinessStatus === "Yellow" ? "text-amber-500" : "text-rose-500";
+   const statusColor = student.readinessStatus === "Green" ? "text-emerald-500" : student.readinessStatus === "Yellow" ? "text-amber-500" : student.readinessStatus === 'Orange' ? 'text-orange-600' : "text-rose-500";
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
@@ -132,14 +180,24 @@ function PortfolioContent() {
             </div>
          </div>
 
-         <div className="flex items-center gap-4">
-            <div className="px-6 py-3 rounded-2xl bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3">
+             <div className="flex items-center gap-4">
+               <div className="px-6 py-3 rounded-2xl bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3">
                <div className={`w-3 h-3 rounded-full bg-current ${statusColor} animate-pulse`} />
                <span className={`text-xs font-black uppercase tracking-widest ${statusColor}`}>
                   {student.readinessStatus || "Red"} Status
                </span>
             </div>
          </div>
+            <div className="flex items-center gap-4">
+               <button onClick={() => setEvalOpen(true)} className="py-3 px-4 bg-blue-600 text-white rounded-2xl font-black text-sm">🎤 Conduct Live Interview</button>
+               <RunReadinessButton studentId={student.uid} onUpdate={async () => {
+                  // refresh student doc
+                  try {
+                    const snap = await getDoc(doc(db, 'Users', student.uid));
+                    if (snap.exists()) setStudent({ uid: snap.id, ...snap.data() } as UserProfile);
+                  } catch (e) { console.warn('refresh after run failed', e); }
+               }} />
+            </div>
       </div>
 
       {/* ── KPI GRID ── */}

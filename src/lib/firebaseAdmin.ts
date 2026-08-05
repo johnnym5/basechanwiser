@@ -3,7 +3,7 @@
  * Initialize Firebase Admin SDK for server-side use.
  */
 import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 
 if (!getApps().length) {
   initializeApp();
@@ -11,4 +11,4 @@ if (!getApps().length) {
 
 export const db = getFirestore();
 export const adminApp = getApp();
-export { Timestamp };
+export { Timestamp, FieldValue };

@@ -25,7 +25,8 @@ import {
   Moon,
   LayoutGrid,
   Trophy,
-  History
+  History,
+  MessageSquare
 } from "lucide-react";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -53,18 +54,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { name: "Library", href: "/student/library", icon: BookOpen },
     { name: "Learning Drills", href: "/learning", icon: FileCheck },
     { name: "Interview Pack", href: "/interview-pack", icon: ShieldCheck },
+    { name: "Mock Interview", href: "/student/mock-interview", icon: MessageSquare },
   ];
 
   const counselorLinks = [
-    {
-      name: "Dashboard",
-      href: userProfile?.defaultDashboard === 'table' ? "/counselor/dashboard?view=table" : "/counselor/dashboard",
-      icon: ShieldCheck
-    },
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Students", href: "/counselor/students", icon: Users },
-    { name: "Resource Library", href: "/counselor/library", icon: FolderKanban },
-    { name: "Question Packs", href: "/counselor/packs", icon: LayoutGrid },
-    { name: "Settings & Vault", href: "/counselor/settings", icon: Settings },
+    { name: "Packs", href: "/counselor/packs", icon: FolderKanban },
+    { name: "Library", href: "/counselor/library", icon: BookOpen },
+    { name: "Settings", href: "/counselor/settings", icon: Settings },
   ];
 
   const adminLinks = counselorLinks;

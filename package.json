@@ -5,6 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:export": "cross-env NEXT_STATIC_EXPORT=1 next build",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:apphosting": "firebase deploy --only apphosting",
+    "deploy:all": "firebase deploy --only hosting,apphosting",
     "start": "next start",
     "lint": "next lint"
   },
@@ -32,6 +36,7 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^7.0.3",
     "eslint": "^8.57.1",
     "eslint-config-next": "14.2.15",
     "postcss": "^8.4.47",

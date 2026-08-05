@@ -82,21 +82,46 @@
 
 ## 📦 Production Deployment
 
-### Build and Run Locally
-```bash
-npm run build
-npm start
-```
+### 1. Web Hosting (Static Export)
+This serves the client-side app from the `out/` directory.
 
-### Deployment Notes
-This app uses Firebase Authentication and Firestore with dynamic student and resource pages, so it is not compatible with a pure static export.
+1. **Build the project**:
+   Ensure all `NEXT_PUBLIC_FIREBASE_*` variables are set in your environment or `.env.local` file.
+   ```bash
+   npm run build:export
+   ```
+2. **Deploy**:
+   ```bash
+   firebase deploy --only hosting
+   ```
 
-Recommended deployment options:
-- **Vercel** for full Next.js App Router support
-- **Firebase Hosting + Cloud Functions / Cloud Run** with a server-side Next.js setup
+### 2. App Hosting (Dynamic/SSR)
+This runs the Next.js server in a managed environment.
 
-If you want to keep Firebase hosting, set up a server-backed deployment instead of `firebase deploy` to the `out` directory.
+1. **Connect Repository**: Connect your GitHub repository to Firebase App Hosting in the Firebase Console.
+2. **Set Secrets**: You MUST add the following as Secrets in the App Hosting dashboard:
+   - `NEXT_PUBLIC_FIREBASE_API_KEY`
+   - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+   - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+   - `NEXT_PUBLIC_FIREBASE_APP_ID`
+   - `GEMINI_API_KEY`
+3. **Deploy**: Firebase will automatically build and deploy on every push to your main branch.
 
+### Important Notes for Dual Deployment
+- The static export generates client-side pages under `out/` and supports client Firebase Authentication / Firestore in the browser.
+- The AI assistant backend routes under `/api/ai/*` are server-side routes and are served by the App Hosting backend.
+- Firebase Hosting rewrites `/api/ai/**` to the backend service so the static site can use the same `/api/ai/*` paths.
+
+### If You Need AI / Server API Support
+For full functionality, deploy the backend through App Hosting or another dynamic runtime:
+- Firebase App Hosting
+- Firebase Hosting with Cloud Run
+- Vercel serverless functions
+- A separate Node/Cloud Run backend with proxy rules to `/api/ai/*`
+
+If you want, I can also add a minimal Firebase Functions setup to host the `/api/ai/*` endpoints and keep the front-end static.
 ---
 
 ## 📄 License

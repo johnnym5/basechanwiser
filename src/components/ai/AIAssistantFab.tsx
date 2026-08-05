@@ -144,10 +144,13 @@ export default function AIAssistantFab() {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
+      const errorMessage =
+        data?.error ||
+        (!response.ok ? `AI Assistant backend returned status ${response.status}. This endpoint is not available in a static export.` : null);
 
-      if (!response.ok || data.error) {
-        throw new Error(data.error || "Failed to query AI Assistant");
+      if (!response.ok || errorMessage) {
+        throw new Error(errorMessage || "AI Assistant backend unavailable. Static export does not include /api/ai server routes.");
       }
 
       const assistantMsg: ChatMessage = {

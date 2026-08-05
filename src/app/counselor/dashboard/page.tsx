@@ -89,7 +89,7 @@ interface QuizAttempt {
   timestamp: any;
 }
 
-const COLORS = ["#10B981", "#F59E0B", "#EF4444", "#94A3B8"];
+const COLORS = ["#10B981", "#F59E0B", "#F97316", "#EF4444", "#94A3B8"];
 
 export default function CounselorAnalyticsDashboardPage() {
   const { user, role, loading } = useAuth();
@@ -249,6 +249,7 @@ export default function CounselorAnalyticsDashboardPage() {
   const readinessData = useMemo(() => [
     { name: "Green", value: students.filter(s => s.status === 'Green').length },
     { name: "Yellow", value: students.filter(s => s.status === 'Yellow').length },
+    { name: "Orange", value: students.filter(s => s.status === 'Orange').length },
     { name: "Red", value: students.filter(s => s.status === 'Red').length },
     { name: "Gray", value: students.filter(s => !s.status).length },
   ], [students]);
@@ -608,7 +609,7 @@ export default function CounselorAnalyticsDashboardPage() {
                                    <span className={s.averageScore >= 80 ? "text-emerald-500" : "text-gray-400"}>Avg: {s.averageScore}%</span>
                                 </div>
                                 <div className="w-32 bg-gray-100 dark:bg-[#0F172A] rounded-full h-1.5 overflow-hidden">
-                                   <div className={`h-full rounded-full transition-all duration-500 ${s.status === 'Green' ? 'bg-emerald-500' : s.status === 'Yellow' ? 'bg-amber-500' : 'bg-blue-600'}`} style={{ width: `${s.learningProgress}%` }} />
+                                  <div className={`h-full rounded-full transition-all duration-500 ${s.status === 'Green' ? 'bg-emerald-500' : s.status === 'Yellow' ? 'bg-amber-500' : s.status === 'Orange' ? 'bg-orange-500' : s.status === 'Red' ? 'bg-rose-500' : 'bg-blue-600'}`} style={{ width: `${s.learningProgress}%` }} />
                                 </div>
                              </div>
                           </td>

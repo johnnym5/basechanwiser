@@ -80,13 +80,20 @@ service cloud.firestore {
 
     // ─── System Settings ────────────────────────────────────────────
     match /system_settings/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Publicly readable for maintenance mode check
       allow write: if isAdmin();
     }
 
     // ─── AI Rate Limits (server-side) ──────────────────────────────
     match /ai_rate_limits/{userId} {
       allow read, write: if isOwner(userId);
+    }
+
+    // ─── Interview Evaluations ─────────────────────────────────────
+    match /interview_evaluations/{evalId} {
+      allow read: if isAuthenticated();
+      allow create: if isStaff();
+      allow update, delete: if isAdmin();
     }
 
     // ─── Quiz Attempts ──────────────────────────────────────────────

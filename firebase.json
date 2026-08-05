@@ -1,7 +1,8 @@
 {
   "firestore": {
     "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "indexes": "firestore.indexes.json",
+    "database": "(default)"
   },
   "hosting": {
     "public": "out",
@@ -12,9 +13,26 @@
     ],
     "rewrites": [
       {
+        "source": "/api/ai/**",
+        "run": {
+          "serviceId": "basechanwiser",
+          "region": "us-east4"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
     ]
+  },
+  "apphosting": {
+    "backendId": "basechanwiser",
+    "rootDir": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "alwaysDeployFromSource": true
   }
 }
