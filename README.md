@@ -82,14 +82,20 @@
 
 ## 📦 Production Deployment
 
-### Build and Deploy
+### Build and Run Locally
 ```bash
-# Build production assets
 npm run build
-
-# Deploy to organization hosting
-firebase deploy
+npm start
 ```
+
+### Deployment Notes
+This app uses Firebase Authentication and Firestore with dynamic student and resource pages, so it is not compatible with a pure static export.
+
+Recommended deployment options:
+- **Vercel** for full Next.js App Router support
+- **Firebase Hosting + Cloud Functions / Cloud Run** with a server-side Next.js setup
+
+If you want to keep Firebase hosting, set up a server-backed deployment instead of `firebase deploy` to the `out` directory.
 
 ---
 

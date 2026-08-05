@@ -354,7 +354,7 @@ export default function CounselorStudentsPage() {
                         <td className="p-4 text-right">
                            <div className="flex items-center justify-end gap-2">
                               <Link
-                                href={`/counselor/students/${student.uid}`}
+                                href={`/counselor/students/portfolio?id=${student.uid}`}
                                 className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                                 title="View Portfolio"
                               >
@@ -426,7 +426,7 @@ export default function CounselorStudentsPage() {
                   <div className="flex items-center justify-between border-t border-gray-50 dark:border-slate-800 pt-4">
                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{student.office || "London HQ"}</span>
                      <div className="flex items-center gap-2">
-                        <Link href={`/counselor/students/${student.uid}`} className="p-2.5 rounded-xl bg-blue-50 text-blue-600"><Eye className="w-4 h-4" /></Link>
+                        <Link href={`/counselor/students/portfolio?id=${student.uid}`} className="p-2.5 rounded-xl bg-blue-50 text-blue-600"><Eye className="w-4 h-4" /></Link>
                         <button onClick={() => handleEditStudent(student)} className="p-2.5 rounded-xl bg-gray-50 text-gray-400"><Edit3 className="w-4 h-4" /></button>
                         <button onClick={() => openAssignmentModal(student)} className="p-2.5 rounded-xl bg-gray-50 text-gray-900 dark:text-white"><FolderKanban className="w-4 h-4" /></button>
                      </div>
