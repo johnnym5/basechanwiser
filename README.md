@@ -1,128 +1,61 @@
-# BASECHANWISER — Student Compliance & Operations Platform
+# 🎓 Basechan ComplianceOS (BC-ComplianceOS)
 
-**BASECHANWISER** is a modern, high-contrast, role-based student compliance tracker and counselor operations portal built with **Next.js (App Router)**, **TypeScript**, **Tailwind CSS**, and **Firebase (Authentication & Firestore)** following **Google Material Design 3** design principles.
+> An AI-powered Pre-CAS & Compliance Interview Management Platform designed to prepare international students for UK university admissions and UKVI credibility interviews[cite: 2].
 
----
+![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=for-the-badge&logo=next.js)
+![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)
+![Firebase](https://img.shields.io/badge/Firebase-V10-yellow?style=for-the-badge&logo=firebase)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)
+![Google Gemini](https://img.shields.io/badge/AI-Google_Gemini_1.5-blue?style=for-the-badge&logo=google)
 
-## 🌟 Key Features
+## 📖 The Vision
 
-### 1. Smart Authentication & Domain Role Matrix
-- **Integrated Google Sign-In**: Unified login for staff and students.
-- **Strict Role-Based Access Control (RBAC)**: 
-  - Roles are automatically assigned based on official organization email domains.
-  - Supports Super Admin, Admin, and Student tiers.
-- **Account Linking**: Automatically merges duplicate login sessions under a single organization profile.
+Basechan ComplianceOS transforms the traditionally manual, 1-on-1 student compliance process into a standardized, scalable, and AI-assisted workflow[cite: 2]. Built upon the **Basechan BC-CIEF 5-Layer Compliance Training Framework**, this platform is designed to:
 
-### 2. Student Workspace & Interview Journey
-- **Interactive Progress Tracker**: Gamified dashboard with "Next Best Action" guidance and readiness gauges.
-- **Foundation Learning Path**: 5-module UKVI credibility track with embedded video lessons and randomized MCQ assessments.
-- **Resource Vault**: In-app viewer for PDFs, Videos, and Word templates without external redirects.
-
-### 3. Counselor & Operations Hub
-- **Analytics Control Center**: Visual KPI cards, pie charts for readiness distribution, and bar charts for module performance.
-- **Student Data Table**: Comprehensive management of cohort progress, bulk actions, and evaluation logs.
-- **Compliance Tooling**: Manage the Question Pack Library, Resource Library, and system-wide logic parameters (pass marks, cooldowns).
-- **Maintenance Mode**: One-click system lock for students during critical updates.
-
-### 4. UI/UX Excellence
-- **Material Design 3**: Professional typography, 32px rounded corners, and premium elevations.
-- **Universal App Shell**: Fixed, hover-expandable sidebar for desktop and safe-area optimized bottom navigation for mobile.
-- **Global Theme Engine**: Persistent Dark and Light modes with system matching capabilities.
+*   Deliver a **95%+ UKVI interview pass rate**[cite: 2].
+*   Train **300+ students simultaneously** without bottlenecks[cite: 2].
+*   Reduce counselor and administrative workload by **60%**[cite: 2].
+*   Standardize interview quality across all global offices (Abuja, Lagos, Benin)[cite: 2].
+*   Detect high-risk applicants early before they ever reach an official visa interview[cite: 2].
 
 ---
 
-## 🛠️ Technology Stack
+## ✨ The Core Ecosystem
 
-- **Framework**: [Next.js 14 (App Router)](https://nextjs.org/)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Backend & Database**: Firebase Authentication & Firestore Database
-- **Cloud Storage**: Firebase Storage
-- **Charts**: Recharts
-- **Icons**: Lucide React
+ComplianceOS is built as a multi-role CRM and Learning Management System (LMS)[cite: 2]. It guides students through a strict operational sequence while giving counselors absolute visibility over their pipeline.
 
----
+### 👨‍🎓 The Student Experience
+*   **Progressive Foundation Learning:** A locked, 5-module curriculum covering everything from CAS and Financial Compliance to UKVI rules[cite: 2]. Students must read the study notes and pass gamified quizzes with an 80% score to progress[cite: 2].
+*   **Personalized Interview Pack:** A comprehensive digital dossier where students input their specific CAS, tuition, deposit, sponsor, and accommodation details[cite: 2]. This ensures they understand their own application rather than memorizing generic scripts[cite: 2].
+*   **AI Interview Copilot:** Powered by Google Gemini. The AI acts as a strict UKVI compliance officer, dynamically tailoring practice questions based on the student's specific target university, course, and financial background[cite: 2].
+*   **Gamified Leaderboard & Privacy:** Students earn points for completing modules and maintaining streaks. To ensure privacy, real names are masked using unique Student IDs (e.g., `BW-12345`).
 
-## 🚀 Getting Started Locally
-
-### Prerequisites
-- Node.js 18+ and `npm`
-
-### Installation
-
-1. **Clone the repository**:
-   ```bash
-   git clone [REDACTED_REPO_URL]
-   cd basechanwiser
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Set up Environment Variables**:
-   Create a `.env.local` file in the root directory and populate it with your Firebase configuration:
-   ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-   NEXT_PUBLIC_FIREBASE_APP_ID=
-   ```
-
-4. **Run Development Server**:
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
+### 💼 The Counselor & Management Experience
+*   **Master Student Directory:** A unified command center with advanced filtering. Counselors can instantly sort students by their compliance progress, last active date, and risk status.
+*   **Quick Portfolio Modal:** Click on any student to pull up a rapid summary of their learning progress, pack status, and readiness—without losing your place in the directory.
+*   **Live Evaluation Rubrics:** Dedicated interfaces for grading Junior, Senior, and Head Approval compliance interviews based on official rubrics[cite: 2].
+*   **Global Notification & Reminder System:** Counselors can set targeted reminders for specific students (e.g., "Check financial documents") that trigger real-time, global app notifications for both parties.
 
 ---
 
-## 📦 Production Deployment
+## 🚦 The Readiness Engine (Traffic Light System)
 
-### 1. Web Hosting (Static Export)
-This serves the client-side app from the `out/` directory.
+At the heart of ComplianceOS is the **Readiness Engine**[cite: 2]. The platform completely removes the guesswork from interview preparation by automatically calculating a student's status[cite: 2].
 
-1. **Build the project**:
-   Ensure all `NEXT_PUBLIC_FIREBASE_*` variables are set in your environment or `.env.local` file.
-   ```bash
-   npm run build:export
-   ```
-2. **Deploy**:
-   ```bash
-   firebase deploy --only hosting
-   ```
+As students complete quizzes, chat with the AI, and pass live counselor evaluations, the engine updates their status on a real-time **Traffic Light Dashboard**[cite: 2]:
 
-### 2. App Hosting (Dynamic/SSR)
-This runs the Next.js server in a managed environment.
+*   🟢 **Green:** 100% Interview Ready. Approved to book their official UKVI/Pre-CAS interview[cite: 2].
+*   🟡 **Yellow:** Needs refinement. May require a peer interview or additional AI practice[cite: 2].
+*   🟠 **Orange:** High Risk. Struggling with core concepts, financials, or English fluency[cite: 2].
+*   🔴 **Red:** Critical intervention required. Escalate to Senior Compliance Officer[cite: 2].
 
-1. **Connect Repository**: Connect your GitHub repository to Firebase App Hosting in the Firebase Console.
-2. **Set Secrets**: You MUST add the following as Secrets in the App Hosting dashboard:
-   - `NEXT_PUBLIC_FIREBASE_API_KEY`
-   - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-   - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
-   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-   - `NEXT_PUBLIC_FIREBASE_APP_ID`
-   - `GEMINI_API_KEY`
-3. **Deploy**: Firebase will automatically build and deploy on every push to your main branch.
-
-### Important Notes for Dual Deployment
-- The static export generates client-side pages under `out/` and supports client Firebase Authentication / Firestore in the browser.
-- The AI assistant backend routes under `/api/ai/*` are server-side routes and are served by the App Hosting backend.
-- Firebase Hosting rewrites `/api/ai/**` to the backend service so the static site can use the same `/api/ai/*` paths.
-
-### If You Need AI / Server API Support
-For full functionality, deploy the backend through App Hosting or another dynamic runtime:
-- Firebase App Hosting
-- Firebase Hosting with Cloud Run
-- Vercel serverless functions
-- A separate Node/Cloud Run backend with proxy rules to `/api/ai/*`
-
-If you want, I can also add a minimal Firebase Functions setup to host the `/api/ai/*` endpoints and keep the front-end static.
 ---
 
-## 📄 License
-Internal proprietary application. Unauthorized distribution or reproduction is strictly prohibited.
+## 🔒 Security & Architecture
+
+*   **Role-Based Access Control (RBAC):** Strict security layers separating `Student`, `Counselor`, and `Admin` permissions. Students can only access their own learning materials, while Counselors manage their specific pipeline, and Admins oversee global analytics[cite: 2].
+*   **AI Guardrails:** The Gemini Copilot is gated by strict system instructions. It will automatically refuse to discuss unrelated topics, protecting the platform from prompt injection and keeping the student strictly focused on compliance prep.
+*   **Data Integrity:** Built on a serverless Next.js App Router and Firebase architecture, ensuring 99.9% availability, fast global reads, and scalable document storage for CVs, SOPs, and financial records[cite: 2].
+
+---
+*Copyright © 2026 Basechan International. All rights reserved. This software is proprietary and confidential.*

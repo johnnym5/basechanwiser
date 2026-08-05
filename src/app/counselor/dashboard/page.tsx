@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import AppShell from "@/components/layout/app-shell";
+import Link from "next/link";
 import StudentHistoryModal from "@/components/StudentHistoryModal";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useRouter } from "next/navigation";
@@ -378,18 +379,30 @@ export default function CounselorAnalyticsDashboardPage() {
     } catch (err) { console.error(err); } finally { setIsSavingEval(false); }
   };
 
-  const StatCard = ({ title, value, sub, icon: Icon, color }: any) => (
-    <div className="bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-slate-500">{title}</span>
-        <div className={`p-2 rounded-xl ${color} bg-opacity-10`}><Icon className={`w-4 h-4 ${color.replace('bg-', 'text-')}`} /></div>
+  const StatCard = ({ title, value, sub, icon: Icon, color, link }: any) => {
+    const cardContent = (
+      <div className="bg-white dark:bg-[#1E293B] p-6 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm space-y-2 h-full hover:shadow-md transition-all cursor-pointer group">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-slate-500 group-hover:text-[#1a73e8] transition-colors">{title}</span>
+          <div className={`p-2 rounded-xl ${color} bg-opacity-10 group-hover:scale-110 transition-transform`}><Icon className={`w-4 h-4 ${color.replace('bg-', 'text-')}`} /></div>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-2xl font-black text-gray-900 dark:text-white">{value}</span>
+          <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500">{sub}</span>
+        </div>
       </div>
-      <div className="flex flex-col">
-        <span className="text-2xl font-black text-gray-900 dark:text-white">{value}</span>
-        <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500">{sub}</span>
-      </div>
-    </div>
-  );
+    );
+
+    if (link) {
+      return (
+        <Link href={link} className="block no-underline">
+          {cardContent}
+        </Link>
+      );
+    }
+
+    return cardContent;
+  };
 
   const handleVerifyDossier = async (student: StudentTableRow) => {
     if (!student.uid) return;
@@ -442,10 +455,10 @@ export default function CounselorAnalyticsDashboardPage() {
           <>
             {/* KPI Banner */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-              <StatCard title="Total Students" value={metrics.total} sub={`${metrics.activeLast7Days} active this week`} icon={Users} color="bg-blue-500" />
+              <StatCard title="Total Students" value={metrics.total} sub={`${metrics.activeLast7Days} active this week`} icon={Users} color="bg-blue-500" link="/counselor/students" />
               <StatCard title="First-Try Pass Rate" value={`${metrics.firstTimePassRate}%`} sub="Students passing attempt #1" icon={Zap} color="bg-emerald-500" />
-              <StatCard title="Pack Completion" value={`${metrics.formCompletionRate}%`} sub={`${metrics.formsSubmitted} forms submitted`} icon={FileText} color="bg-amber-500" />
-              <StatCard title="At-Risk" value={metrics.urgentCount} sub="Red status or 2+ fails" icon={AlertTriangle} color="bg-rose-500" />
+              <StatCard title="Pack Completion" value={`${metrics.formCompletionRate}%`} sub={`${metrics.formsSubmitted} forms submitted`} icon={FileText} color="bg-amber-500" link="/counselor/students?tab=forms" />
+              <StatCard title="At-Risk" value={metrics.urgentCount} sub="Red status or 2+ fails" icon={AlertTriangle} color="bg-rose-500" link="/counselor/students?status=Red" />
             </div>
 
             {/* Analytics Section */}

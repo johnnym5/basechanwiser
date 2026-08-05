@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import InterviewEvaluationModal from '@/components/counselor/InterviewEvaluationModal';
 import AppShell from "@/components/layout/app-shell";
 import { useSearchParams, useRouter } from "next/navigation";
+import SetReminderModal from "@/components/counselor/SetReminderModal";
 import {
   ArrowLeft,
   User,
@@ -27,7 +28,10 @@ import {
   ExternalLink,
   Target,
   GraduationCap,
-  Loader2
+  Loader2,
+  CalendarPlus,
+  X,
+  History
 } from "lucide-react";
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
@@ -47,6 +51,9 @@ function PortfolioContent() {
    const { user, userProfile } = useAuth();
    const [evalOpen, setEvalOpen] = useState(false);
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null);
+
+  // ── Reminder Modal State ──
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
 
    // Run Readiness button component
    function RunReadinessButton({ studentId, onUpdate }: { studentId: string; onUpdate?: () => void }) {
@@ -190,6 +197,7 @@ function PortfolioContent() {
          </div>
             <div className="flex items-center gap-4">
                <button onClick={() => setEvalOpen(true)} className="py-3 px-4 bg-blue-600 text-white rounded-2xl font-black text-sm">🎤 Conduct Live Interview</button>
+               <button onClick={() => setReminderModalOpen(true)} className="py-3 px-4 bg-purple-600 text-white rounded-2xl font-black text-sm flex items-center gap-2"><CalendarPlus className="w-4 h-4" /> Set Reminder</button>
                <RunReadinessButton studentId={student.uid} onUpdate={async () => {
                   // refresh student doc
                   try {
@@ -421,6 +429,19 @@ function PortfolioContent() {
 
          </div>
       </div>
+
+      {/* Reminder Modal */}
+      {reminderModalOpen && student && (
+        <SetReminderModal
+          student={{
+            uid: student.uid,
+            studentId: student.studentId,
+            displayName: student.displayName
+          }}
+          onClose={() => setReminderModalOpen(false)}
+          onSuccess={() => alert("Reminder scheduled!")}
+        />
+      )}
     </div>
   );
 }

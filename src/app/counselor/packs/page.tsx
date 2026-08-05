@@ -23,6 +23,7 @@ import {
 import { collection, getDocs, doc, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { QuestionPack } from "@/types";
+import RoleGuard from "@/components/layout/RoleGuard";
 
 export default function QuestionPacksDashboardPage() {
   const { user, role, loading } = useAuth();
@@ -119,8 +120,9 @@ export default function QuestionPacksDashboardPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
-        {/* Toast */}
+      <RoleGuard allowedRoles={["Admin", "Super Admin"]}>
+        <div className="space-y-6">
+          {/* Toast */}
         {toast && (
           <div
             className={`fixed top-16 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border transition-all ${
@@ -268,6 +270,7 @@ export default function QuestionPacksDashboardPage() {
           </div>
         )}
       </div>
+      </RoleGuard>
     </AppShell>
   );
 }

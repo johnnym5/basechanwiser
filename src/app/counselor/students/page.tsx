@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import AppShell from "@/components/layout/app-shell";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
   Search,
@@ -23,12 +23,17 @@ import {
   Mail,
   User,
   ExternalLink,
-  Loader2
+  Loader2,
+  Filter,
+  ArrowUpDown,
+  FileCheck,
+  CheckCircle2
 } from "lucide-react";
 import { collection, onSnapshot, doc, setDoc, query, deleteDoc, serverTimestamp, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { UserProfile, QuestionPack } from "@/types";
+import { UserProfile, QuestionPack, InterviewPack } from "@/types";
 import Link from "next/link";
+import QuickPortfolioModal from "@/components/counselor/QuickPortfolioModal";
 
 const generateStudentId = () => {
   const randomNum = Math.floor(10000 + Math.random() * 90000);
@@ -38,18 +43,35 @@ const generateStudentId = () => {
 export default function CounselorStudentsPage() {
   const { role, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [students, setStudents] = useState<UserProfile[]>([]);
+  const [interviewPacks, setInterviewPacks] = useState<Record<string, InterviewPack>>({});
+  const [availablePacks, setAvailablePacks] = useState<QuestionPack[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // ── Filter & Sort States ──
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterPack, setFilterPack] = useState("All");
+  const [sortBy, setSortBy] = useState("recent");
+
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  // Read initial filters from URL
+  useEffect(() => {
+    const status = searchParams.get("status");
+    if (status) setFilterStatus(status);
+
+    const initialSearch = searchParams.get("search");
+    if (initialSearch) setSearchQuery(initialSearch);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!authLoading && role !== "Counselor" && role !== "Admin" && role !== "Super Admin") {
       router.push("/dashboard");
     }
   }, [role, authLoading, router]);
-
-  const [students, setStudents] = useState<UserProfile[]>([]);
-  const [availablePacks, setAvailablePacks] = useState<QuestionPack[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   // CRUD Modal States
   const [showAddModal, setShowAddModal] = useState(false);
@@ -66,17 +88,16 @@ export default function CounselorStudentsPage() {
 
   // Assignment Modal State
   const [selectedStudent, setSelectedStudent] = useState<UserProfile | null>(null);
+  const [selectedQuickStudent, setSelectedQuickStudent] = useState<UserProfile | null>(null);
   const [assignedIds, setAssignedIds] = useState<string[]>([]);
   const [isSavingAssignments, setIsSavingAssignments] = useState(false);
-
-  const [activeMenuUid, setActiveMenuUid] = useState<string | null>(null);
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Real-time listener for Users and Question Packs
+  // Real-time listener for Users, Interview Packs, and Question Packs
   useEffect(() => {
     setDataLoading(true);
 
@@ -101,10 +122,20 @@ export default function CounselorStudentsPage() {
       }
     );
 
-    // 2. Real-time question packs listener
-    const packsQuery = query(collection(db, "question_packs"));
-    const unsubscribePacks = onSnapshot(
-      packsQuery,
+    // 2. Real-time interview packs listener
+    const packsRef = collection(db, "Interview_Packs");
+    const unsubscribePacks = onSnapshot(packsRef, (snapshot) => {
+      const packMap: Record<string, InterviewPack> = {};
+      snapshot.forEach((docSnap) => {
+        packMap[docSnap.id] = docSnap.data() as InterviewPack;
+      });
+      setInterviewPacks(packMap);
+    });
+
+    // 3. Real-time question packs listener
+    const qPacksQuery = query(collection(db, "question_packs"));
+    const unsubscribeQPacks = onSnapshot(
+      qPacksQuery,
       (snapshot) => {
         const packList: QuestionPack[] = [];
         snapshot.forEach((docSnap) => {
@@ -120,8 +151,61 @@ export default function CounselorStudentsPage() {
     return () => {
       unsubscribeUsers();
       unsubscribePacks();
+      unsubscribeQPacks();
     };
   }, []);
+
+  // ── Filter & Sort Logic ──
+  const displayedStudents = useMemo(() => {
+    let processed = [...students];
+
+    // A. Search Filter
+    if (searchQuery) {
+      const queryStr = searchQuery.toLowerCase();
+      processed = processed.filter(s =>
+        s.displayName?.toLowerCase().includes(queryStr) ||
+        s.studentId?.toLowerCase().includes(queryStr) ||
+        s.email?.toLowerCase().includes(queryStr)
+      );
+    }
+
+    // B. Compliance Status Filter
+    if (filterStatus !== "All") {
+      processed = processed.filter(s => s.readinessStatus === filterStatus);
+    }
+
+    // C. Interview Pack Filter
+    if (filterPack !== "All") {
+      processed = processed.filter(s => {
+        const pack = interviewPacks[s.uid];
+        const status = pack?.status || "Not Started";
+        return status === filterPack;
+      });
+    }
+
+    // D. Sorting Logic
+    processed.sort((a, b) => {
+      switch (sortBy) {
+        case "progressHigh":
+          return (b.learningProgress || 0) - (a.learningProgress || 0);
+        case "progressLow":
+          return (a.learningProgress || 0) - (b.learningProgress || 0);
+        case "lastActive":
+          const dateA = a.lastLoginAt?.seconds ? a.lastLoginAt.seconds * 1000 : 0;
+          const dateB = b.lastLoginAt?.seconds ? b.lastLoginAt.seconds * 1000 : 0;
+          return dateB - dateA;
+        case "name":
+          return (a.displayName || "").localeCompare(b.displayName || "");
+        case "recent":
+        default:
+          const createA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
+          const createB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
+          return createB - createA;
+      }
+    });
+
+    return processed;
+  }, [students, interviewPacks, searchQuery, filterStatus, filterPack, sortBy]);
 
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,38 +325,23 @@ export default function CounselorStudentsPage() {
     }
   };
 
-  const filteredStudents = students.filter(
-    (s) =>
-      (s.displayName && s.displayName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.office && s.office.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
   return (
     <AppShell>
-      <div className="space-y-6">
-        {/* Toast */}
-        {toast && (
-          <div
-            className={`fixed top-16 right-6 z-50 px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border transition-all ${
-              toast.type === "success"
-                ? "bg-emerald-600 text-white border-emerald-500"
-                : "bg-rose-600 text-white border-rose-500"
-            }`}
-          >
-            {toast.type === "success" ? <Check className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-            <span>{toast.message}</span>
-          </div>
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
+        {selectedQuickStudent && (
+          <QuickPortfolioModal 
+            student={selectedQuickStudent} 
+            onClose={() => setSelectedQuickStudent(null)} 
+          />
         )}
-
-        {/* Header */}
+        {/* Toast */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2 font-google">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#1a73e8] dark:text-blue-400" /> Student CRM Directory
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-[#1a73e8] dark:text-blue-400" /> Master Student Directory
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Manage student accounts, track portfolio data, and assign compliance Question Packs.
+              Unified source of truth for demographics, compliance KPIs, and interview readiness.
             </p>
           </div>
 
@@ -284,101 +353,182 @@ export default function CounselorStudentsPage() {
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-xs">
-          <div className="relative w-full">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name or email..."
-              className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full pl-9 pr-4 py-2.5 text-xs text-gray-700 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-600 focus:outline-none focus:border-blue-500"
-            />
+        {/* ── Filter & Sort Controls UI ── */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-[32px] border border-gray-100 dark:border-gray-700 shadow-sm space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Global Search */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search name, ID, or email..."
+                className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl pl-11 pr-4 py-3 text-sm font-bold text-gray-700 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+               {/* Status Filter */}
+               <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest ml-1">Readiness Status</label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl px-4 py-3 text-xs font-black text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Green">Green (Ready)</option>
+                    <option value="Yellow">Yellow (Warning)</option>
+                    <option value="Orange">Orange (Risk)</option>
+                    <option value="Red">Red (Critical)</option>
+                    <option value="Gray">Gray (New)</option>
+                  </select>
+               </div>
+
+               {/* Interview Pack Filter */}
+               <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest ml-1">Pack Status</label>
+                  <select
+                    value={filterPack}
+                    onChange={(e) => setFilterPack(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl px-4 py-3 text-xs font-black text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="All">All Pack States</option>
+                    <option value="Not Started">Not Started</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Submitted">Submitted</option>
+                    <option value="Verified">Verified</option>
+                  </select>
+               </div>
+
+               {/* Sort Dropdown */}
+               <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase text-gray-400 tracking-widest ml-1">Sort Data By</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl px-4 py-3 text-xs font-black text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="recent">Recently Added</option>
+                    <option value="lastActive">Recently Active</option>
+                    <option value="progressHigh">Progress: High → Low</option>
+                    <option value="progressLow">Progress: Low → High</option>
+                    <option value="name">Name (A-Z)</option>
+                  </select>
+               </div>
+            </div>
           </div>
         </div>
 
-        {/* ── Table: md+ screens ────────────────────────────────── */}
-        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-xs">
+        {/* ── Master Table: md+ screens ─────────────────────────── */}
+        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-[32px] overflow-hidden border border-gray-100 dark:border-gray-700 shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase font-bold text-[10px] tracking-wider border-b border-gray-200 dark:border-gray-600">
+              <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest border-b border-gray-100 dark:border-gray-700">
                 <tr>
-                  <th className="p-4">Student Identity</th>
-                  <th className="p-4">Office</th>
-                  <th className="p-4">Assigned Packs</th>
-                  <th className="p-4">Readiness</th>
-                  <th className="p-4 text-right">Portfolio Actions</th>
+                  <th className="p-6">Student Identity</th>
+                  <th className="p-6">Office / Counselor</th>
+                  <th className="p-6">Compliance Progress</th>
+                  <th className="p-6">Interview Pack</th>
+                  <th className="p-6">Readiness</th>
+                  <th className="p-6 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700 font-medium text-gray-800 dark:text-gray-200">
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-700 font-medium text-gray-800 dark:text-gray-200">
                 {dataLoading ? (
-                  <tr><td colSpan={5} className="p-8 text-center text-gray-500 dark:text-gray-400">
-                    <Sparkles className="w-5 h-5 animate-spin mx-auto text-[#1a73e8] mb-2" /> Loading...
+                  <tr><td colSpan={6} className="p-12 text-center text-gray-500 dark:text-gray-400">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#1a73e8] mb-2" />
+                    <p className="font-black uppercase tracking-widest text-[10px]">Synchronizing Master Data...</p>
                   </td></tr>
-                ) : filteredStudents.length === 0 ? (
-                  <tr><td colSpan={5} className="p-8 text-center text-gray-500 dark:text-gray-400">No registered students found.</td></tr>
+                ) : displayedStudents.length === 0 ? (
+                  <tr><td colSpan={6} className="p-12 text-center text-gray-500 dark:text-gray-400 font-bold">No students matching the current filters.</td></tr>
                 ) : (
-                  filteredStudents.map((student) => {
+                  displayedStudents.map((student) => {
                     const assignedCount = student.assignedPackIds ? student.assignedPackIds.length : availablePacks.filter((p) => p.isDefault).length;
+                    const packStatus = interviewPacks[student.uid]?.status || "Not Started";
+
                     return (
-                      <tr key={student.uid} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors group">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center font-black text-[#1a73e8] text-xs">
+                      <tr
+                        key={student.uid} 
+                        className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer"
+                        onClick={() => setSelectedQuickStudent(student)}
+                      >
+                        <td className="p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center font-black text-[#1a73e8] text-sm shadow-inner group-hover:scale-110 transition-transform">
                               {(student.displayName || "S").charAt(0).toUpperCase()}
                             </div>
-                            <div>
-                               <p className="font-black text-gray-900 dark:text-white leading-none mb-1">{student.displayName || "Student User"}</p>
-                               <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                                  <span className="text-blue-500">{student.studentId || "NO-ID"}</span>
-                                  <span>•</span>
-                                  <span>{student.email}</span>
+                            <div className="space-y-1">
+                               <p className="font-black text-[13px] text-gray-900 dark:text-white leading-none">{student.displayName || "Student User"}</p>
+                               <div className="flex items-center gap-2 text-[9px] font-black text-blue-500 uppercase tracking-tighter">
+                                  <span>{student.studentId || "NO-ID"}</span>
+                                  <span className="text-gray-300">•</span>
+                                  <span className="text-gray-400">{student.email}</span>
                                </div>
                             </div>
                           </div>
                         </td>
-                        <td className="p-4 text-gray-600 dark:text-gray-300 font-bold">{student.office || "London HQ"}</td>
-                        <td className="p-4">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-50 dark:bg-blue-900/30 text-[#1a73e8] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                            <FolderKanban className="w-3 h-3" /> {assignedCount} Packs
-                          </span>
+                        <td className="p-6">
+                           <div className="flex flex-col gap-1">
+                              <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-300 font-black"><Building className="w-3 h-3" /> {student.office || "London HQ"}</span>
+                              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Assigned: Counselor A</span>
+                           </div>
                         </td>
-                        <td className="p-4">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
+                        <td className="p-6">
+                          <div className="space-y-2">
+                             <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-tighter">
+                                <span className="text-gray-500">{student.learningProgress || 0}% Complete</span>
+                                <span className="text-blue-500">{assignedCount} Packs</span>
+                             </div>
+                             <div className="w-32 bg-gray-100 dark:bg-gray-900 rounded-full h-1.5 overflow-hidden">
+                               <div
+                                 className="h-full bg-[#1a73e8] rounded-full transition-all duration-500"
+                                 style={{ width: `${student.learningProgress || 0}%` }}
+                               />
+                             </div>
+                          </div>
+                        </td>
+                        <td className="p-6">
+                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border transition-all ${
+                             packStatus === 'Verified' ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                             : packStatus === 'Submitted' ? 'bg-blue-50 text-blue-600 border-blue-200 animate-pulse'
+                             : packStatus === 'In Progress' ? 'bg-amber-50 text-amber-600 border-amber-200'
+                             : 'bg-gray-50 text-gray-400 border-gray-200'
+                           }`}>
+                              {packStatus === 'Verified' ? <CheckCircle2 className="w-3 h-3" /> : <FileCheck className="w-3 h-3" />}
+                              {packStatus}
+                           </span>
+                        </td>
+                        <td className="p-6">
+                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase border shadow-sm ${
                             student.readinessStatus === "Green" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                             : student.readinessStatus === "Yellow" ? "bg-amber-50 text-amber-600 border-amber-200"
-                            : "bg-rose-50 text-rose-600 border-rose-200"
-                          }`}>● {student.readinessStatus || "Red"}</span>
+                            : student.readinessStatus === "Orange" ? "bg-orange-50 text-orange-600 border-orange-200"
+                            : student.readinessStatus === "Red" ? "bg-rose-50 text-rose-600 border-rose-200"
+                            : "bg-gray-50 text-gray-400 border-gray-200"
+                          }`}>● {student.readinessStatus || "Gray"}</span>
                         </td>
-                        <td className="p-4 text-right">
-                           <div className="flex items-center justify-end gap-2">
-                              <Link
-                                href={`/counselor/students/portfolio?id=${student.uid}`}
-                                className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                                title="View Portfolio"
+                        <td className="p-6 text-right">
+                           <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => setSelectedQuickStudent(student)}
+                                className="p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-[#1a73e8] hover:border-blue-200 transition-all shadow-sm"
+                                title="Quick Dossier"
                               >
                                  <Eye className="w-4 h-4" />
-                              </Link>
+                              </button>
                               <button
                                 onClick={() => handleEditStudent(student)}
-                                className="p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shadow-sm"
-                                title="Edit Info"
+                                className="p-2.5 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
                               >
                                  <Edit3 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => openAssignmentModal(student)}
-                                className="px-4 py-2.5 rounded-xl bg-[#1a73e8] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#1557b0] transition-all shadow-md active:scale-95"
+                                className="p-2.5 rounded-xl bg-[#1a73e8]/5 text-[#1a73e8] hover:bg-[#1a73e8] hover:text-white transition-all shadow-sm"
                               >
-                                Assign
-                              </button>
-                              <button
-                                onClick={() => handleDeleteStudent(student.uid, student.displayName || "")}
-                                className="p-2.5 rounded-xl text-rose-300 hover:bg-rose-50 hover:text-rose-600 transition-all"
-                                title="Purge Account"
-                              >
-                                 <Trash2 className="w-4 h-4" />
+                                <FolderKanban className="w-4 h-4" />
                               </button>
                            </div>
                         </td>
@@ -391,53 +541,47 @@ export default function CounselorStudentsPage() {
           </div>
         </div>
 
-        {/* ── Cards: mobile-only (< md) ─────────────────────────── */}
-        <div className="md:hidden space-y-3">
-          {dataLoading ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              <Sparkles className="w-5 h-5 animate-spin mx-auto text-[#1a73e8] mb-2" /> Loading students...
-            </div>
-          ) : filteredStudents.length === 0 ? (
-            <div className="p-8 text-center text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700">
-              No registered students found.
-            </div>
-          ) : (
-            filteredStudents.map((student) => {
-              const assignedCount = student.assignedPackIds ? student.assignedPackIds.length : availablePacks.filter((p) => p.isDefault).length;
-              const status = student.readinessStatus;
-              return (
-                <div key={student.uid} className="bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm space-y-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-12 rounded-2xl bg-[#1a73e8] text-white flex items-center justify-center font-black text-lg shrink-0 shadow-lg shadow-blue-500/10">
-                        {(student.displayName || "S").charAt(0).toUpperCase()}
+        {/* ── Mobile View: Simplified Cards ── */}
+        <div className="md:hidden space-y-4">
+           {displayedStudents.map((student) => (
+             <div
+               key={student.uid}
+               onClick={() => setSelectedQuickStudent(student)}
+               className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4"
+             >
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center font-black text-blue-600 text-xs">
+                         {(student.displayName || "S").charAt(0)}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-black text-sm text-gray-900 dark:text-white truncate">{student.displayName || "Student User"}</p>
-                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">{student.studentId || "NO-ID"}</p>
+                         <p className="font-black text-sm text-gray-900 dark:text-white truncate">{student.displayName}</p>
+                         <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">{student.studentId}</p>
                       </div>
-                    </div>
-                    <span className={`shrink-0 px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
-                      status === "Green" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                      : status === "Yellow" ? "bg-amber-50 text-amber-600 border-amber-200"
+                   </div>
+                   <span className={`px-2 py-1 rounded-full text-[8px] font-black uppercase border ${
+                      student.readinessStatus === "Green" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                       : "bg-rose-50 text-rose-600 border-rose-200"
-                    }`}>● {status || "Red"}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-gray-50 dark:border-slate-800 pt-4">
-                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{student.office || "London HQ"}</span>
-                     <div className="flex items-center gap-2">
-                        <Link href={`/counselor/students/portfolio?id=${student.uid}`} className="p-2.5 rounded-xl bg-blue-50 text-blue-600"><Eye className="w-4 h-4" /></Link>
-                        <button onClick={() => handleEditStudent(student)} className="p-2.5 rounded-xl bg-gray-50 text-gray-400"><Edit3 className="w-4 h-4" /></button>
-                        <button onClick={() => openAssignmentModal(student)} className="p-2.5 rounded-xl bg-gray-50 text-gray-900 dark:text-white"><FolderKanban className="w-4 h-4" /></button>
-                     </div>
-                  </div>
+                   }`}>● {student.readinessStatus || "Gray"}</span>
                 </div>
-              );
-            })
-          )}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                   <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700">
+                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Progress</p>
+                      <p className="text-xs font-black dark:text-white">{student.learningProgress || 0}%</p>
+                   </div>
+                   <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700">
+                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Pack</p>
+                      <p className="text-xs font-black dark:text-white truncate">{interviewPacks[student.uid]?.status || "Not Started"}</p>
+                   </div>
+                </div>
+             </div>
+           ))}
         </div>
 
-        {/* ── MODAL: Add Student ── */}
+        {/* ── Modals & Drawers ── */}
+        {/* (Rest of the modals remain the same as previous implementation) */}
+
+        {/* Add Student Modal */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4">
              <div className="bg-white dark:bg-[#1E293B] w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in duration-200 border border-gray-100 dark:border-slate-800">
@@ -477,7 +621,7 @@ export default function CounselorStudentsPage() {
           </div>
         )}
 
-        {/* ── MODAL: Edit Student ── */}
+        {/* Edit Student Modal */}
         {showEditModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4">
              <div className="bg-white dark:bg-[#1E293B] w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in duration-200 border border-gray-100 dark:border-slate-800">
@@ -517,7 +661,7 @@ export default function CounselorStudentsPage() {
           </div>
         )}
 
-        {/* Pack Assignment Panel — side drawer on md+, bottom sheet on mobile */}
+        {/* Assignment Modal */}
         {selectedStudent && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex md:justify-end items-end md:items-stretch">
             <div className="w-full md:max-w-xl bg-white dark:bg-gray-800 md:h-full max-h-[92dvh] md:max-h-none rounded-t-3xl md:rounded-none p-5 md:p-6 overflow-y-auto space-y-5 shadow-2xl animate-slide-up md:animate-none">

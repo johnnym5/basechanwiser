@@ -20,7 +20,7 @@ const createMessageId = () => `msg-${Date.now()}-${Math.random().toString(36).sl
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
 export default function StudentMockInterviewPage() {
-  const { userId, loading } = useAuth();
+  const { userId, userProfile, loading } = useAuth();
   const [category, setCategory] = useState<string>(categories[0]);
   const [started, setStarted] = useState(false);
   const [inProgress, setInProgress] = useState(false);
@@ -74,6 +74,10 @@ export default function StudentMockInterviewPage() {
           uid: userId,
           category,
           action: "start",
+          studentContext: {
+            targetUniversity: userProfile?.targetUniversity || "Unknown",
+            targetCourse: userProfile?.targetCourse || "Unknown"
+          }
         }),
       });
 
@@ -111,6 +115,10 @@ export default function StudentMockInterviewPage() {
           action: "step",
           questionText: currentQuestion,
           studentResponse: answer,
+          studentContext: {
+            targetUniversity: userProfile?.targetUniversity || "Unknown",
+            targetCourse: userProfile?.targetCourse || "Unknown"
+          }
         }),
       });
 

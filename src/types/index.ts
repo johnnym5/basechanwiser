@@ -8,6 +8,8 @@ export interface UserProfile {
   role: AppRole;
   intake?: string;
   office?: string;
+  targetUniversity?: string;
+  targetCourse?: string;
   assignedPackIds?: string[];
   completedPackIds?: string[];
   currentModuleLevel?: number;
@@ -16,6 +18,9 @@ export interface UserProfile {
   learningProgress?: number;
   gamifiedScore?: number;
   dayStreak?: number;
+  lastLoginAt?: any;
+  suspended?: boolean;
+  status?: 'Active' | 'Suspended';
 
   // Advanced Counselor/Admin Preferences
   themePreference?: "light" | "dark" | "system";
@@ -80,6 +85,7 @@ export interface LearningModule {
   title: string;
   description?: string;
   videoUrl?: string;
+  studyNotes?: string;
   passScore: number; // strictly 80
   questions: Question[];
   createdAt?: any;
@@ -198,4 +204,26 @@ export interface AnalyticsDashboardData {
   studentRoster: StudentRosterRow[];
   counselorPerformance: CounselorPerformanceRow[];
   generatedAt: string;
+}
+
+// ── Module 13: Notifications & Reminders ──────────────────
+
+export interface AppNotification {
+  id?: string;
+  userId: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  link: string;
+  createdAt: any;
+}
+
+export interface Reminder {
+  id?: string;
+  studentId: string;
+  studentUid: string;
+  counselorUid: string;
+  message: string;
+  triggerAt: number;
+  isTriggered: boolean;
 }

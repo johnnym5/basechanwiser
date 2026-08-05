@@ -39,7 +39,7 @@ interface ChatMessage {
 }
 
 export default function AIAssistantFab() {
-  const { user, role } = useAuth();
+  const { user, role, userProfile } = useAuth();
   const pathname = usePathname();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -134,8 +134,14 @@ export default function AIAssistantFab() {
           currentRoute: pathname,
           activeEntityData: {
             routeLabel: getRouteLabel(),
+            targetUniversity: userProfile?.targetUniversity || "Unknown",
+            targetCourse: userProfile?.targetCourse || "Unknown"
           },
         },
+        studentContext: {
+          targetUniversity: userProfile?.targetUniversity || "Unknown",
+          targetCourse: userProfile?.targetCourse || "Unknown"
+        }
       };
 
       const response = await fetch("/api/ai/assistant", {

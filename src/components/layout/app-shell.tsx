@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import AIAssistantFab from "@/components/ai/AIAssistantFab";
+import NotificationBell from "@/components/common/NotificationBell";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTheme } from "@/lib/theme/theme-context";
@@ -59,16 +60,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   ];
 
   const counselorLinks = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Students", href: "/counselor/students", icon: Users },
-    { name: "Packs", href: "/counselor/packs", icon: FolderKanban },
+    {
+      name: "Dashboard",
+      href: userProfile?.defaultDashboard === 'table' ? "/counselor/dashboard?view=table" : "/counselor/dashboard",
+      icon: ShieldCheck
+    },
+    { name: "My Students", href: "/counselor/students", icon: Users },
     { name: "Library", href: "/counselor/library", icon: BookOpen },
-    { name: "Settings", href: "/counselor/settings", icon: Settings },
+    { name: "Leaderboard", href: "/counselor/leaderboard", icon: Trophy },
   ];
 
   const adminLinks = [
     ...counselorLinks,
+    { name: "Question Packs", href: "/counselor/packs", icon: LayoutGrid },
     { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { name: "Platform Settings", href: "/counselor/settings", icon: Settings },
   ];
 
   const complianceLinks = [
@@ -186,6 +192,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Notification Bell */}
+            <NotificationBell />
+
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}

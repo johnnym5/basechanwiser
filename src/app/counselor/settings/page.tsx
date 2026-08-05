@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import AppShell from "@/components/layout/app-shell";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useRouter } from "next/navigation";
@@ -8,7 +8,8 @@ import { doc, getDoc, setDoc, collection, addDoc, updateDoc, deleteDoc, serverTi
 import { db } from "@/lib/firebase/config";
 import { Resource, SystemSettings } from "@/types/resource";
 import { UserProfile } from "@/types";
-import { Settings, Video, FileText, ExternalLink, Trash2, Edit, Plus, X, Loader2, CheckCircle2, Monitor, Shield, Mail, Tag, Calendar, Download, Lock, Sparkles, AlertCircle, LayoutGrid } from "lucide-react";
+import { Settings, Video, FileText, ExternalLink, Trash2, Edit, Plus, X, Loader2, CheckCircle2, Monitor, Shield, Mail, Tag, Calendar, Download, Lock, Sparkles, AlertCircle, LayoutGrid, Search, LogOut } from "lucide-react";
+import RoleGuard from "@/components/layout/RoleGuard";
 
 function Tab({ isActive, label, onClick }: { isActive: boolean; label: string; onClick: () => void }) {
   return (
@@ -34,7 +35,7 @@ const generateStudentId = () => {
 };
 
 export default function SettingsPage() {
-  const { userProfile, userId, role, loading: authLoading } = useAuth();
+  const { user, userProfile, userId, role, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -47,7 +48,6 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SystemSettings>({});
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
-  const [students, setStudents] = useState<any[]>([]);
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [resourceForm, setResourceForm] = useState<Partial<Resource>>({});
   const [editResourceId, setEditResourceId] = useState<string | null>(null);
@@ -56,26 +56,88 @@ export default function SettingsPage() {
   const [showMaintenanceConfirm, setShowMaintenanceConfirm] = useState(false);
   const [activeTemplateEvent, setActiveTemplateEvent] = useState<"welcome" | "quizFailed" | "formVerified">("welcome");
   const [isImportingCSV, setIsImportingCSV] = useState(false);
+  const [isSeedingModules, setIsSeedingModules] = useState(false);
 
-  const [staffList, setStaffList] = useState<any[]>([]);
+  // ── User Management State ──
+  const [staffList, setStaffList] = useState<UserProfile[]>([]);
   const [userRoleFilter, setUserRoleFilter] = useState<string>("All");
+  const [userStatusFilter, setUserStatusFilter] = useState<string>("All");
+  const [userSortBy, setUserSortBy] = useState<string>("recent");
   const [userSearchTerm, setUserSearchTerm] = useState<string>("");
   const [showAddUserModal, setShowAddUserModal] = useState<boolean>(false);
   const [newUserForm, setNewUserForm] = useState({ displayName: "", email: "", role: "Counselor", office: "Lagos" });
   const [isCreatingUser, setIsCreatingUser] = useState<boolean>(false);
 
   const fetchStaff = async () => {
-    const usersSnap = await getDocs(collection(db, "Users"));
-    const studentList: any[] = [];
-    const allStaff: any[] = [];
-    usersSnap.forEach((d) => {
-      const data = d.data() as any;
-      if (data.role === "Student") studentList.push({ uid: d.id, ...data });
-      else allStaff.push({ uid: d.id, ...data });
-    });
-    setStudents(studentList);
-    setStaffList(allStaff);
+    try {
+      const usersSnap = await getDocs(collection(db, "Users"));
+      const allUsers: UserProfile[] = [];
+      usersSnap.forEach((d) => {
+        allUsers.push({ uid: d.id, ...d.data() } as UserProfile);
+      });
+      setStaffList(allUsers);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    }
   };
+
+  useEffect(() => {
+    if (activeTab === 2) {
+      fetchStaff();
+    }
+  }, [activeTab]);
+
+  const filteredStaffList = useMemo(() => {
+    let result = [...staffList];
+
+    // 1. Search Filter
+    if (userSearchTerm.trim()) {
+      const q = userSearchTerm.toLowerCase();
+      result = result.filter(
+        (u) =>
+          u.displayName?.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q) ||
+          u.studentId?.toLowerCase().includes(q)
+      );
+    }
+
+    // 2. Role Filter
+    if (userRoleFilter !== "All") {
+      result = result.filter((u) => u.role === userRoleFilter);
+    }
+
+    // 3. Status Filter
+    if (userStatusFilter !== "All") {
+      if (userStatusFilter === "Suspended") {
+        result = result.filter((u) => u.suspended === true || u.status === "Suspended");
+      } else {
+        result = result.filter((u) => u.suspended !== true && u.status !== "Suspended");
+      }
+    }
+
+    // 4. Sorting
+    result.sort((a, b) => {
+      if (userSortBy === "name") {
+        return (a.displayName || "").localeCompare(b.displayName || "");
+      }
+      if (userSortBy === "lastActive") {
+        const dateA = a.lastLoginAt?.seconds ? a.lastLoginAt.seconds * 1000 : 0;
+        const dateB = b.lastLoginAt?.seconds ? b.lastLoginAt.seconds * 1000 : 0;
+        return dateB - dateA;
+      }
+      if (userSortBy === "oldest") {
+        const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
+        const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
+        return dateA - dateB;
+      }
+      // Default: recent
+      const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
+      const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
+      return dateB - dateA;
+    });
+
+    return result;
+  }, [staffList, userSearchTerm, userRoleFilter, userStatusFilter, userSortBy]);
 
   useEffect(() => {
     async function fetchData() {
@@ -249,22 +311,16 @@ export default function SettingsPage() {
     setResources(resources.filter((r) => r.id !== id));
   };
 
-  const filteredStaffList = staffList.filter((userItem) => {
-    const matchesRole = userRoleFilter === "All" || (userItem.role || "Student") === userRoleFilter;
-    const matchesSearch =
-      !userSearchTerm ||
-      (userItem.displayName && userItem.displayName.toLowerCase().includes(userSearchTerm.toLowerCase())) ||
-      (userItem.email && userItem.email.toLowerCase().includes(userSearchTerm.toLowerCase()));
-    return matchesRole && matchesSearch;
-  });
-
   const handleRoleChange = async (uid: string, newRole: string) => {
     await updateDoc(doc(db, "Users", uid), { role: newRole });
     fetchStaff();
   };
 
   const handleToggleSuspend = async (uid: string, currentSuspendedState?: boolean) => {
-    await updateDoc(doc(db, "Users", uid), { suspended: !currentSuspendedState });
+    await updateDoc(doc(db, "Users", uid), {
+      suspended: !currentSuspendedState,
+      status: !currentSuspendedState ? "Suspended" : "Active"
+    });
     fetchStaff();
   };
 
@@ -310,6 +366,33 @@ export default function SettingsPage() {
     alert("System settings saved!");
   };
 
+  const handleSeedModules = async () => {
+    if (!confirm("This will overwrite/reset the 5 official UKVI modules. Proceed?")) return;
+    setIsSeedingModules(true);
+    try {
+      const idToken = await user?.getIdToken();
+      if (!idToken) throw new Error("Not authenticated");
+
+      const res = await fetch("/api/admin/seed-modules", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Seeding failed");
+
+      alert(data.message || "Modules seeded successfully!");
+    } catch (err: any) {
+      console.error("Seeding error:", err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setIsSeedingModules(false);
+    }
+  };
+
   const inputClasses = "mt-1 block w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-[#0F172A] px-4 py-3 text-sm text-gray-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all";
   const labelClasses = "block text-xs font-black uppercase tracking-wider text-gray-500 dark:text-slate-500 mb-1";
 
@@ -317,17 +400,18 @@ export default function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="max-w-5xl mx-auto w-full space-y-8 pb-20">
-        <div className="flex flex-col gap-1 border-l-4 border-[#1a73e8] pl-6 py-2">
-          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3 font-google">
-            <Settings className="w-8 h-8 text-[#1a73e8]" /> Settings & System Manager
-          </h1>
-          <p className="text-sm font-medium text-gray-500 dark:text-slate-400 uppercase tracking-widest">
-            Manage staff profile, resource library, and platform defaults
-          </p>
-        </div>
+      <RoleGuard allowedRoles={["Admin", "Super Admin"]}>
+        <div className="max-w-5xl mx-auto w-full space-y-8 pb-20">
+          <div className="flex flex-col gap-1 border-l-4 border-[#1a73e8] pl-6 py-2">
+            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3 font-google">
+              <Settings className="w-8 h-8 text-[#1a73e8]" /> Settings & System Manager
+            </h1>
+            <p className="text-sm font-medium text-gray-500 dark:text-slate-400 uppercase tracking-widest">
+              Manage staff profile, resource library, and platform defaults
+            </p>
+          </div>
 
-        <div className="border-b border-gray-200 dark:border-slate-800 flex gap-2 overflow-x-auto scrollbar-hide">
+          <div className="border-b border-gray-200 dark:border-slate-800 flex gap-2 overflow-x-auto scrollbar-hide">
           {[
             { label: "Profile & Preferences", idx: 0, roles: ["Admin", "Counselor", "Super Admin"] },
             { label: "Resource Library", idx: 1, roles: ["Admin", "Counselor", "Super Admin"] },
@@ -601,10 +685,56 @@ export default function SettingsPage() {
                  </div>
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {["All", "Counselor", "Admin", "Student"].map((f) => (
-                  <button key={f} onClick={() => setUserRoleFilter(f)} className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase border transition-all ${userRoleFilter === f ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white" : "border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-500"}`}>{f}s</button>
-                ))}
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search name, email, or student ID..."
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 rounded-xl pl-11 pr-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {/* Role Filter */}
+                  <select
+                    value={userRoleFilter}
+                    onChange={(e) => setUserRoleFilter(e.target.value)}
+                    className="bg-gray-50 dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-black text-[#1a73e8] cursor-pointer focus:outline-none"
+                  >
+                    <option value="All">All Roles</option>
+                    <option value="Super Admin">Super Admin</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Counselor">Counselor</option>
+                    <option value="Student">Student</option>
+                  </select>
+
+                  {/* Status Filter */}
+                  <select
+                    value={userStatusFilter}
+                    onChange={(e) => setUserStatusFilter(e.target.value)}
+                    className="bg-gray-50 dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-black text-[#1a73e8] cursor-pointer focus:outline-none"
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Active">Active</option>
+                    <option value="Suspended">Suspended</option>
+                  </select>
+
+                  {/* Sort Option */}
+                  <select
+                    value={userSortBy}
+                    onChange={(e) => setUserSortBy(e.target.value)}
+                    className="bg-gray-50 dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-black text-[#1a73e8] cursor-pointer focus:outline-none"
+                  >
+                    <option value="recent">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="name">Name (A-Z)</option>
+                    <option value="lastActive">Recently Active</option>
+                  </select>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -679,7 +809,7 @@ export default function SettingsPage() {
                                   <span className="text-xs font-bold dark:text-slate-200">{c.displayName}</span>
                                </div>
                                <span className="px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/30 text-[10px] font-black text-purple-600 border border-purple-100 dark:border-purple-800">
-                                  {students.filter(s => s.location === c.office).length} Students
+                                  {staffList.filter(s => s.role === 'Student' && (s.office === c.office || (s as any).location === c.office)).length} Students
                                </span>
                             </div>
                           ))}
@@ -799,6 +929,24 @@ export default function SettingsPage() {
                       className={`px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all ${settings.maintenanceMode ? 'bg-rose-600 text-white' : 'bg-white dark:bg-[#1E293B] text-rose-600 border border-rose-200 dark:border-rose-800'}`}
                     >
                       {settings.maintenanceMode ? "Enabled - Turn Off" : "Enable System Lock"}
+                    </button>
+                 </div>
+
+                 {/* Developer Seed Tools */}
+                 <div className="p-8 rounded-[32px] bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                    <div className="space-y-1">
+                       <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-blue-500" /> UKVI Content Seeding
+                       </h3>
+                       <p className="text-xs text-gray-500 dark:text-slate-400 font-bold">Populate database with the 5 official progressive UKVI modules & questions.</p>
+                    </div>
+                    <button
+                      onClick={handleSeedModules}
+                      disabled={isSeedingModules}
+                      className="px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black rounded-full text-xs uppercase tracking-widest shadow-xl flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                    >
+                      {isSeedingModules ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                      {isSeedingModules ? "Seeding..." : "Seed UKVI Modules"}
                     </button>
                  </div>
               </div>
@@ -953,6 +1101,7 @@ export default function SettingsPage() {
            <button onClick={() => setIsImportingCSV(false)} className="ml-4 p-1 hover:bg-white/20 rounded-full"><X className="w-4 h-4" /></button>
         </div>
       )}
+      </RoleGuard>
     </AppShell>
   );
 }

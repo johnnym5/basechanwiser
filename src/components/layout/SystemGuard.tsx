@@ -7,9 +7,10 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { SystemSettings } from "@/types/resource";
 import FullScreenLoader from "@/components/common/FullScreenLoader";
+import { ShieldAlert, LogOut } from "lucide-react";
 
 export default function SystemGuard({ children }: { children: React.ReactNode }) {
-  const { user, role, loading: authLoading } = useAuth();
+  const { user, userProfile, role, loading: authLoading, logout } = useAuth();
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isTimeout, setIsTimeout] = useState(false);
@@ -47,6 +48,13 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
       return;
     }
 
+    // SUSPENSION CHECK
+    const isSuspended = userProfile?.suspended === true || userProfile?.status === "Suspended";
+    if (user && isSuspended && pathname !== "/login") {
+      // We'll handle the UI in the render block below
+      return;
+    }
+
     // If maintenance mode is ON and user is a Student
     if (maintenanceMode && role === "Student" && pathname !== "/maintenance") {
       router.push("/maintenance");
@@ -56,7 +64,7 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
     if (!maintenanceMode && pathname === "/maintenance") {
       router.push("/dashboard");
     }
-  }, [maintenanceMode, role, loading, authLoading, pathname, router, user]);
+  }, [maintenanceMode, role, loading, authLoading, pathname, router, user, userProfile]);
 
   // Show the proper loader instead of a blank screen/null
   if ((loading || authLoading) && !isTimeout) {
@@ -68,5 +76,36 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
      return <FullScreenLoader />;
   }
 
+  // SUSPENSION UI RENDER
+  const isSuspended = userProfile?.suspended === true || userProfile?.status === "Suspended";
+  if (user && isSuspended) {
+    return (
+      <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center p-4 text-center">
+        <div className="bg-white dark:bg-[#1E293B] border border-rose-500/30 rounded-[40px] p-10 max-w-md w-full shadow-2xl flex flex-col items-center space-y-6">
+          <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-full flex items-center justify-center border border-rose-500/20">
+            <ShieldAlert size={40} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Access Suspended</h2>
+            <p className="text-gray-500 dark:text-slate-400 text-sm font-bold leading-relaxed">
+              Your account has been temporarily restricted by an administrator. Please contact your counselor or support.
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              await logout();
+              router.push("/login");
+            }}
+            className="flex items-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-8 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl"
+          >
+            <LogOut size={16} />
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
+
