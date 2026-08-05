@@ -19,6 +19,7 @@ import {
 import { collection, query, where, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { TrafficLightStatus, UserProfile } from "@/types";
+import EmptyState from "./common/EmptyState";
 
 interface StudentHistoryModalProps {
   student: {
@@ -185,9 +186,11 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
             <div className="p-12 text-center text-xs text-gray-500 dark:text-gray-400">Loading student history logs...</div>
           ) : activeTab === "quizzes" ? (
             quizAttempts.length === 0 ? (
-              <div className="p-12 text-center text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-750 rounded-2xl border border-gray-200 dark:border-gray-700">
-                No quiz attempts logged for this student yet.
-              </div>
+              <EmptyState
+                icon={Award}
+                title="No Missions Logged"
+                description="This student hasn't completed any learning module quizzes yet."
+              />
             ) : (
               <div className="space-y-3">
                 {quizAttempts.map((attempt) => {
@@ -273,9 +276,11 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
             )
           ) : activeTab === "pack" ? (
             !interviewPack ? (
-              <div className="p-12 text-center text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-750 rounded-2xl border border-gray-200 dark:border-gray-700">
-                Student has not submitted an Interview Pack yet.
-              </div>
+              <EmptyState
+                icon={FileText}
+                title="Dossier Not Started"
+                description="The student has not yet filled out or submitted their digital interview pack."
+              />
             ) : (
               <div className="bg-white dark:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-3">
@@ -314,9 +319,11 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
             )
           ) : (
             evaluations.length === 0 ? (
-              <div className="p-12 text-center text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-750 rounded-2xl border border-gray-200 dark:border-gray-700">
-                No compliance evaluation notes logged yet.
-              </div>
+              <EmptyState
+                icon={ShieldCheck}
+                title="No Audit Logs"
+                description="No official counselor evaluations or readiness notes have been recorded for this scholar."
+              />
             ) : (
               <div className="space-y-3">
                 {evaluations.map((ev) => (

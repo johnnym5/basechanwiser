@@ -21,7 +21,8 @@ import {
   Save,
   ChevronRight,
   ShieldCheck,
-  Building
+  Building,
+  Loader2
 } from "lucide-react";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
@@ -312,9 +313,24 @@ export default function InterviewPackPage() {
                    ) : <div />}
 
                    {currentStep < 4 ? (
-                     <button type="button" onClick={() => { handleSaveDraft(); setCurrentStep(prev => prev + 1); }} className="px-10 py-4 bg-[#1a73e8] text-white font-black rounded-full text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-blue-500/20">Next Step <ArrowRight className="w-4 h-4" /></button>
+                     <button
+                        type="button"
+                        onClick={() => { handleSaveDraft(); setCurrentStep(prev => prev + 1); }}
+                        disabled={isSaving}
+                        className="px-10 py-4 bg-[#1a73e8] text-white font-black rounded-full text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-blue-500/20 disabled:opacity-50"
+                     >
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        Next Step <ArrowRight className="w-4 h-4" />
+                     </button>
                    ) : (
-                     <button type="submit" className="px-12 py-5 bg-emerald-600 text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-emerald-500/30 flex items-center gap-3 animate-pulse-scale"><CheckCircle2 className="w-5 h-5" /> Submit Full Dossier</button>
+                     <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="px-12 py-5 bg-emerald-600 text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-emerald-500/30 flex items-center gap-3 animate-pulse-scale disabled:opacity-50"
+                     >
+                        {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                        Submit Full Dossier
+                     </button>
                    )}
                 </div>
              </form>

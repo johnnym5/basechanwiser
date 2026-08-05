@@ -309,7 +309,7 @@ function ModuleDetailContent() {
 
              <button
                onClick={() => setQuizStarted(true)}
-               className="px-12 py-5 bg-[#1a73e8] text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 mx-auto"
+               className="px-12 py-5 bg-[#1a73e8] text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 mx-auto min-h-[56px]"
              >
                 Enter Challenge <ArrowRight className="w-5 h-5" />
              </button>

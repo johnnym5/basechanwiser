@@ -24,6 +24,7 @@ import { collection, getDocs, doc, deleteDoc, addDoc, serverTimestamp } from "fi
 import { db } from "@/lib/firebase/config";
 import { QuestionPack } from "@/types";
 import RoleGuard from "@/components/layout/RoleGuard";
+import EmptyState from "@/components/common/EmptyState";
 
 export default function QuestionPacksDashboardPage() {
   const { user, role, loading } = useAuth();
@@ -196,15 +197,13 @@ export default function QuestionPacksDashboardPage() {
             <Sparkles className="w-5 h-5 animate-spin text-[#1a73e8] dark:text-blue-400" /> Loading question packs...
           </div>
         ) : filteredPacks.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-3xl p-12 border border-gray-200 dark:border-gray-700 text-center space-y-3">
-            <Layers className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto" />
-            <h3 className="text-base font-bold text-gray-900 dark:text-white font-google">No Question Packs Found</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-              {searchTerm || selectedCategory !== "All"
-                ? "No question packs match your search or category filter."
-                : "Create your first Question Pack using the '+ Create New Pack' button above."}
-            </p>
-          </div>
+          <EmptyState
+            icon={Layers}
+            title="No Question Packs Found"
+            description={searchTerm || selectedCategory !== "All"
+              ? "No question packs match your search or category filter."
+              : "Create your first Question Pack using the '+ Create New Pack' button above."}
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPacks.map((pack) => (

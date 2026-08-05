@@ -34,6 +34,7 @@ import { db } from "@/lib/firebase/config";
 import { UserProfile, QuestionPack, InterviewPack } from "@/types";
 import Link from "next/link";
 import QuickPortfolioModal from "@/components/counselor/QuickPortfolioModal";
+import EmptyState from "@/components/common/EmptyState";
 
 const generateStudentId = () => {
   const randomNum = Math.floor(10000 + Math.random() * 90000);
@@ -442,7 +443,19 @@ export default function CounselorStudentsPage() {
                     <p className="font-black uppercase tracking-widest text-[10px]">Synchronizing Master Data...</p>
                   </td></tr>
                 ) : displayedStudents.length === 0 ? (
-                  <tr><td colSpan={6} className="p-12 text-center text-gray-500 dark:text-gray-400 font-bold">No students matching the current filters.</td></tr>
+                  <tr><td colSpan={6} className="p-6">
+                    <EmptyState
+                      icon={Search}
+                      title="No Results Found"
+                      description="We couldn't find any students matching your current search or filter criteria. Try adjusting your filters."
+                      actionText="Reset Filters"
+                      onAction={() => {
+                        setSearchQuery("");
+                        setFilterStatus("All");
+                        setFilterPack("All");
+                      }}
+                    />
+                  </td></tr>
                 ) : (
                   displayedStudents.map((student) => {
                     const assignedCount = student.assignedPackIds ? student.assignedPackIds.length : availablePacks.filter((p) => p.isDefault).length;

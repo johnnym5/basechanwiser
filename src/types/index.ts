@@ -21,6 +21,7 @@ export interface UserProfile {
   lastLoginAt?: any;
   suspended?: boolean;
   status?: 'Active' | 'Suspended';
+  photoURL?: string;
 
   // Advanced Counselor/Admin Preferences
   themePreference?: "light" | "dark" | "system";

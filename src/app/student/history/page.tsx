@@ -18,6 +18,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import EmptyState from "@/components/common/EmptyState";
 
 interface AttemptDetail {
   questionText: string;
@@ -90,10 +91,11 @@ export default function ActivityHistoryPage() {
         {loading ? (
           <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>
         ) : attempts.length === 0 ? (
-          <div className="text-center p-20 bg-white dark:bg-[#1E293B] rounded-[40px] border border-dashed border-gray-200 dark:border-slate-800">
-             <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-             <p className="text-gray-400 font-black uppercase tracking-widest leading-relaxed">You haven't completed any missions yet.<br/>Your attempt history will appear here.</p>
-          </div>
+          <EmptyState
+            icon={History}
+            title="No Missions Logged"
+            description="You haven't completed any missions yet. Your attempt history will appear here once you finish your first learning module quiz."
+          />
         ) : (
           <div className="space-y-4">
              {attempts.map((attempt) => (

@@ -64,6 +64,7 @@ import {
   Area,
 } from "recharts";
 import ResourceVaultModal from "@/components/common/ResourceVaultModal";
+import EmptyState from "@/components/common/EmptyState";
 
 interface StudentTableRow {
   uid: string;
@@ -601,7 +602,15 @@ export default function CounselorAnalyticsDashboardPage() {
                  </thead>
                  <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50">
                     {segmentedStudents.length === 0 ? (
-                      <tr><td colSpan={6} className="p-12 text-center text-sm font-bold text-gray-400">No students in this cohort.</td></tr>
+                      <tr><td colSpan={6} className="p-6">
+                        <EmptyState
+                          icon={Users}
+                          title="No Students in Cohort"
+                          description={searchTerm
+                            ? "No students match your search criteria. Try a different term."
+                            : "There are currently no students matching this tab's criteria."}
+                        />
+                      </td></tr>
                     ) : (
                       segmentedStudents.map((s) => (
                         <tr key={s.uid} className={`group hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all ${selectedUids.includes(s.uid) ? "bg-blue-50/50 dark:bg-blue-900/20" : ""}`}>
@@ -820,7 +829,8 @@ export default function CounselorAnalyticsDashboardPage() {
                       <textarea rows={6} value={evalNotes} onChange={(e) => setEvalNotes(e.target.value)} placeholder="Review financial credibility, course research depth..." className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-[#1a73e8]" />
                    </div>
 
-                   <button type="submit" disabled={isSavingEval} className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-3xl text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all">
+                   <button type="submit" disabled={isSavingEval} className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-3xl text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 min-h-[56px]">
+                      {isSavingEval ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                       {isSavingEval ? "Committing Entry..." : "Save Evaluation Log"}
                    </button>
                 </form>

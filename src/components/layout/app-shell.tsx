@@ -114,9 +114,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
           }`}
       >
-        <Icon className={`w-5 h-5 shrink-0 ${isActive ? "text-[#1a73e8] dark:text-blue-300" : "text-gray-500 dark:text-gray-400"}`} />
+        <Icon size={20} className={`shrink-0 ${isActive ? "text-[#1a73e8] dark:text-blue-300" : "text-gray-500 dark:text-gray-400"}`} />
         <span className="truncate">{link.name}</span>
-        {isActive && <ChevronRight className="w-4 h-4 ml-auto text-[#1a73e8] dark:text-blue-300" />}
+        {isActive && <ChevronRight size={16} className="ml-auto text-[#1a73e8] dark:text-blue-300" />}
       </Link>
     );
   };
@@ -147,9 +147,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     : "text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-white"
                   }`}
               >
-                <Icon className={`w-6 h-6 shrink-0 ${isActive ? "text-[#1a73e8] dark:text-blue-500" : "text-gray-400 dark:text-slate-500"}`} />
+                <Icon size={24} className={`shrink-0 ${isActive ? "text-[#1a73e8] dark:text-blue-500" : "text-gray-400 dark:text-slate-500"}`} />
                 <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 truncate">{link.name}</span>
-                {isActive && <ChevronRight className="w-4 h-4 ml-auto opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 text-[#1a73e8] dark:text-blue-500" />}
+                {isActive && <ChevronRight size={18} className="ml-auto opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 text-[#1a73e8] dark:text-blue-500" />}
               </Link>
             );
           })}
@@ -177,12 +177,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setMobileDrawerOpen(true)}
               className="lg:hidden p-2 rounded-xl text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
             >
-              <Menu className="w-6 h-6" />
+              <Menu size={24} />
             </button>
 
             {/* Breadcrumb or Search placeholder */}
             <div className="hidden sm:flex items-center relative w-64">
-              <Search className="w-4 h-4 absolute left-3 text-gray-400 dark:text-slate-500" />
+              <Search size={16} className="absolute left-3 text-gray-400 dark:text-slate-500" />
               <input
                 type="text"
                 placeholder="Search resources..."
@@ -200,7 +200,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               onClick={toggleTheme}
               className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-yellow-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all"
             >
-              {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
             </button>
 
             {/* Role pill */}
@@ -221,9 +221,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <div className="relative">
               <button
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="w-10 h-10 rounded-full bg-[#1a73e8] flex items-center justify-center text-white font-bold text-sm hover:bg-[#1557b0] transition-all shadow-md"
+                className="w-10 h-10 rounded-full bg-[#1a73e8] overflow-hidden flex items-center justify-center text-white font-bold text-sm hover:bg-[#1557b0] transition-all shadow-md"
               >
-                {displayName.charAt(0).toUpperCase()}
+                {userProfile?.photoURL || user?.photoURL ? (
+                  <img
+                    src={userProfile?.photoURL || user?.photoURL || ""}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      (e.target as HTMLImageElement).parentElement!.innerHTML = `<span>${displayName.charAt(0).toUpperCase()}</span>`;
+                    }}
+                  />
+                ) : (
+                  displayName.charAt(0).toUpperCase()
+                )}
               </button>
 
               {profileDropdownOpen && (
@@ -266,7 +278,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="font-extrabold text-gray-900 dark:text-white text-base">BASECHANWISER</span>
               </div>
               <button onClick={() => setMobileDrawerOpen(false)} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800">
-                <X className="w-5 h-5" />
+                <X size={20} />
               </button>
             </div>
 
@@ -278,8 +290,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
             <div className="px-4 pb-8 pt-4 border-t border-gray-100 dark:border-slate-800 space-y-4">
               <div className="flex items-center gap-3 px-3 py-2">
-                <div className="w-10 h-10 rounded-full bg-[#1a73e8] flex items-center justify-center text-white font-bold text-sm">
-                  {displayName.charAt(0).toUpperCase()}
+                <div className="w-10 h-10 rounded-full bg-[#1a73e8] overflow-hidden flex items-center justify-center text-white font-bold text-sm">
+                  {userProfile?.photoURL || user?.photoURL ? (
+                    <img
+                      src={userProfile?.photoURL || user?.photoURL || ""}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).parentElement!.innerHTML = `<span>${displayName.charAt(0).toUpperCase()}</span>`;
+                      }}
+                    />
+                  ) : (
+                    displayName.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{displayName}</p>
@@ -310,7 +334,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-colors ${isActive ? "text-[#1a73e8] dark:text-blue-400 font-bold" : "text-gray-500 dark:text-slate-500"
                   }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon size={20} />
                 <span className="text-[10px] uppercase tracking-tighter">{link.name.split(" ")[0]}</span>
               </Link>
             );

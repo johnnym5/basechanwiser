@@ -7,6 +7,7 @@ import { Trophy, Crown, Sparkles, Loader2, User, ChevronRight } from "lucide-rea
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useRouter } from "next/navigation";
+import EmptyState from "./EmptyState";
 
 interface LeaderboardEntry {
   userId: string;
@@ -74,10 +75,11 @@ export default function LeaderboardView({ isCounselorView = false }: Leaderboard
 
   if (entries.length === 0) {
     return (
-      <div className="text-center p-20 bg-white dark:bg-[#1E293B] rounded-[40px] border border-gray-100 dark:border-slate-800">
-         <Trophy className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-         <p className="text-slate-400 font-black uppercase tracking-widest">No entries yet. Be the first to top the charts!</p>
-      </div>
+      <EmptyState
+        icon={Trophy}
+        title="No Rankings Yet"
+        description="The mission boards are currently empty. Complete your first module mission to top the charts!"
+      />
     );
   }
 

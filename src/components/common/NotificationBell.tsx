@@ -20,6 +20,7 @@ import {
 import { db } from "@/lib/firebase/config";
 import { AppNotification, Reminder } from "@/types";
 import { formatDistanceToNow } from "date-fns";
+import EmptyState from "./EmptyState";
 
 export default function NotificationBell() {
   const { user, userId, role } = useAuth();
@@ -181,12 +182,11 @@ export default function NotificationBell() {
 
           <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-50 dark:divide-slate-800">
             {notifications.length === 0 ? (
-              <div className="p-12 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-[#0F172A] flex items-center justify-center mx-auto">
-                   <Bell className="w-6 h-6 text-gray-300 dark:text-slate-600" />
-                </div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">No notifications yet.<br/>We'll alert you of activity here.</p>
-              </div>
+              <EmptyState
+                icon={Bell}
+                title="All Caught Up!"
+                description="You have no new notifications at this time. We'll alert you of any activity here."
+              />
             ) : (
               notifications.map((notif) => (
                 <div
