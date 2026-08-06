@@ -23,7 +23,7 @@ import {
   Loader2,
   X
 } from "lucide-react";
-import { doc, getDoc, collection, getDocs, serverTimestamp, updateDoc, addDoc, query, where, orderBy, limit } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, serverTimestamp, updateDoc, addDoc, deleteDoc, query, where, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { QuestionPack, Question, LearningModule, UserProfile } from "@/types";
 import { Resource, SystemSettings } from "@/types/resource";
@@ -195,6 +195,7 @@ function ModuleDetailContent() {
       };
 
       await addDoc(collection(db, "quiz_attempts"), attemptPayload);
+      await cleanupOldQuizAttempts();
 
       // 2. Update Progress if passed
       if (passed) {
@@ -225,6 +226,28 @@ function ModuleDetailContent() {
     } catch (err) {
       console.error("Failed to save quiz history:", err);
       alert("There was an error saving your score. Please check your connection.");
+    }
+  };
+
+  const cleanupOldQuizAttempts = async () => {
+    if (!userId) return;
+
+    try {
+      const attemptsQuery = query(
+        collection(db, "quiz_attempts"),
+        where("userId", "==", userId),
+        orderBy("createdAt", "desc"),
+        limit(11)
+      );
+      const snap = await getDocs(attemptsQuery);
+      if (snap.size <= 10) return;
+
+      const toDelete = snap.docs.slice(10);
+      await Promise.all(
+        toDelete.map((docSnap) => deleteDoc(doc(db, "quiz_attempts", docSnap.id)))
+      );
+    } catch (err) {
+      console.error("cleanupOldQuizAttempts error:", err);
     }
   };
 

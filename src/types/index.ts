@@ -22,6 +22,7 @@ export interface UserProfile {
   suspended?: boolean;
   status?: 'Active' | 'Suspended';
   photoURL?: string;
+  documents?: Record<string, string>; // e.g. { passport: "url", transcript: "url" }
 
   // Advanced Counselor/Admin Preferences
   themePreference?: "light" | "dark" | "system";
@@ -31,6 +32,13 @@ export interface UserProfile {
 
   createdAt?: any;
   updatedAt?: any;
+  mockInterview?: {
+    videoUrl?: string;
+    status?: string;
+    submittedAt?: any;
+    counselorNotes?: string;
+    score?: number | null;
+  };
 }
 
 export interface Option {

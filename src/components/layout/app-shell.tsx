@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import AIAssistantFab from "@/components/ai/AIAssistantFab";
 import NotificationBell from "@/components/common/NotificationBell";
+import AiChatModule from "@/components/chat/AiChatModule";
+import CounselorChatModule from "@/components/chat/CounselorChatModule";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTheme } from "@/lib/theme/theme-context";
@@ -20,6 +21,7 @@ import {
   LogOut,
   Menu,
   X,
+  Bot,
   ChevronRight,
   Settings,
   Sun,
@@ -29,16 +31,25 @@ import {
   History,
   MessageSquare,
   BarChart3,
+  Eye,
+  ShieldAlert,
+  User as UserIcon,
 } from "lucide-react";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, userProfile, role, logout } = useAuth();
+  const { user, userProfile, role, logout, effectiveRole, simulatedRole, setSimulatedRole } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMode, setChatMode] = useState<'ai' | 'counselor'>('ai');
+  const [avatarErrored, setAvatarErrored] = useState(false);
+  const [mobileAvatarErrored, setMobileAvatarErrored] = useState(false);
+
+  const isAdmin = role === "Admin" || role === "Super Admin";
 
   // Close drawer on route change
   useEffect(() => { setMobileDrawerOpen(false); }, [pathname]);
@@ -83,11 +94,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   ];
 
   const navLinks =
-    role === "Head of Compliance"
+    effectiveRole === "Head of Compliance"
       ? complianceLinks
-      : role === "Admin" || role === "Super Admin"
+      : effectiveRole === "Admin" || effectiveRole === "Super Admin"
         ? adminLinks
-        : role === "Counselor"
+        : effectiveRole === "Counselor"
           ? counselorLinks
           : studentLinks;
 
@@ -192,6 +203,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Chat Trigger Icon */}
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all relative"
+              title="Open Chat Support"
+            >
+              <MessageSquare size={20} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border border-white dark:border-slate-800" />
+            </button>
+
             {/* Notification Bell */}
             <NotificationBell />
 
@@ -204,17 +225,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </button>
 
             {/* Role pill */}
-            <span className={`hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${role === "Super Admin"
+            <span className={`hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${effectiveRole === "Super Admin"
                 ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800"
-                : role === "Head of Compliance"
+                : effectiveRole === "Head of Compliance"
                   ? "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800"
-                : role === "Admin"
+                : effectiveRole === "Admin"
                   ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-                  : role === "Counselor"
+                  : effectiveRole === "Counselor"
                     ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
                     : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
               }`}>
-              {role || "Student"}
+              {simulatedRole ? `Viewing as: ${simulatedRole}` : (effectiveRole || "Student")}
             </span>
 
             {/* Profile Dropdown */}
@@ -223,18 +244,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                 className="w-10 h-10 rounded-full bg-[#1a73e8] overflow-hidden flex items-center justify-center text-white font-bold text-sm hover:bg-[#1557b0] transition-all shadow-md"
               >
-                {userProfile?.photoURL || user?.photoURL ? (
+                {!avatarErrored && (userProfile?.photoURL || user?.photoURL) ? (
                   <img
                     src={userProfile?.photoURL || user?.photoURL || ""}
-                    alt=""
+                    alt="User avatar"
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).parentElement!.innerHTML = `<span>${displayName.charAt(0).toUpperCase()}</span>`;
-                    }}
+                    onError={() => setAvatarErrored(true)}
                   />
                 ) : (
-                  displayName.charAt(0).toUpperCase()
+                  <span>{displayName.charAt(0).toUpperCase()}</span>
                 )}
               </button>
 
@@ -245,7 +263,41 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <div className="p-4 border-b border-gray-100 dark:border-slate-700 mb-1">
                       <p className="text-sm font-black text-gray-900 dark:text-white truncate">{displayName}</p>
                       <p className="text-xs text-gray-500 dark:text-slate-400 truncate mt-0.5">{displayEmail}</p>
+                      {simulatedRole && (
+                        <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest mt-1 italic">
+                          Simulating: {simulatedRole}
+                        </p>
+                      )}
                     </div>
+
+                    {/* Simulation Controls (Admins Only) */}
+                    {isAdmin && (
+                      <div className="p-2 border-b border-gray-100 dark:border-slate-700">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-2">Simulate View</p>
+                        <button
+                          onClick={() => { setSimulatedRole('Counselor'); setProfileDropdownOpen(false); }}
+                          className={`w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${simulatedRole === 'Counselor' ? 'text-[#1a73e8] bg-blue-50 dark:bg-blue-900/20' : 'text-gray-700 dark:text-gray-300'}`}
+                        >
+                          <Eye size={16}/> Counselor View
+                        </button>
+                        <button
+                          onClick={() => { setSimulatedRole('Student'); setProfileDropdownOpen(false); }}
+                          className={`w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${simulatedRole === 'Student' ? 'text-[#1a73e8] bg-blue-50 dark:bg-blue-900/20' : 'text-gray-700 dark:text-gray-300'}`}
+                        >
+                          <UserIcon size={16}/> Student View
+                        </button>
+
+                        {simulatedRole && (
+                          <button
+                            onClick={() => { setSimulatedRole(null); setProfileDropdownOpen(false); }}
+                            className="w-full text-left flex items-center gap-3 px-3 py-2 mt-1 text-xs font-black rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500 transition-colors"
+                          >
+                            <ShieldAlert size={16}/> Exit Simulation
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     <button
                       onClick={handleSignOut}
                       className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl flex items-center gap-3 transition-colors"
@@ -291,18 +343,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <div className="px-4 pb-8 pt-4 border-t border-gray-100 dark:border-slate-800 space-y-4">
               <div className="flex items-center gap-3 px-3 py-2">
                 <div className="w-10 h-10 rounded-full bg-[#1a73e8] overflow-hidden flex items-center justify-center text-white font-bold text-sm">
-                  {userProfile?.photoURL || user?.photoURL ? (
+                  {!mobileAvatarErrored && (userProfile?.photoURL || user?.photoURL) ? (
                     <img
                       src={userProfile?.photoURL || user?.photoURL || ""}
-                      alt=""
+                      alt="User avatar"
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        (e.target as HTMLImageElement).parentElement!.innerHTML = `<span>${displayName.charAt(0).toUpperCase()}</span>`;
-                      }}
+                      onError={() => setMobileAvatarErrored(true)}
                     />
                   ) : (
-                    displayName.charAt(0).toUpperCase()
+                    <span>{displayName.charAt(0).toUpperCase()}</span>
                   )}
                 </div>
                 <div className="overflow-hidden">
@@ -342,7 +391,54 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
       )}
 
-      <AIAssistantFab />
+      {/* Slide-out Chat Drawer */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsChatOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-slate-900 h-full flex flex-col shadow-2xl animate-slide-left border-l border-slate-800">
+
+            {/* Drawer Header & Toggle */}
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+              <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => setChatMode('ai')}
+                  className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+                    chatMode === 'ai'
+                    ? 'bg-indigo-600 text-white shadow-lg'
+                    : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <Bot size={14}/> AI Copilot
+                </button>
+                <button
+                  onClick={() => setChatMode('counselor')}
+                  className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+                    chatMode === 'counselor'
+                    ? 'bg-indigo-600 text-white shadow-lg'
+                    : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <UserIcon size={14}/> Counselor
+                </button>
+              </div>
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className="p-2 rounded-xl text-slate-500 hover:bg-slate-800 hover:text-white transition-all"
+              >
+                <X size={20}/>
+              </button>
+            </div>
+
+            {/* Chat Content Area */}
+            <div className="flex-1 overflow-hidden">
+              {chatMode === 'ai' ? <AiChatModule /> : <CounselorChatModule />}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

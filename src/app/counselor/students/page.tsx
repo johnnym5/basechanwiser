@@ -42,7 +42,7 @@ const generateStudentId = () => {
 };
 
 export default function CounselorStudentsPage() {
-  const { role, loading: authLoading } = useAuth();
+  const { role, loading: authLoading, userId } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -100,6 +100,10 @@ export default function CounselorStudentsPage() {
 
   // Real-time listener for Users, Interview Packs, and Question Packs
   useEffect(() => {
+    if (authLoading || !userId || (role !== "Counselor" && role !== "Admin" && role !== "Super Admin")) {
+      return;
+    }
+
     setDataLoading(true);
 
     // 1. Real-time users listener
@@ -555,40 +559,63 @@ export default function CounselorStudentsPage() {
         </div>
 
         {/* ── Mobile View: Simplified Cards ── */}
-        <div className="md:hidden space-y-4">
-           {displayedStudents.map((student) => (
-             <div
-               key={student.uid}
-               onClick={() => setSelectedQuickStudent(student)}
-               className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4"
-             >
-                <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-3">
+        <div className="md:hidden">
+          {dataLoading ? (
+            <div className="p-12 text-center text-gray-500 dark:text-gray-400">
+              <Loader2 className="w-10 h-10 animate-spin mx-auto text-[#1a73e8] mb-2" />
+              <p className="font-black uppercase tracking-widest text-[10px]">Synchronizing Master Data...</p>
+            </div>
+          ) : displayedStudents.length === 0 ? (
+            <div className="p-4">
+              <EmptyState
+                icon={Search}
+                title="No Results Found"
+                description="We couldn't find any students matching your current search or filter criteria. Try a different filter or reset your search."
+                actionText="Reset Filters"
+                onAction={() => {
+                  setSearchQuery("");
+                  setFilterStatus("All");
+                  setFilterPack("All");
+                }}
+              />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {displayedStudents.map((student) => (
+                <div
+                  key={student.uid}
+                  onClick={() => setSelectedQuickStudent(student)}
+                  className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center font-black text-blue-600 text-xs">
-                         {(student.displayName || "S").charAt(0)}
+                        {(student.displayName || "S").charAt(0)}
                       </div>
                       <div className="min-w-0">
-                         <p className="font-black text-sm text-gray-900 dark:text-white truncate">{student.displayName}</p>
-                         <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">{student.studentId}</p>
+                        <p className="font-black text-sm text-gray-900 dark:text-white truncate">{student.displayName}</p>
+                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">{student.studentId}</p>
                       </div>
-                   </div>
-                   <span className={`px-2 py-1 rounded-full text-[8px] font-black uppercase border ${
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-[8px] font-black uppercase border ${
                       student.readinessStatus === "Green" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                       : "bg-rose-50 text-rose-600 border-rose-200"
-                   }`}>● {student.readinessStatus || "Gray"}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                   <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700">
+                    }`}>● {student.readinessStatus || "Gray"}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700">
                       <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Progress</p>
                       <p className="text-xs font-black dark:text-white">{student.learningProgress || 0}%</p>
-                   </div>
-                   <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700">
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700">
                       <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Pack</p>
                       <p className="text-xs font-black dark:text-white truncate">{interviewPacks[student.uid]?.status || "Not Started"}</p>
-                   </div>
+                    </div>
+                  </div>
                 </div>
-             </div>
-           ))}
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Modals & Drawers ── */}

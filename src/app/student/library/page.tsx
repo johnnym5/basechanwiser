@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase/config";
 import { LibraryResource } from "@/types/resource";
 import { FileText, Video, Loader2, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import EmptyState from "@/components/common/EmptyState";
 
 export default function StudentLibraryPage() {
   const [resources, setResources] = useState<LibraryResource[]>([]);
@@ -40,8 +41,12 @@ export default function StudentLibraryPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
              {resources.length === 0 ? (
-                <div className="col-span-full text-center p-20 bg-gray-50 dark:bg-[#0F172A] rounded-[40px] border border-dashed border-gray-200 dark:border-slate-800">
-                   <p className="text-gray-400 font-black uppercase tracking-widest">No learning materials available yet.</p>
+                <div className="col-span-full">
+                   <EmptyState
+                     icon={FileText}
+                     title="No Learning Materials"
+                     description="There are no resources available right now. Check back later or ask your counselor to add new study guides."
+                   />
                 </div>
              ) : resources.map(res => (
                <div key={res.id} className="bg-white dark:bg-[#1E293B] rounded-[40px] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col group hover:shadow-xl transition-all duration-300">

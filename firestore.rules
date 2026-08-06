@@ -72,6 +72,33 @@ service cloud.firestore {
       allow create, update, delete: if isStaff();
     }
 
+    // ─── Reminders ─────────────────────────────────────────────────
+    match /reminders/{reminderId} {
+      allow read: if isAuthenticated() && resource.data.counselorUid == request.auth.uid;
+      allow create: if isStaff()
+        && request.auth.uid == request.resource.data.counselorUid
+        && request.resource.data.isTriggered == false
+        && request.resource.data.studentUid is string
+        && request.resource.data.studentId is string
+        && request.resource.data.message is string
+        && request.resource.data.triggerAt is int;
+      allow update, delete: if isStaff() && resource.data.counselorUid == request.auth.uid;
+    }
+
+    // ─── Notifications ──────────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isStaff()
+        && request.resource.data.userId is string
+        && request.resource.data.title is string
+        && request.resource.data.message is string
+        && request.resource.data.isRead is bool
+        && request.resource.data.link is string
+        && request.resource.data.createdAt is timestamp;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
     // ─── Resources (Legacy) ─────────────────────────────────────────
     match /resources/{resourceId} {
       allow read: if isAuthenticated();

@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ThemeProvider } from "@/lib/theme/theme-context";
 import SystemGuard from "@/components/layout/SystemGuard";
+import LeadAssignmentModal from "@/components/admin/LeadAssignmentModal";
 
 export const metadata: Metadata = {
   title: "BASECHANWISER — Student Compliance & Operations Platform",
@@ -24,7 +25,10 @@ export default function RootLayout({
       <body className="antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen">
         <ThemeProvider>
           <AuthProvider>
-            <SystemGuard>{children}</SystemGuard>
+            <SystemGuard>
+              {children}
+              <LeadAssignmentModal />
+            </SystemGuard>
           </AuthProvider>
         </ThemeProvider>
       </body>

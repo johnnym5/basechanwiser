@@ -12,12 +12,12 @@ interface RoleGuardProps {
 }
 
 export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
-  const { role, loading } = useAuth();
+  const { effectiveRole, loading } = useAuth();
   const router = useRouter();
 
   if (loading) return <FullScreenLoader />;
 
-  if (!role || !allowedRoles.includes(role)) {
+  if (!effectiveRole || !allowedRoles.includes(effectiveRole)) {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center p-6 space-y-6">
         <div className="w-20 h-20 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-full flex items-center justify-center border border-rose-500/20">

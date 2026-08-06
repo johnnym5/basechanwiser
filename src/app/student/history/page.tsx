@@ -47,25 +47,32 @@ export default function ActivityHistoryPage() {
   const { user, userId } = useAuth(); // Use auth for current user
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchHistory() {
-      if (!userId) return;
+      setLoading(true);
+      setFetchError(null);
+      if (!userId) {
+        setAttempts([]);
+        setLoading(false);
+        return;
+      }
       try {
         const historyRef = collection(db, "quiz_attempts");
-        // Fixed Query Pipeline
         const q = query(
           historyRef,
           where("userId", "==", userId),
           orderBy("createdAt", "desc")
         );
         const snap = await getDocs(q);
-        // Correct state replacement to prevent duplication
         const historyData = snap.docs.map(d => ({ id: d.id, ...d.data() } as QuizAttempt));
         setAttempts(historyData);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching history:", err);
+        setFetchError(err.message || "Failed to load quiz history.");
+        setAttempts([]);
       } finally {
         setLoading(false);
       }
@@ -90,6 +97,12 @@ export default function ActivityHistoryPage() {
 
         {loading ? (
           <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>
+        ) : fetchError ? (
+          <EmptyState
+            icon={AlertTriangle}
+            title="Unable to Load Mission Log"
+            description={`There was a problem loading your history. Check the console for Firestore index details and refresh the page.`}
+          />
         ) : attempts.length === 0 ? (
           <EmptyState
             icon={History}

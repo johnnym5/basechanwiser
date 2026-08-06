@@ -58,14 +58,15 @@ export default function NotificationBell() {
 
   // 2. Background Reminder Checker (Client-side Cron)
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || role !== "Counselor") return;
 
     const checkReminders = async () => {
       try {
         const now = Date.now();
-        // Query for untriggered reminders
+        // Query for this counselor's untriggered reminders only
         const q = query(
           collection(db, "reminders"),
+          where("counselorUid", "==", userId),
           where("isTriggered", "==", false)
         );
         const snap = await getDocs(q);
@@ -111,7 +112,7 @@ export default function NotificationBell() {
     checkReminders(); // Initial check
 
     return () => clearInterval(interval);
-  }, [userId]);
+  }, [userId, role]);
 
   // Close dropdown on click outside
   useEffect(() => {

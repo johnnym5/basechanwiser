@@ -35,10 +35,34 @@ export default function LeaderboardView({ isCounselorView = false }: Leaderboard
         const q = query(
           collection(db, "quiz_attempts"),
           orderBy("gamifiedScore", "desc"),
-          limit(20)
+          limit(50)
         );
         const snap = await getDocs(q);
-        setEntries(snap.docs.map(d => d.data() as LeaderboardEntry));
+
+        const deduped = new Map<string, LeaderboardEntry>();
+        snap.docs.forEach((docSnap) => {
+          const data = docSnap.data();
+          const entry = {
+            id: docSnap.id,
+            userId: data.userId,
+            studentId: data.studentId,
+            studentName: data.studentName,
+            gamifiedScore: data.gamifiedScore,
+            packTitle: data.packTitle,
+            score: data.score,
+            createdAt: data.createdAt
+          } as LeaderboardEntry;
+          const existing = deduped.get(entry.userId);
+          if (!existing || entry.gamifiedScore > existing.gamifiedScore) {
+            deduped.set(entry.userId, entry);
+          }
+        });
+
+        const finalEntries = Array.from(deduped.values())
+          .sort((a, b) => b.gamifiedScore - a.gamifiedScore)
+          .slice(0, 10);
+
+        setEntries(finalEntries);
       } catch (err) {
         console.error("Leaderboard fetch error:", err);
       } finally {

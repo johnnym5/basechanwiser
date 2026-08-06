@@ -32,6 +32,9 @@ interface AuthContextType {
   signInWithNameAndEmail: (displayName: string, email: string) => Promise<void>;
   signInAdminWithPassword: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
+  simulatedRole: AppRole | null;
+  setSimulatedRole: (role: AppRole | null) => void;
+  effectiveRole: AppRole | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -44,6 +47,9 @@ const AuthContext = createContext<AuthContextType>({
   signInWithNameAndEmail: async () => {},
   signInAdminWithPassword: async () => {},
   logout: async () => {},
+  simulatedRole: null,
+  setSimulatedRole: () => {},
+  effectiveRole: null,
 });
 
 const generateStudentId = () => {
@@ -56,6 +62,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [simulatedRole, setSimulatedRole] = useState<AppRole | null>(null);
+
+  const effectiveRole = (role === "Super Admin" || role === "Admin") && simulatedRole
+    ? simulatedRole
+    : role;
 
   const syncUserToFirestore = async (
     currentUser: FirebaseUser,
@@ -277,6 +288,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         signInWithNameAndEmail,
         signInAdminWithPassword,
         logout,
+        simulatedRole,
+        setSimulatedRole,
+        effectiveRole,
       }}
     >
       {children}

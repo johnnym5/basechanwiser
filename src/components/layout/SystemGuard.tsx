@@ -10,7 +10,7 @@ import FullScreenLoader from "@/components/common/FullScreenLoader";
 import { ShieldAlert, LogOut } from "lucide-react";
 
 export default function SystemGuard({ children }: { children: React.ReactNode }) {
-  const { user, userProfile, role, loading: authLoading, logout } = useAuth();
+  const { user, userProfile, role, loading: authLoading, logout, effectiveRole } = useAuth();
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isTimeout, setIsTimeout] = useState(false);
@@ -56,7 +56,7 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
     }
 
     // If maintenance mode is ON and user is a Student
-    if (maintenanceMode && role === "Student" && pathname !== "/maintenance") {
+    if (maintenanceMode && effectiveRole === "Student" && pathname !== "/maintenance") {
       router.push("/maintenance");
     }
 
@@ -64,7 +64,7 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
     if (!maintenanceMode && pathname === "/maintenance") {
       router.push("/dashboard");
     }
-  }, [maintenanceMode, role, loading, authLoading, pathname, router, user, userProfile]);
+  }, [maintenanceMode, effectiveRole, loading, authLoading, pathname, router, user, userProfile]);
 
   // Show the proper loader instead of a blank screen/null
   if ((loading || authLoading) && !isTimeout) {

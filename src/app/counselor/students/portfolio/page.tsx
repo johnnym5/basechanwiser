@@ -33,8 +33,9 @@ import {
   X,
   History
 } from "lucide-react";
-import { doc, getDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { doc, getDoc, collection, query, where, getDocs, orderBy, updateDoc } from "firebase/firestore";
+import { deleteObject, ref as storageRef } from "firebase/storage";
+import { db, storage } from "@/lib/firebase/config";
 import { UserProfile, InterviewPack, LearningModule } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -48,9 +49,72 @@ function PortfolioContent() {
   const [interviewPack, setInterviewPack] = useState<InterviewPack | null>(null);
   const [allModules, setAllModules] = useState<LearningModule[]>([]);
   const [loading, setLoading] = useState(true);
-   const { user, userProfile } = useAuth();
-   const [evalOpen, setEvalOpen] = useState(false);
+  const [interviewScore, setInterviewScore] = useState<string>("");
+  const [interviewNotes, setInterviewNotes] = useState<string>("");
+  const { user, userProfile } = useAuth();
+  const [evalOpen, setEvalOpen] = useState(false);
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null);
+
+  const saveGrading = async () => {
+    if (!student) return;
+    const numericScore = interviewScore === "" ? null : Number(interviewScore);
+    if (numericScore !== null && (numericScore < 0 || numericScore > 100)) {
+      return alert("Please enter a score between 0 and 100.");
+    }
+
+    try {
+      await updateDoc(doc(db, "Users", student.uid), {
+        "mockInterview.counselorNotes": interviewNotes,
+        "mockInterview.score": numericScore,
+        "mockInterview.status": "Reviewed",
+      });
+      setStudent((prev) => prev ? {
+        ...prev,
+        mockInterview: {
+          ...prev.mockInterview,
+          counselorNotes: interviewNotes,
+          score: numericScore,
+          status: "Reviewed",
+        }
+      } : prev);
+      alert("Evaluation saved.");
+    } catch (err) {
+      console.error("Save grading error:", err);
+      alert("Failed to save grading. Please try again.");
+    }
+  };
+
+  const forceRetake = async () => {
+    if (!student) return;
+    if (!confirm("Are you sure? This will request a retake and clear the current interview video.")) return;
+
+    try {
+      const fileRef = storageRef(storage, `mock_interviews/${student.uid}_interview.webm`);
+      await deleteObject(fileRef).catch(() => console.log("Video file already missing."));
+      await updateDoc(doc(db, "Users", student.uid), {
+        "mockInterview.videoUrl": null,
+        "mockInterview.status": "Requires Retake",
+        "mockInterview.counselorNotes": "",
+        "mockInterview.score": null,
+      });
+      setStudent((prev) => prev ? {
+        ...prev,
+        mockInterview: {
+          ...prev.mockInterview,
+          videoUrl: undefined,
+          status: "Requires Retake",
+          counselorNotes: "",
+          score: null,
+        }
+      } : prev);
+      setInterviewScore("");
+      setInterviewNotes("");
+      alert("Retake requested successfully.");
+    } catch (err) {
+      console.error("Error forcing retake:", err);
+      alert("Failed to request retake. Please try again.");
+    }
+  };
 
   // ── Reminder Modal State ──
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
@@ -96,7 +160,10 @@ function PortfolioContent() {
         // 1. Fetch Student Profile
         const studentSnap = await getDoc(doc(db, "Users", id));
         if (studentSnap.exists()) {
-          setStudent({ uid: studentSnap.id, ...studentSnap.data() } as UserProfile);
+          const loadedStudent = { uid: studentSnap.id, ...studentSnap.data() } as UserProfile;
+          setStudent(loadedStudent);
+          setInterviewScore(loadedStudent.mockInterview?.score != null ? String(loadedStudent.mockInterview.score) : "");
+          setInterviewNotes(loadedStudent.mockInterview?.counselorNotes || "");
         }
 
         // 2. Fetch Quiz Attempts

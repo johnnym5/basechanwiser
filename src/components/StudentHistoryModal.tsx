@@ -16,7 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { collection, query, where, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { TrafficLightStatus, UserProfile } from "@/types";
 import EmptyState from "./common/EmptyState";
@@ -52,11 +52,15 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
       try {
         const studentId = student.uid;
         // 1. Fetch Quiz Attempts
-        const quizQ = query(collection(db, "quiz_attempts"), where("userId", "==", studentId));
+        const quizQ = query(
+          collection(db, "quiz_attempts"),
+          where("userId", "==", studentId),
+          orderBy("createdAt", "desc")
+        );
         const quizSnap = await getDocs(quizQ);
         const quizList: any[] = [];
         quizSnap.forEach((d) => quizList.push({ id: d.id, ...d.data() }));
-        setQuizAttempts(quizList.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
+        setQuizAttempts(quizList);
 
         // 2. Fetch Interview Pack
         const packQ = query(collection(db, "interview_packs"), where("userId", "==", studentId));
@@ -209,8 +213,8 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
                           </h4>
                           <p className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5">
                             <Clock className="w-3 h-3" />
-                            {attempt.timestamp?.seconds
-                              ? new Date(attempt.timestamp.seconds * 1000).toLocaleString()
+                            {attempt.createdAt?.seconds
+                              ? new Date(attempt.createdAt.seconds * 1000).toLocaleDateString()
                               : "Recent Attempt"}
                           </p>
                         </div>
