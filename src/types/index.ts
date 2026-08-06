@@ -39,6 +39,20 @@ export interface UserProfile {
     counselorNotes?: string;
     score?: number | null;
   };
+  interviewPack?: {
+    intendedUniversity: string;
+    universityCity: string;
+    courseOfStudy: string;
+    academicHistory: string;
+    studyGapReasons: string;
+    fundingSource: string;
+    postStudyPlans: string;
+  };
+  aiChatStats?: {
+    lastMessageAt: any;
+    date: string;
+    count: number;
+  };
 }
 
 export interface Option {
@@ -94,7 +108,9 @@ export interface LearningModule {
   title: string;
   description?: string;
   videoUrl?: string;
+  learningContent?: string;
   studyNotes?: string;
+  requiresPreviousPass?: boolean;
   passScore: number; // strictly 80
   questions: Question[];
   createdAt?: any;

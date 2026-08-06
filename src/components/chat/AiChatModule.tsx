@@ -135,6 +135,13 @@ export default function AiChatModule() {
       });
 
       const data = await response.json().catch(() => null);
+
+      if (response.status === 429) {
+        showToast(data.error || "Rate limit exceeded. Please wait.", "error");
+        setIsLoading(false);
+        return;
+      }
+
       if (!response.ok) throw new Error(data?.error || "Failed to reach AI service");
 
       const assistantMsg: ChatMessage = {

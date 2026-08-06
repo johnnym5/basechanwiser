@@ -1,6 +1,8 @@
 # Dependencies
-/node_modules
-/.pnpm-store
+node_modules/
+.pnpm-store/
+/functions/node_modules/
+/functions/lib/
 
 # Next.js build output
 /.next/
@@ -24,6 +26,12 @@ yarn-error.log*
 # Firebase & Deployment artifacts
 .firebase/
 .vercel/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+pubsub-debug.log
+ui-debug.log
+/functions/.runtimeconfig.json
 
 # OS metadata & Editor files
 .DS_Store

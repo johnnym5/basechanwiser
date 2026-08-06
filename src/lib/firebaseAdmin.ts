@@ -10,5 +10,6 @@ if (!getApps().length) {
 }
 
 export const db = getFirestore();
+export const adminDb = db;
 export const adminApp = getApp();
 export { Timestamp, FieldValue };

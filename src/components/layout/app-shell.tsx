@@ -7,6 +7,7 @@ import NotificationBell from "@/components/common/NotificationBell";
 import AiChatModule from "@/components/chat/AiChatModule";
 import CounselorChatModule from "@/components/chat/CounselorChatModule";
 import { usePathname, useRouter } from "next/navigation";
+import { useAdminAutoAssign } from "@/hooks/useAdminAutoAssign";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTheme } from "@/lib/theme/theme-context";
 import {
@@ -41,6 +42,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
+
+  useAdminAutoAssign(); // Runs silently in the background for Admins
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
