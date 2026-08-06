@@ -73,118 +73,123 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     customName?: string,
     customEmail?: string
   ) => {
-    // If anonymous, try to recover email/name from localStorage if not provided
-    let recoveredEmail = customEmail;
-    let recoveredName = customName;
+    try {
+      // If anonymous, try to recover email/name from localStorage if not provided
+      let recoveredEmail = customEmail;
+      let recoveredName = customName;
 
-    if (currentUser.isAnonymous && !recoveredEmail) {
-      recoveredEmail = localStorage.getItem("bw_guest_email") || undefined;
-      recoveredName = localStorage.getItem("bw_guest_name") || undefined;
-    }
+      if (currentUser.isAnonymous && !recoveredEmail) {
+        recoveredEmail = localStorage.getItem("bw_guest_email") || undefined;
+        recoveredName = localStorage.getItem("bw_guest_name") || undefined;
+      }
 
-    const effectiveEmail = recoveredEmail || currentUser.email || undefined;
-    const domainRole = evaluateDomainRole(
-      effectiveEmail,
-      currentUser.isAnonymous
-    );
+      const effectiveEmail = recoveredEmail || currentUser.email || undefined;
+      const domainRole = evaluateDomainRole(effectiveEmail, currentUser.isAnonymous);
 
-    // ── 1. Check for Existing Account by Email (Enforce Uniqueness) ────
-    if (effectiveEmail) {
-      try {
-        const usersRef = collection(db, "Users");
-        const q = query(usersRef, where("email", "==", effectiveEmail));
-        const querySnapshot = await getDocs(q);
+      // ── 1. Check for Existing Account by Email (resilient check) ────
+      if (effectiveEmail) {
+        try {
+          const usersRef = collection(db, "Users");
+          const q = query(usersRef, where("email", "==", effectiveEmail));
+          const querySnapshot = await getDocs(q);
 
-        if (!querySnapshot.empty) {
-          const existingDoc = querySnapshot.docs[0];
-          const { uid, ...existingData } = existingDoc.data() as UserProfile;
-          const computedRole = resolveUserRole(domainRole, existingData.role);
+          if (!querySnapshot.empty) {
+            const existingDoc = querySnapshot.docs[0];
+            const { uid, ...existingData } = existingDoc.data() as UserProfile;
+            const computedRole = resolveUserRole(domainRole, existingData.role);
 
-          // If the UID is different, it's an account linking case
-          if (existingDoc.id !== currentUser.uid) {
-            console.log("[Auth] Existing account found with different UID. Linking to existing profile.");
+            setUserProfile({ uid: existingDoc.id, ...existingData, role: computedRole });
+            setRole(computedRole);
+
+            await updateDoc(doc(db, "Users", existingDoc.id), {
+              lastLoginAt: serverTimestamp(),
+              role: computedRole,
+            });
+            return;
           }
+        } catch (e) {
+          console.warn("[Auth] Email uniqueness check failed or timed out:", e);
+        }
+      }
 
-          setUserProfile({ uid: existingDoc.id, ...existingData, role: computedRole });
-          setRole(computedRole);
-
-          await updateDoc(doc(db, "Users", existingDoc.id), {
-            lastLoginAt: serverTimestamp(),
-            role: computedRole,
-          });
-          return;
+      // ── 2. Load by UID (Primary authoritative check) ──────────────────────────
+      const userRef = doc(db, "Users", currentUser.uid);
+      let existingProfile: UserProfile | null = null;
+      try {
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          existingProfile = { uid: snap.id, ...snap.data() } as UserProfile;
         }
       } catch (e) {
-        console.warn("[Auth] Email uniqueness check failed:", e);
+        console.warn("[Auth] UID profile fetch failed (possible permission issue):", e);
       }
-    }
 
-    const userRef = doc(db, "Users", currentUser.uid);
+      // ── 3. Handle Existing Profile ──────────────────────────────────
+      if (existingProfile) {
+        const computedRole = resolveUserRole(domainRole, existingProfile.role);
+        const updates: any = {
+          lastLoginAt: serverTimestamp(),
+          role: computedRole,
+        };
 
-    // ── 2. Fallback: Try to load by UID ──────────────────────────
-    let existingProfile: UserProfile | null = null;
-    try {
-      const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        existingProfile = { uid: snap.id, ...snap.data() } as UserProfile;
+        if (!existingProfile.studentId) {
+          updates.studentId = generateStudentId();
+          existingProfile.studentId = updates.studentId;
+        }
+
+        setUserProfile({ ...existingProfile, role: computedRole });
+        setRole(computedRole);
+
+        try {
+          await updateDoc(userRef, updates);
+        } catch (e) {
+          console.warn("[Auth] Failed to update login timestamp:", e);
+        }
+        return;
       }
-    } catch (e) {
-      console.warn("[Auth] Could not read user profile by UID:", e);
-    }
 
-    // ── 3. Existing user by UID ──────────────────────────────────
-    if (existingProfile) {
-      const computedRole = resolveUserRole(domainRole, existingProfile.role);
-      const updates: any = {
-        lastLoginAt: serverTimestamp(),
+      // ── 4. New user Registration ──────────────────────────────────
+      const computedRole = domainRole;
+      const profileData = {
+        uid: currentUser.uid,
+        studentId: generateStudentId(),
+        displayName: recoveredName || currentUser.displayName || "New Student",
+        email: effectiveEmail || "guest@basechanwiser.local",
+        photoURL: currentUser.photoURL || "",
         role: computedRole,
+        officeLocation: "Unassigned",
+        assignedPackIds: [],
+        completedPackIds: [],
+        currentModuleLevel: 1,
+        moduleScores: {},
+        readinessStatus: "Gray",
+        learningProgress: 0,
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
       };
 
-      if (!existingProfile.studentId) {
-        updates.studentId = generateStudentId();
-        existingProfile.studentId = updates.studentId;
-      }
-
-      setUserProfile({ ...existingProfile, role: computedRole });
+      setUserProfile(profileData as unknown as UserProfile);
       setRole(computedRole);
 
-      await updateDoc(userRef, updates);
-      return;
+      try {
+        await setDoc(userRef, profileData, { merge: true });
+        console.log("[Auth] New user registered:", currentUser.uid);
+      } catch (e) {
+        console.error("[Auth] Failed to create new user doc:", e);
+      }
+    } catch (err) {
+      console.error("[Auth Context] syncUserToFirestore fatal error:", err);
+      // Fallback: set a minimal profile if Firestore completely fails
+      setRole(currentUser.isAnonymous ? "Student" : "Student");
     }
-
-    // ── 4. New user — create Firestore document ──────────────────
-    const computedRole = domainRole;
-    const profileData = {
-      uid: currentUser.uid,
-      studentId: generateStudentId(),
-      displayName: recoveredName || currentUser.displayName || "New Student",
-      email: effectiveEmail || "guest@basechanwiser.local",
-      photoURL: currentUser.photoURL || "",
-      role: computedRole,
-      officeLocation: "Unassigned",
-      assignedPackIds: [],
-      completedPackIds: [],
-      currentModuleLevel: 1,
-      moduleScores: {},
-      readinessStatus: "Gray",
-      learningProgress: 0,
-      createdAt: serverTimestamp(),
-      lastLoginAt: serverTimestamp(),
-    };
-
-    setUserProfile(profileData as unknown as UserProfile);
-    setRole(computedRole);
-    await setDoc(userRef, profileData, { merge: true });
-    console.log("[Auth] New user registered:", currentUser.uid);
   };
 
   useEffect(() => {
-    // ── Safety Fallback Timer ────────────────────────────────────
-    // Prevents infinite loading splash screen if Firebase Auth hangs
+    // ── Safety Fallback Timeout (5 seconds) ─────────────────────────
     const fallbackTimer = setTimeout(() => {
       setLoading((prevLoading) => {
         if (prevLoading) {
-          console.warn("[AuthContext] Auth check timed out after 5s. Forcing loading = false.");
+          console.warn("[AuthContext] Auth check timed out. Forcing UI render.");
           return false;
         }
         return prevLoading;
@@ -195,18 +200,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         setUser(currentUser);
         if (currentUser) {
+          // Sync profile but don't let it block indefinitely
           await syncUserToFirestore(currentUser);
         } else {
           setRole(null);
           setUserProfile(null);
         }
       } catch (err) {
-        console.error("[AuthContext Error]: Failed during auth state sync:", err);
+        console.error("[AuthContext Error]: Auth state transition failed:", err);
         setRole(null);
         setUserProfile(null);
       } finally {
         clearTimeout(fallbackTimer);
-        setLoading(false);
+        setLoading(false); // GUARANTEED to run
       }
     });
 
@@ -222,15 +228,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
-        // Determine role based on the Google account email (including super‑admin override)
         const googleRole = evaluateDomainRole(result.user.email, false);
         setRole(googleRole);
         await syncUserToFirestore(result.user);
       }
     } catch (error) {
       console.error("Google Sign-In Error:", error);
-      setLoading(false);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -246,8 +252,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error("Name & Email Sign-In Error:", error);
-      setLoading(false);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -260,20 +267,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error("Admin Sign-In Error:", error);
-      setLoading(false);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     setLoading(true);
-    localStorage.removeItem("bw_guest_email");
-    localStorage.removeItem("bw_guest_name");
-    await firebaseSignOut(auth);
-    setUser(null);
-    setRole(null);
-    setUserProfile(null);
-    setLoading(false);
+    try {
+      localStorage.removeItem("bw_guest_email");
+      localStorage.removeItem("bw_guest_name");
+      await firebaseSignOut(auth);
+      setUser(null);
+      setRole(null);
+      setUserProfile(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

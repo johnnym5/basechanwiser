@@ -71,8 +71,14 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
     return <FullScreenLoader />;
   }
 
+  // If timeout reached and still no user, redirect to login as a failsafe
+  if (isTimeout && !user && pathname !== "/login") {
+    router.push("/login");
+    return <FullScreenLoader />;
+  }
+
   // Prevent rendering children if unauthenticated on protected routes (prevents flash)
-  if (!user && pathname !== "/login" && !isTimeout) {
+  if (!user && pathname !== "/login") {
      return <FullScreenLoader />;
   }
 
