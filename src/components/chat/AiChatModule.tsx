@@ -9,39 +9,34 @@ import {
   Bot,
   User,
   Trash2,
-  PlusCircle,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
-import { collection, addDoc, doc, setDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+
+const SUPPORTIVE_RESPONSES = [
+  "I'm here to support your UKVI preparation. Have you reviewed the 28-day rule lately?",
+  "That's a great question. Remember to be specific about your chosen university in your answers.",
+  "Stay focused on your goals! Your counselor will review your dossier soon.",
+  "Excellent progress so far. Consistency is key to a successful CAS interview.",
+  "I recommend checking the Resource Vault for the latest UKVI compliance checklists.",
+  "Your career plans back home are a vital part of the 'Genuine Student' test. Keep refining them!",
+  "Friendly reminder: ensure your bank statements meet the 31-day closing date requirement.",
+  "You're doing great! Keep practicing your verbal delivery to sound natural and confident."
+];
 
 interface ChatMessage {
   id: string;
   sender: "user" | "assistant";
   text: string;
-  action?: {
-    type: "CREATE_TAILORED_PACK";
-    targetStudentId: string;
-    packTitle: string;
-    category?: string;
-    questions: Array<{
-      questionText: string;
-      options: Array<{ text: string; isCorrect: boolean }>;
-      explanation?: string;
-    }>;
-  };
-  actionApproved?: boolean;
 }
 
 export default function AiChatModule() {
-  const { user, role, userProfile } = useAuth();
+  const { user, role } = useAuth();
   const pathname = usePathname();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [actionProcessing, setActionProcessing] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -61,22 +56,12 @@ export default function AiChatModule() {
         id: "msg-welcome",
         sender: "assistant",
         text: isStaff
-          ? `👋 **Hello ${user.displayName || "Counselor"}!** I am your BASECHANWISER Operations Copilot.\n\nI can analyze student readiness, answer UKVI rules questions, or generate custom recovery Question Packs for students.`
-          : `👋 **Hi ${user.displayName || "Student"}!** I am your 24/7 UKVI Pre-CAS Credibility Mentor.\n\nAsk me anything about UK visa financial rules or practice interview questions!`,
+          ? `👋 **Hello ${user.displayName || "Counselor"}!** I am your BASECHANWISER Operations Copilot. (Baseline Mode Active)`
+          : `👋 **Hi ${user.displayName || "Student"}!** I am your 24/7 UKVI Pre-CAS Credibility Mentor. (Baseline Mode Active)`,
       };
       setMessages([initialGreeting]);
     }
   }, [user, role, messages.length]);
-
-  const getRouteLabel = () => {
-    if (pathname.includes("/counselor/dashboard")) return "Counselor Dashboard";
-    if (pathname.includes("/counselor/students")) return "Student Directory";
-    if (pathname.includes("/counselor/packs")) return "Question Packs";
-    if (pathname.includes("/interview-pack")) return "Interview Pack Form";
-    if (pathname.includes("/learning")) return "Learning Modules";
-    if (pathname.includes("/dashboard")) return "Preparation Tracker";
-    return "BASECHANWISER Workspace";
-  };
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
@@ -87,7 +72,6 @@ export default function AiChatModule() {
     if (role === "Counselor" || role === "Admin" || role === "Super Admin") {
       return [
         "📊 Summarize readiness",
-        "🎯 Generate recovery pack",
         "💡 Explain 28-day rule",
       ];
     }
@@ -113,94 +97,21 @@ export default function AiChatModule() {
     setIsLoading(true);
 
     try {
-      const payload = {
-        message: userMsg.text,
-        history: messages.map((m) => ({ sender: m.sender, text: m.text })),
-        context: {
-          userRole: role || "Student",
-          userUid: user.uid,
-          currentRoute: pathname,
-          activeEntityData: {
-            routeLabel: getRouteLabel(),
-            targetUniversity: userProfile?.targetUniversity || "Unknown",
-            targetCourse: userProfile?.targetCourse || "Unknown"
-          },
-        }
-      };
+      // Simulate network delay for baseline mode
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-      const response = await fetch("/api/ai/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (response.status === 429) {
-        showToast(data.error || "Rate limit exceeded. Please wait.", "error");
-        setIsLoading(false);
-        return;
-      }
-
-      if (!response.ok) throw new Error(data?.error || "Failed to reach AI service");
-
+      const randomMsg = SUPPORTIVE_RESPONSES[Math.floor(Math.random() * SUPPORTIVE_RESPONSES.length)];
       const assistantMsg: ChatMessage = {
         id: `assistant-${Date.now()}`,
         sender: "assistant",
-        text: data.text,
-        action: data.action,
+        text: `[Offline Mode] ${randomMsg}\n\n(Note: AI services are currently disabled for baseline stability.)`,
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err-${Date.now()}`,
-          sender: "assistant",
-          text: `⚠️ **Error:** ${err.message}`,
-        },
-      ]);
+      showToast("Error processing message", "error");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleApproveAction = async (msgId: string, action: NonNullable<ChatMessage["action"]>) => {
-    setActionProcessing(msgId);
-    try {
-      const newPackRef = await addDoc(collection(db, "question_packs"), {
-        title: action.packTitle,
-        description: `AI recovery pack for student (${action.targetStudentId}).`,
-        category: action.category || "Financial Credibility",
-        passScore: 80,
-        isDefault: false,
-        questions: action.questions.map((q, idx) => ({
-          id: `q-ai-${idx}-${Date.now()}`,
-          questionText: q.questionText,
-          options: q.options.map((opt, oIdx) => ({
-            id: `opt-ai-${oIdx}`,
-            text: opt.text,
-            isCorrect: opt.isCorrect,
-          })),
-          explanation: q.explanation || "",
-        })),
-        createdAt: serverTimestamp(),
-      });
-
-      if (action.targetStudentId) {
-        const userDocRef = doc(db, "Users", action.targetStudentId);
-        await setDoc(userDocRef, { assignedPackIds: arrayUnion(newPackRef.id) }, { merge: true });
-      }
-
-      setMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, actionApproved: true } : m))
-      );
-      showToast(`Pack "${action.packTitle}" successfully created!`, "success");
-    } catch (err: any) {
-      showToast(`Failed to create pack: ${err.message}`, "error");
-    } finally {
-      setActionProcessing(null);
     }
   };
 
@@ -228,36 +139,13 @@ export default function AiChatModule() {
               msg.sender === "user" ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-200 border border-slate-700"
             }`}>
               <div className="whitespace-pre-wrap">{msg.text}</div>
-
-              {msg.action?.type === "CREATE_TAILORED_PACK" && (
-                <div className="mt-3 p-3 bg-slate-900/50 rounded-xl border border-indigo-500/30 space-y-2">
-                  <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs">
-                    <PlusCircle size={14} />
-                    <span>Proposed Question Pack</span>
-                  </div>
-                  <p className="font-bold text-white text-xs">{msg.action.packTitle}</p>
-                  {msg.actionApproved ? (
-                    <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs">
-                      <CheckCircle2 size={14} /> <span>Created!</span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleApproveAction(msg.id, msg.action!)}
-                      disabled={!!actionProcessing}
-                      className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all disabled:opacity-50"
-                    >
-                      {actionProcessing === msg.id ? "Creating..." : "Approve & Save"}
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         ))}
         {isLoading && (
           <div className="flex gap-3 items-center text-slate-500 text-xs italic">
             <Sparkles size={16} className="animate-spin text-indigo-400" />
-            <span>AI is thinking...</span>
+            <span>Thinking...</span>
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -289,7 +177,7 @@ export default function AiChatModule() {
                 handleSendMessage();
               }
             }}
-            placeholder="Ask AI..."
+            placeholder="Ask anything..."
             className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 resize-none max-h-32"
           />
           <button

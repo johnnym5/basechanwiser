@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebaseAdmin";
+import { db, Timestamp } from "@/lib/firebaseAdmin";
 import { verifyRequestRole } from "@/lib/server/verify-role";
-import { Timestamp } from "firebase-admin/firestore";
 
 const ukviModules = [
   {

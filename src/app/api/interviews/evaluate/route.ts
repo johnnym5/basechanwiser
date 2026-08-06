@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db, Timestamp, FieldValue, adminApp } from '@/lib/firebaseAdmin';
 import { getAuth } from 'firebase-admin/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();

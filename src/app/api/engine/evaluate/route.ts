@@ -3,6 +3,8 @@ import { evaluateReadinessForStudent } from '@/lib/server/readiness-engine';
 import { getAuth } from 'firebase-admin/auth';
 import { adminApp, db } from '@/lib/firebaseAdmin';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
