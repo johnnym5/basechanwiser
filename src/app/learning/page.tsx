@@ -128,12 +128,12 @@ export default function LearningModulesPage() {
                     </div>
 
                     <h3 className="font-bold text-gray-900 dark:text-white text-base leading-snug">{mod.title}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">{mod.description || "UKVI Credibility Learning Module."}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">{mod.summary || mod.description || "UKVI Credibility Learning Module."}</p>
 
                     <div className="flex items-center gap-4 text-xs font-medium text-gray-600 dark:text-gray-300 pt-1">
                       <span className="flex items-center gap-1">
                         <HelpCircle className="w-3.5 h-3.5 text-[#1a73e8] dark:text-blue-400" />
-                        {mod.questions ? mod.questions.length : 0} Questions
+                        {mod.questionPool ? "30 Question Bank" : `${mod.questions?.length || 0} Questions`}
                       </span>
                       <span className="flex items-center gap-1">
                         <Award className="w-3.5 h-3.5 text-amber-500" />

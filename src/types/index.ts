@@ -32,27 +32,6 @@ export interface UserProfile {
 
   createdAt?: any;
   updatedAt?: any;
-  mockInterview?: {
-    videoUrl?: string;
-    status?: string;
-    submittedAt?: any;
-    counselorNotes?: string;
-    score?: number | null;
-  };
-  interviewPack?: {
-    intendedUniversity: string;
-    universityCity: string;
-    courseOfStudy: string;
-    academicHistory: string;
-    studyGapReasons: string;
-    fundingSource: string;
-    postStudyPlans: string;
-  };
-  aiChatStats?: {
-    lastMessageAt: any;
-    date: string;
-    count: number;
-  };
 }
 
 export interface Option {
@@ -72,6 +51,7 @@ export interface QuestionPack {
   id: string;
   title: string;
   description?: string;
+  summary?: string;
   category: string; // e.g. "Financial", "Academic", "General Compliance", "University Specific"
   videoUrl?: string;
   passScore: number; // default 80
@@ -102,17 +82,33 @@ export interface StudentProgress {
   readinessStatus: "Green" | "Yellow" | "Orange" | "Red";
 }
 
+export interface LearningResource {
+  heading: string;
+  content: string;
+}
+
+export interface PoolQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  answerIndex: number;
+}
+
 export interface LearningModule {
   id: string;
   order: number;
   title: string;
+  summary: string;
   description?: string;
   videoUrl?: string;
   learningContent?: string;
   studyNotes?: string;
+  learningResources: LearningResource[];
+  questionPool: PoolQuestion[];
   requiresPreviousPass?: boolean;
   passScore: number; // strictly 80
-  questions: Question[];
+  questions: Question[]; // Standardized version for the 10 randomized ones
+  isDefault?: boolean;
   createdAt?: any;
   updatedAt?: any;
   createdBy?: string;

@@ -355,29 +355,6 @@ export default function StudentDashboardPage() {
                  </div>
               </div>
 
-              {/* AI Quick Ask */}
-              <div className="bg-white dark:bg-[#1E293B] rounded-[40px] p-8 border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
-                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white"><MessageSquare className="w-5 h-5" /></div>
-                    <div>
-                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Stuck? Ask Copilot</p>
-                       <p className="text-sm font-black dark:text-white tracking-tight leading-none">Instant Visa Help</p>
-                    </div>
-                 </div>
-                 <div className="relative">
-                    <input
-                       readOnly
-                       placeholder="How do I calculate RQF level?"
-                       className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl px-5 py-4 text-xs font-bold text-gray-500 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800 transition-all"
-                       onClick={() => {
-                          const fab = document.getElementById('ai-assistant-fab');
-                          if (fab) fab.click();
-                       }}
-                    />
-                    <ArrowRight className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-blue-500" />
-                 </div>
-              </div>
-
               {/* Vault Quick Access */}
               <button
                 onClick={() => setIsVaultOpen(true)}

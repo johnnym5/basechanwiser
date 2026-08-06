@@ -943,10 +943,10 @@ export default function SettingsPage() {
                     <button
                       onClick={handleSeedModules}
                       disabled={isSeedingModules}
-                      className="px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black rounded-full text-xs uppercase tracking-widest shadow-xl flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                      className="px-8 py-3 bg-rose-600 text-white font-black rounded-full text-xs uppercase tracking-widest shadow-xl shadow-rose-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
-                      {isSeedingModules ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                      {isSeedingModules ? "Seeding..." : "Seed UKVI Modules"}
+                      {isSeedingModules ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle className="w-4 h-4" />}
+                      {isSeedingModules ? "Resetting..." : "Reset & Import UKVI Modules"}
                     </button>
                  </div>
               </div>

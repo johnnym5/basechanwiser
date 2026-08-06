@@ -21,21 +21,17 @@ import {
   TrendingUp,
   ChevronDown,
   ChevronUp,
-  History as HistoryIcon,
   Timer,
   Zap,
   BookOpen,
-  ExternalLink,
   Target,
-  GraduationCap,
   Loader2,
   CalendarPlus,
   X,
-  History
+  History as HistoryIcon
 } from "lucide-react";
-import { doc, getDoc, collection, query, where, getDocs, orderBy, updateDoc } from "firebase/firestore";
-import { deleteObject, ref as storageRef } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/config";
+import { doc, getDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 import { UserProfile, InterviewPack, LearningModule } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -49,109 +45,12 @@ function PortfolioContent() {
   const [interviewPack, setInterviewPack] = useState<InterviewPack | null>(null);
   const [allModules, setAllModules] = useState<LearningModule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [interviewScore, setInterviewScore] = useState<string>("");
-  const [interviewNotes, setInterviewNotes] = useState<string>("");
   const { user, userProfile } = useAuth();
   const [evalOpen, setEvalOpen] = useState(false);
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(null);
 
-  const saveGrading = async () => {
-    if (!student) return;
-    const numericScore = interviewScore === "" ? null : Number(interviewScore);
-    if (numericScore !== null && (numericScore < 0 || numericScore > 100)) {
-      return alert("Please enter a score between 0 and 100.");
-    }
-
-    try {
-      await updateDoc(doc(db, "Users", student.uid), {
-        "mockInterview.counselorNotes": interviewNotes,
-        "mockInterview.score": numericScore,
-        "mockInterview.status": "Reviewed",
-      });
-      setStudent((prev) => prev ? {
-        ...prev,
-        mockInterview: {
-          ...prev.mockInterview,
-          counselorNotes: interviewNotes,
-          score: numericScore,
-          status: "Reviewed",
-        }
-      } : prev);
-      alert("Evaluation saved.");
-    } catch (err) {
-      console.error("Save grading error:", err);
-      alert("Failed to save grading. Please try again.");
-    }
-  };
-
-  const forceRetake = async () => {
-    if (!student) return;
-    if (!confirm("Are you sure? This will request a retake and clear the current interview video.")) return;
-
-    try {
-      const fileRef = storageRef(storage, `mock_interviews/${student.uid}_interview.webm`);
-      await deleteObject(fileRef).catch(() => console.log("Video file already missing."));
-      await updateDoc(doc(db, "Users", student.uid), {
-        "mockInterview.videoUrl": null,
-        "mockInterview.status": "Requires Retake",
-        "mockInterview.counselorNotes": "",
-        "mockInterview.score": null,
-      });
-      setStudent((prev) => prev ? {
-        ...prev,
-        mockInterview: {
-          ...prev.mockInterview,
-          videoUrl: undefined,
-          status: "Requires Retake",
-          counselorNotes: "",
-          score: null,
-        }
-      } : prev);
-      setInterviewScore("");
-      setInterviewNotes("");
-      alert("Retake requested successfully.");
-    } catch (err) {
-      console.error("Error forcing retake:", err);
-      alert("Failed to request retake. Please try again.");
-    }
-  };
-
   // ── Reminder Modal State ──
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
-
-   // Run Readiness button component
-   function RunReadinessButton({ studentId, onUpdate }: { studentId: string; onUpdate?: () => void }) {
-      const { user } = useAuth();
-      const [running, setRunning] = useState(false);
-
-      const run = async () => {
-         if (!user) return alert('Please sign in as a counselor to run this check.');
-         setRunning(true);
-         try {
-            const token = await user.getIdToken();
-            const res = await fetch('/api/engine/evaluate', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-               body: JSON.stringify({ studentId }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data?.error || 'Failed');
-            if (onUpdate) await onUpdate();
-            alert('Readiness check completed: ' + (data?.result?.status || 'OK'));
-         } catch (e: any) {
-            console.error('Run readiness error', e);
-            alert('Readiness check failed: ' + (e?.message || String(e)));
-         } finally {
-            setRunning(false);
-         }
-      };
-
-      return (
-         <button onClick={run} disabled={running} className="py-3 px-4 bg-amber-500 text-white rounded-2xl font-black text-sm">
-            {running ? 'Running...' : 'Run Readiness Check'}
-         </button>
-      );
-   }
 
   useEffect(() => {
     async function fetchPortfolio() {
@@ -162,8 +61,6 @@ function PortfolioContent() {
         if (studentSnap.exists()) {
           const loadedStudent = { uid: studentSnap.id, ...studentSnap.data() } as UserProfile;
           setStudent(loadedStudent);
-          setInterviewScore(loadedStudent.mockInterview?.score != null ? String(loadedStudent.mockInterview.score) : "");
-          setInterviewNotes(loadedStudent.mockInterview?.counselorNotes || "");
         }
 
         // 2. Fetch Quiz Attempts
@@ -199,17 +96,7 @@ function PortfolioContent() {
       <div className="flex flex-col items-center justify-center p-20 gap-4">
         <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
         <p className="text-xs font-black uppercase text-gray-400 tracking-widest">Gathering Dossier...</p>
-            {evalOpen && student && (
-               <InterviewEvaluationModal
-                  studentId={student.uid}
-                  studentName={student.displayName || student.uid}
-                  open={evalOpen}
-                  onClose={() => setEvalOpen(false)}
-                  counselorId={user?.uid || ''}
-                  counselorName={userProfile?.displayName || user?.displayName || 'Counselor'}
-               />
-            )}
-         </div>
+      </div>
     );
   }
 
@@ -254,25 +141,16 @@ function PortfolioContent() {
             </div>
          </div>
 
-             <div className="flex items-center gap-4">
-               <div className="px-6 py-3 rounded-2xl bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3">
+         <div className="flex items-center gap-4">
+            <div className="px-6 py-3 rounded-2xl bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3">
                <div className={`w-3 h-3 rounded-full bg-current ${statusColor} animate-pulse`} />
                <span className={`text-xs font-black uppercase tracking-widest ${statusColor}`}>
                   {student.readinessStatus || "Red"} Status
                </span>
             </div>
+            <button onClick={() => setEvalOpen(true)} className="py-3 px-4 bg-blue-600 text-white rounded-2xl font-black text-sm">🎤 Conduct Live Interview</button>
+            <button onClick={() => setReminderModalOpen(true)} className="py-3 px-4 bg-purple-600 text-white rounded-2xl font-black text-sm flex items-center gap-2"><CalendarPlus className="w-4 h-4" /> Set Reminder</button>
          </div>
-            <div className="flex items-center gap-4">
-               <button onClick={() => setEvalOpen(true)} className="py-3 px-4 bg-blue-600 text-white rounded-2xl font-black text-sm">🎤 Conduct Live Interview</button>
-               <button onClick={() => setReminderModalOpen(true)} className="py-3 px-4 bg-purple-600 text-white rounded-2xl font-black text-sm flex items-center gap-2"><CalendarPlus className="w-4 h-4" /> Set Reminder</button>
-               <RunReadinessButton studentId={student.uid} onUpdate={async () => {
-                  // refresh student doc
-                  try {
-                    const snap = await getDoc(doc(db, 'Users', student.uid));
-                    if (snap.exists()) setStudent({ uid: snap.id, ...snap.data() } as UserProfile);
-                  } catch (e) { console.warn('refresh after run failed', e); }
-               }} />
-            </div>
       </div>
 
       {/* ── KPI GRID ── */}
@@ -452,7 +330,7 @@ function PortfolioContent() {
                      return (
                         <div key={m.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#0F172A] rounded-2xl border border-gray-100 dark:border-slate-800">
                            <div className="flex items-center gap-3 overflow-hidden">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isPassed ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500'}`}>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isPassed ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-500'}`}>
                                  <CheckCircle2 className="w-4 h-4" />
                               </div>
                               <div className="truncate">
@@ -496,6 +374,18 @@ function PortfolioContent() {
 
          </div>
       </div>
+
+      {/* Evaluation Modal */}
+      {evalOpen && student && (
+         <InterviewEvaluationModal
+            studentId={student.uid}
+            studentName={student.displayName || student.uid}
+            open={evalOpen}
+            onClose={() => setEvalOpen(false)}
+            counselorId={user?.uid || ''}
+            counselorName={userProfile?.displayName || user?.displayName || 'Counselor'}
+         />
+      )}
 
       {/* Reminder Modal */}
       {reminderModalOpen && student && (

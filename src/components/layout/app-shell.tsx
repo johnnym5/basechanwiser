@@ -4,10 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import NotificationBell from "@/components/common/NotificationBell";
-import AiChatModule from "@/components/chat/AiChatModule";
-import CounselorChatModule from "@/components/chat/CounselorChatModule";
 import { usePathname, useRouter } from "next/navigation";
-import { useAdminAutoAssign } from "@/hooks/useAdminAutoAssign";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTheme } from "@/lib/theme/theme-context";
 import {
@@ -16,13 +13,10 @@ import {
   FileCheck,
   ShieldCheck,
   Users,
-  Edit3,
-  FolderKanban,
   Search,
   LogOut,
   Menu,
   X,
-  Bot,
   ChevronRight,
   Settings,
   Sun,
@@ -30,7 +24,6 @@ import {
   LayoutGrid,
   Trophy,
   History,
-  MessageSquare,
   BarChart3,
   Eye,
   ShieldAlert,
@@ -43,12 +36,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  useAdminAutoAssign(); // Runs silently in the background for Admins
-
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatMode, setChatMode] = useState<'ai' | 'counselor'>('ai');
   const [avatarErrored, setAvatarErrored] = useState(false);
   const [mobileAvatarErrored, setMobileAvatarErrored] = useState(false);
 
@@ -69,8 +58,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { name: "My History", href: "/student/history", icon: History },
     { name: "Library", href: "/student/library", icon: BookOpen },
     { name: "Learning Drills", href: "/learning", icon: FileCheck },
-    { name: "Interview Pack", href: "/interview-pack", icon: ShieldCheck },
-    { name: "Mock Interview", href: "/student/mock-interview", icon: MessageSquare },
   ];
 
   const counselorLinks = [
@@ -206,16 +193,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Chat Trigger Icon */}
-            <button
-              onClick={() => setIsChatOpen(true)}
-              className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all relative"
-              title="Open Chat Support"
-            >
-              <MessageSquare size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border border-white dark:border-slate-800" />
-            </button>
-
             {/* Notification Bell */}
             <NotificationBell />
 
@@ -392,55 +369,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-      )}
-
-      {/* Slide-out Chat Drawer */}
-      {isChatOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-end">
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setIsChatOpen(false)}
-          />
-          <div className="relative w-full max-w-md bg-slate-900 h-full flex flex-col shadow-2xl animate-slide-left border-l border-slate-800">
-
-            {/* Drawer Header & Toggle */}
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
-              <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
-                <button
-                  onClick={() => setChatMode('ai')}
-                  className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
-                    chatMode === 'ai'
-                    ? 'bg-indigo-600 text-white shadow-lg'
-                    : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  <Bot size={14}/> AI Copilot
-                </button>
-                <button
-                  onClick={() => setChatMode('counselor')}
-                  className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
-                    chatMode === 'counselor'
-                    ? 'bg-indigo-600 text-white shadow-lg'
-                    : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  <UserIcon size={14}/> Counselor
-                </button>
-              </div>
-              <button
-                onClick={() => setIsChatOpen(false)}
-                className="p-2 rounded-xl text-slate-500 hover:bg-slate-800 hover:text-white transition-all"
-              >
-                <X size={20}/>
-              </button>
-            </div>
-
-            {/* Chat Content Area */}
-            <div className="flex-1 overflow-hidden">
-              {chatMode === 'ai' ? <AiChatModule /> : <CounselorChatModule />}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

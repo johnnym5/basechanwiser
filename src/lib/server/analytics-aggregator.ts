@@ -49,22 +49,16 @@ function isPassingStatus(status?: string): boolean {
 
 /**
  * Aggregate platform-wide compliance analytics server-side.
+ * AI Mock and Engine dependencies removed.
  */
 export async function aggregateAnalytics(): Promise<AnalyticsDashboardData> {
-  const [usersSnap, evalsSnap, mocksSnap] = await Promise.all([
+  const [usersSnap, evalsSnap] = await Promise.all([
     db.collection("Users").get(),
     db.collection("interview_evaluations").get(),
-    db.collection("ai_mock_sessions").get(),
   ]);
 
   const students = usersSnap.docs.filter((d) => isStudent(d.data()));
   const counselors = usersSnap.docs.filter((d) => isCounselor(d.data()));
-
-  const mockUserIds = new Set<string>();
-  mocksSnap.forEach((doc) => {
-    const uid = doc.data().userId as string | undefined;
-    if (uid) mockUserIds.add(uid);
-  });
 
   type EvalSummary = {
     hasJuniorPass: boolean;
@@ -166,8 +160,6 @@ export async function aggregateAnalytics(): Promise<AnalyticsDashboardData> {
     );
   }).length;
 
-  const aiCoachComplete = students.filter((d) => mockUserIds.has(d.id)).length;
-
   const juniorPassed = students.filter((d) => evalsByStudent.get(d.id)?.hasJuniorPass).length;
 
   const seniorHeadApproved = students.filter(
@@ -178,7 +170,6 @@ export async function aggregateAnalytics(): Promise<AnalyticsDashboardData> {
 
   const readinessFunnel: ReadinessFunnelStage[] = [
     { stage: "Foundation Modules", count: foundationComplete },
-    { stage: "AI Coach", count: aiCoachComplete },
     { stage: "Junior Interview", count: juniorPassed },
     { stage: "Senior/Head Approval", count: seniorHeadApproved },
   ];
