@@ -91,6 +91,12 @@ export default function InterviewPackForm() {
             {saving ? <Loader2 size={16} className="animate-spin" /> : <FileCheck size={16} />}
             Save Progress
           </button>
+          <button
+            onClick={() => window.print()}
+            className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+          >
+            Download as PDF
+          </button>
         </div>
 
         <div className="p-8 md:p-10 space-y-10">

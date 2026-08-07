@@ -4,17 +4,10 @@ import { verifyRequestRole } from '@/lib/server/verify-role';
 
 export async function POST(req: Request) {
   try {
-    // 1. Verify that the requester is an Admin or Super Admin
-    const authResult = await verifyRequestRole(req);
-    // Standard platform check: if no error, user is at least Counselor.
-    // For seeding, let's restrict to Admin/Super Admin if possible,
-    // but verifyRequestRole's standard return doesn't differentiate easily without checking role field.
-    if (authResult.error) return authResult.error;
+    // 1. Verify that the requester is at least a Counselor
+    const authResult = await verifyRequestRole(req, ["Super Admin", "Admin", "Counselor", "Head of Compliance"]);
 
-    const role = (authResult as any).role;
-    if (role !== 'Admin' && role !== 'Super Admin') {
-        return NextResponse.json({ error: "Unauthorized. Admin privileges required." }, { status: 403 });
-    }
+    if (authResult.error) return authResult.error;
 
     // 2. Run the bulk seed operation
     const result = await runBulkModuleSeed();

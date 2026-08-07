@@ -74,6 +74,7 @@ export default function MockInterviewSession() {
       studentId: userId!,
       studentName: userProfile?.displayName || user?.displayName || "Student",
       answers: formattedAnswers,
+      questionTimestamps: [], // Not using video in the non-live version
       startedAt: serverTimestamp(),
       submittedAt: serverTimestamp(),
       timeTakenSeconds: (config!.durationMinutes * 60) - timeLeft,

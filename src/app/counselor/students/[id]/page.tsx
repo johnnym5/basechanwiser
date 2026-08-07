@@ -5,14 +5,14 @@ import AppShell from "@/components/layout/app-shell";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase/config";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, deleteDoc } from "firebase/firestore";
-import { UserProfile, InterviewPack, MockInterviewAttempt } from "@/types";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { UserProfile } from "@/types";
+import { MockInterviewAttempt } from "@/types/mock";
 import {
   User,
   Mail,
   Building,
   ShieldCheck,
-  ChevronRight,
   Edit3,
   Save,
   X,
@@ -23,7 +23,9 @@ import {
   History,
   MessageSquare,
   ArrowLeft,
-  Trash2
+  Trash2,
+  LayoutGrid,
+  Send
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import InterviewPackReview from "@/components/interview-pack/InterviewPackReview";
@@ -34,7 +36,7 @@ type TabType = 'overview' | 'pack' | 'mock' | 'history';
 export default function StudentDeepDivePage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user: currentUser, effectiveRole } = useAuth();
+  const { effectiveRole } = useAuth();
 
   const [student, setStudent] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,16 +47,17 @@ export default function StudentDeepDivePage() {
   const isAdmin = effectiveRole === 'Admin' || effectiveRole === 'Super Admin';
 
   useEffect(() => {
-    if (id) fetchStudent();
-  }, [id]);
-
-  const fetchStudent = async () => {
-    const snap = await getDoc(doc(db, "Users", id as string));
-    if (snap.exists()) {
-      setStudent({ uid: snap.id, ...snap.data() } as UserProfile);
+    if (id) {
+      const fetchStudent = async () => {
+        const snap = await getDoc(doc(db, "Users", id as string));
+        if (snap.exists()) {
+          setStudent({ uid: snap.id, ...snap.data() } as UserProfile);
+        }
+        setLoading(false);
+      };
+      fetchStudent();
     }
-    setLoading(false);
-  };
+  }, [id]);
 
   const handleEdit = (field: string, current: string) => {
     if (field === 'office' && !isAdmin) return;
@@ -87,7 +90,6 @@ export default function StudentDeepDivePage() {
            <ArrowLeft size={14} /> Back to Directory
         </button>
 
-        {/* ── PHASE 3 Header ── */}
         <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-8">
            <div className="flex items-center gap-6">
               <div className="w-20 h-20 rounded-[32px] bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-3xl font-black text-blue-600 shadow-inner">
@@ -99,40 +101,23 @@ export default function StudentDeepDivePage() {
                     <div className={`w-3 h-3 rounded-full ${statusColor} animate-pulse`} />
                  </div>
                  <div className="flex flex-wrap gap-2">
-                    <Pill
-                      icon={User}
-                      label={student.studentId || 'ID-PENDING'}
-                    />
-                    <Pill
-                      icon={Mail}
-                      label={student.email || ''}
-                    />
-                    <Pill
-                      icon={Building}
-                      label={student.office || 'Unassigned'}
-                      canEdit={isAdmin}
-                      onEdit={() => handleEdit('office', student.office || '')}
-                    />
+                    <Pill icon={User} label={student.studentId || 'ID-PENDING'} />
+                    <Pill icon={Mail} label={student.email || ''} />
+                    <Pill icon={Building} label={student.office || 'Unassigned'} canEdit={isAdmin} onEdit={() => handleEdit('office', student.office || '')} />
                  </div>
               </div>
            </div>
-
            <div className="flex items-center gap-3">
               <button className="px-6 py-3 bg-blue-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20">Send Notification</button>
            </div>
         </div>
 
-        {/* Editing Modal for Fields */}
         <AnimatePresence>
           {editingField && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-2xl w-full max-w-md border border-gray-100 dark:border-slate-700 space-y-6">
                   <h3 className="text-xl font-black uppercase tracking-tighter dark:text-white">Edit {editingField}</h3>
-                  <input
-                    value={editValue}
-                    onChange={e => setEditValue(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500"
-                  />
+                  <input value={editValue} onChange={e => setEditValue(e.target.value)} className="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500" />
                   <div className="flex gap-3">
                      <button onClick={() => setEditingField(null)} className="flex-1 py-4 text-xs font-black uppercase text-gray-500">Cancel</button>
                      <button onClick={saveField} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest">Save Change</button>
@@ -142,7 +127,6 @@ export default function StudentDeepDivePage() {
           )}
         </AnimatePresence>
 
-        {/* Tabbed Interface */}
         <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
            <div className="flex border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-900/50 overflow-x-auto scrollbar-hide">
               <Tab label="Overview" icon={LayoutGrid} active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
@@ -150,7 +134,6 @@ export default function StudentDeepDivePage() {
               <Tab label="Mock Interview" icon={MessageSquare} active={activeTab === 'mock'} onClick={() => setActiveTab('mock')} />
               <Tab label="History" icon={History} active={activeTab === 'history'} onClick={() => setActiveTab('history')} />
            </div>
-
            <div className="p-8">
               {activeTab === 'overview' && <OverviewTab student={student} />}
               {activeTab === 'pack' && <InterviewPackReview studentId={student.uid} />}
@@ -179,10 +162,7 @@ function Pill({ icon: Icon, label, canEdit, onEdit }: { icon: any, label: string
 
 function Tab({ label, icon: Icon, active, onClick }: { label: string, icon: any, active: boolean, onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-3 px-8 py-5 text-[10px] font-black uppercase tracking-widest transition-all relative ${active ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-white'}`}
-    >
+    <button onClick={onClick} className={`flex items-center gap-3 px-8 py-5 text-[10px] font-black uppercase tracking-widest transition-all relative ${active ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-white'}`}>
        <Icon size={16} />
        {label}
        {active && <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-full" />}
@@ -198,16 +178,11 @@ function OverviewTab({ student }: { student: UserProfile }) {
           <StatCard label="Academy Score" val={student.gamifiedScore?.toLocaleString() || '0'} icon={Save} color="text-blue-500" />
           <StatCard label="Current Level" val={`Lvl ${student.currentModuleLevel || 1}`} icon={ShieldCheck} color="text-indigo-500" />
        </div>
-
        <div className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
              <Edit3 size={14} /> Counselor Internal Notes
           </h3>
-          <textarea
-            rows={6}
-            placeholder="Document student readiness, red flags, or specific feedback here..."
-            className="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-[32px] p-8 text-sm font-medium leading-relaxed dark:text-slate-300 focus:ring-2 focus:ring-blue-500 resize-none"
-          />
+          <textarea rows={6} placeholder="Document student readiness, red flags, or specific feedback here..." className="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-[32px] p-8 text-sm font-medium leading-relaxed dark:text-slate-300 focus:ring-2 focus:ring-blue-500 resize-none" />
        </div>
     </div>
   );
@@ -228,14 +203,13 @@ function MockTab({ studentId }: { studentId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchAttempts = async () => {
+      const q = query(collection(db, "mock_interview_attempts"), where("studentId", "==", studentId), orderBy("submittedAt", "desc"));
+      const snap = await getDocs(q);
+      setAttempts(snap.docs.map(d => ({ id: d.id, ...d.data() } as MockInterviewAttempt)));
+    };
     fetchAttempts();
-  }, []);
-
-  const fetchAttempts = async () => {
-    const q = query(collection(db, "mock_interview_attempts"), where("studentId", "==", studentId), orderBy("submittedAt", "desc"));
-    const snap = await getDocs(q);
-    setAttempts(snap.docs.map(d => ({ id: d.id, ...d.data() } as MockInterviewAttempt)));
-  };
+  }, [studentId]);
 
   if (selectedId) {
     return (
@@ -277,9 +251,7 @@ function HistoryTab({ studentId }: { studentId: string }) {
   return (
     <div className="space-y-8">
        <div className="relative pl-10 space-y-12">
-          {/* Vertical Line */}
           <div className="absolute left-4 top-2 bottom-0 w-0.5 bg-gray-100 dark:bg-slate-800" />
-
           {[
             { action: 'Digital Interview Pack Submitted', time: 'Aug 07, 10:45 AM', icon: FileText, color: 'bg-emerald-500' },
             { action: 'Mock Interview Session Completed', time: 'Aug 06, 02:15 PM', icon: MessageSquare, color: 'bg-blue-500' },
@@ -300,5 +272,3 @@ function HistoryTab({ studentId }: { studentId: string }) {
     </div>
   );
 }
-
-function Send size={16} />

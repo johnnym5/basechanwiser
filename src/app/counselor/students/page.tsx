@@ -33,7 +33,7 @@ import { collection, onSnapshot, doc, setDoc, query, deleteDoc, serverTimestamp,
 import { db } from "@/lib/firebase/config";
 import { UserProfile, QuestionPack, InterviewPack } from "@/types";
 import Link from "next/link";
-import QuickPortfolioModal from "@/components/counselor/QuickPortfolioModal";
+import QuickViewModal from "@/components/counselor/QuickViewModal";
 import EmptyState from "@/components/common/EmptyState";
 
 const generateStudentId = () => {
@@ -89,7 +89,6 @@ export default function CounselorStudentsPage() {
 
   // Assignment Modal State
   const [selectedStudent, setSelectedStudent] = useState<UserProfile | null>(null);
-  const [selectedQuickStudent, setSelectedQuickStudent] = useState<UserProfile | null>(null);
   const [assignedIds, setAssignedIds] = useState<string[]>([]);
   const [isSavingAssignments, setIsSavingAssignments] = useState(false);
 
@@ -173,44 +172,8 @@ export default function CounselorStudentsPage() {
         s.email?.toLowerCase().includes(queryStr)
       );
     }
-
-    // B. Compliance Status Filter
-    if (filterStatus !== "All") {
-      processed = processed.filter(s => s.readinessStatus === filterStatus);
-    }
-
-    // C. Interview Pack Filter
-    if (filterPack !== "All") {
-      processed = processed.filter(s => {
-        const pack = interviewPacks[s.uid];
-        const status = pack?.status || "Not Started";
-        return status === filterPack;
-      });
-    }
-
-    // D. Sorting Logic
-    processed.sort((a, b) => {
-      switch (sortBy) {
-        case "progressHigh":
-          return (b.learningProgress || 0) - (a.learningProgress || 0);
-        case "progressLow":
-          return (a.learningProgress || 0) - (b.learningProgress || 0);
-        case "lastActive":
-          const dateA = a.lastLoginAt?.seconds ? a.lastLoginAt.seconds * 1000 : 0;
-          const dateB = b.lastLoginAt?.seconds ? b.lastLoginAt.seconds * 1000 : 0;
-          return dateB - dateA;
-        case "name":
-          return (a.displayName || "").localeCompare(b.displayName || "");
-        case "recent":
-        default:
-          const createA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
-          const createB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
-          return createB - createA;
-      }
-    });
-
     return processed;
-  }, [students, interviewPacks, searchQuery, filterStatus, filterPack, sortBy]);
+  }, [students, searchQuery]);
 
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -333,10 +296,10 @@ export default function CounselorStudentsPage() {
   return (
     <AppShell>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
-        {selectedQuickStudent && (
-          <QuickPortfolioModal 
-            student={selectedQuickStudent} 
-            onClose={() => setSelectedQuickStudent(null)} 
+        {selectedStudent && (
+          <QuickViewModal
+            student={selectedStudent}
+            onClose={() => setSelectedStudent(null)}
           />
         )}
         {/* Toast */}
@@ -426,136 +389,53 @@ export default function CounselorStudentsPage() {
           </div>
         </div>
 
-        {/* ── Master Table: md+ screens ─────────────────────────── */}
-        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-[32px] overflow-hidden border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="p-6">Student Identity</th>
-                  <th className="p-6">Office / Counselor</th>
-                  <th className="p-6">Compliance Progress</th>
-                  <th className="p-6">Interview Pack</th>
-                  <th className="p-6">Readiness</th>
-                  <th className="p-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700 font-medium text-gray-800 dark:text-gray-200">
-                {dataLoading ? (
-                  <tr><td colSpan={6} className="p-12 text-center text-gray-500 dark:text-gray-400">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#1a73e8] mb-2" />
-                    <p className="font-black uppercase tracking-widest text-[10px]">Synchronizing Master Data...</p>
-                  </td></tr>
-                ) : displayedStudents.length === 0 ? (
-                  <tr><td colSpan={6} className="p-6">
-                    <EmptyState
-                      icon={Search}
-                      title="No Results Found"
-                      description="We couldn't find any students matching your current search or filter criteria. Try adjusting your filters."
-                      actionText="Reset Filters"
-                      onAction={() => {
-                        setSearchQuery("");
-                        setFilterStatus("All");
-                        setFilterPack("All");
-                      }}
-                    />
-                  </td></tr>
-                ) : (
-                  displayedStudents.map((student) => {
-                    const assignedCount = student.assignedPackIds ? student.assignedPackIds.length : availablePacks.filter((p) => p.isDefault).length;
-                    const packStatus = interviewPacks[student.uid]?.status || "Not Started";
-
-                    return (
-                      <tr
-                        key={student.uid} 
-                        className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer"
-                        onClick={() => setSelectedQuickStudent(student)}
-                      >
-                        <td className="p-6">
+        {/* ── Master Table ── */}
+        <div className="bg-white dark:bg-slate-800 rounded-[32px] overflow-hidden border border-gray-100 dark:border-slate-800 shadow-sm">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800">
+               <tr>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Student Details</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Student ID</th>
+                  <th className="px-8 py-5 text-right text-[10px] font-black uppercase tracking-widest text-gray-400">Actions</th>
+               </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50">
+               {dataLoading ? (
+                 <tr><td colSpan={3} className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" /></td></tr>
+               ) : displayedStudents.map(s => {
+                  const statusColor = s.readinessStatus === "Green" ? "bg-emerald-500" : s.readinessStatus === "Yellow" ? "bg-amber-500" : "bg-rose-500";
+                  return (
+                    <tr key={s.uid} className="hover:bg-blue-50/10 transition-all group">
+                       <td className="px-8 py-6">
                           <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center font-black text-[#1a73e8] text-sm shadow-inner group-hover:scale-110 transition-transform">
-                              {(student.displayName || "S").charAt(0).toUpperCase()}
-                            </div>
-                            <div className="space-y-1">
-                               <p className="font-black text-[13px] text-gray-900 dark:text-white leading-none">{student.displayName || "Student User"}</p>
-                               <div className="flex items-center gap-2 text-[9px] font-black text-blue-500 uppercase tracking-tighter">
-                                  <span>{student.studentId || "NO-ID"}</span>
-                                  <span className="text-gray-300">•</span>
-                                  <span className="text-gray-400">{student.email}</span>
-                               </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-6">
-                           <div className="flex flex-col gap-1">
-                              <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-300 font-black"><Building className="w-3 h-3" /> {student.office || "London HQ"}</span>
-                              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Assigned: Counselor A</span>
-                           </div>
-                        </td>
-                        <td className="p-6">
-                          <div className="space-y-2">
-                             <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-tighter">
-                                <span className="text-gray-500">{student.learningProgress || 0}% Complete</span>
-                                <span className="text-blue-500">{assignedCount} Packs</span>
+                             <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center font-black text-blue-600 text-xs">
+                                {s.displayName?.charAt(0)}
                              </div>
-                             <div className="w-32 bg-gray-100 dark:bg-gray-900 rounded-full h-1.5 overflow-hidden">
-                               <div
-                                 className="h-full bg-[#1a73e8] rounded-full transition-all duration-500"
-                                 style={{ width: `${student.learningProgress || 0}%` }}
-                               />
+                             <div>
+                                <div className="flex items-center gap-2">
+                                   <span className="text-sm font-black dark:text-white uppercase tracking-tighter">{s.displayName}</span>
+                                   <div className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
+                                </div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{s.email}</p>
                              </div>
                           </div>
-                        </td>
-                        <td className="p-6">
-                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border transition-all ${
-                             packStatus === 'Verified' ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                             : packStatus === 'Submitted' ? 'bg-blue-50 text-blue-600 border-blue-200 animate-pulse'
-                             : packStatus === 'In Progress' ? 'bg-amber-50 text-amber-600 border-amber-200'
-                             : 'bg-gray-50 text-gray-400 border-gray-200'
-                           }`}>
-                              {packStatus === 'Verified' ? <CheckCircle2 className="w-3 h-3" /> : <FileCheck className="w-3 h-3" />}
-                              {packStatus}
-                           </span>
-                        </td>
-                        <td className="p-6">
-                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase border shadow-sm ${
-                            student.readinessStatus === "Green" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                            : student.readinessStatus === "Yellow" ? "bg-amber-50 text-amber-600 border-amber-200"
-                            : student.readinessStatus === "Orange" ? "bg-orange-50 text-orange-600 border-orange-200"
-                            : student.readinessStatus === "Red" ? "bg-rose-50 text-rose-600 border-rose-200"
-                            : "bg-gray-50 text-gray-400 border-gray-200"
-                          }`}>● {student.readinessStatus || "Gray"}</span>
-                        </td>
-                        <td className="p-6 text-right">
-                           <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => setSelectedQuickStudent(student)}
-                                className="p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-[#1a73e8] hover:border-blue-200 transition-all shadow-sm"
-                                title="Quick Dossier"
-                              >
-                                 <Eye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleEditStudent(student)}
-                                className="p-2.5 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
-                              >
-                                 <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => openAssignmentModal(student)}
-                                className="p-2.5 rounded-xl bg-[#1a73e8]/5 text-[#1a73e8] hover:bg-[#1a73e8] hover:text-white transition-all shadow-sm"
-                              >
-                                <FolderKanban className="w-4 h-4" />
-                              </button>
-                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                       </td>
+                       <td className="px-8 py-6">
+                          <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-full">{s.studentId || 'ID-PENDING'}</span>
+                       </td>
+                       <td className="px-8 py-6 text-right">
+                          <button
+                            onClick={() => setSelectedStudent(s)}
+                            className="bg-white dark:bg-slate-800 px-6 py-2 rounded-xl text-[10px] font-black uppercase border border-gray-200 dark:border-slate-700 shadow-sm hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all"
+                          >
+                             Quick View
+                          </button>
+                       </td>
+                    </tr>
+                  );
+               })}
+            </tbody>
+          </table>
         </div>
 
         {/* ── Mobile View: Simplified Cards ── */}
@@ -584,7 +464,7 @@ export default function CounselorStudentsPage() {
               {displayedStudents.map((student) => (
                 <div
                   key={student.uid}
-                  onClick={() => setSelectedQuickStudent(student)}
+                  onClick={() => setSelectedStudent(student)}
                   className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4"
                 >
                   <div className="flex items-center justify-between">

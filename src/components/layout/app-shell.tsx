@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import NotificationBell from "@/components/common/NotificationBell";
+import ChatDrawer from "@/components/chat/ChatDrawer";
+import IncomingCallListener from "@/components/mock-interview/IncomingCallListener";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTheme } from "@/lib/theme/theme-context";
@@ -28,6 +30,7 @@ import {
   Eye,
   ShieldAlert,
   User as UserIcon,
+  MessageSquare,
 } from "lucide-react";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -40,6 +43,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [avatarErrored, setAvatarErrored] = useState(false);
   const [mobileAvatarErrored, setMobileAvatarErrored] = useState(false);
+  const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
 
   const isAdmin = role === "Admin" || role === "Super Admin";
 
@@ -56,25 +60,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Leaderboard", href: "/student/leaderboard", icon: Trophy },
     { name: "My History", href: "/student/history", icon: History },
-    { name: "Library", href: "/student/library", icon: BookOpen },
-    { name: "Learning Drills", href: "/learning", icon: FileCheck },
+    { name: "Scholar Academy", href: "/learning", icon: BookOpen },
+    { name: "Interview Pack", href: "/student/interview-pack", icon: ShieldCheck },
+    { name: "Mock Interview", href: "/student/mock-interview", icon: MessageSquare },
   ];
 
   const counselorLinks = [
-    {
-      name: "Dashboard",
-      href: userProfile?.defaultDashboard === 'table' ? "/counselor/dashboard?view=table" : "/counselor/dashboard",
-      icon: ShieldCheck
-    },
+    { name: "Dashboard", href: "/counselor/dashboard", icon: LayoutDashboard },
     { name: "My Students", href: "/counselor/students", icon: Users },
-    { name: "Library", href: "/counselor/library", icon: BookOpen },
+    { name: "Mock Interviews", href: "/counselor/mock-interviews", icon: MessageSquare },
+    { name: "Academy Manager", href: "/counselor/packs", icon: LayoutGrid },
+    { name: "Resource Library", href: "/counselor/library", icon: BookOpen },
     { name: "Leaderboard", href: "/counselor/leaderboard", icon: Trophy },
   ];
 
   const adminLinks = [
     ...counselorLinks,
-    { name: "Question Packs", href: "/counselor/packs", icon: LayoutGrid },
-    { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { name: "Analytics", href: "/admin/dashboard", icon: BarChart3 },
     { name: "Platform Settings", href: "/counselor/settings", icon: Settings },
   ];
 
@@ -193,6 +195,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Global Chat Trigger */}
+            <button
+              onClick={() => setIsChatDrawerOpen(true)}
+              className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all relative"
+            >
+              <MessageSquare size={20} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border border-white dark:border-slate-800" />
+            </button>
+
             {/* Notification Bell */}
             <NotificationBell />
 
@@ -370,6 +381,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
       )}
+      {/* Global Chat Drawer */}
+      <ChatDrawer isOpen={isChatDrawerOpen} onClose={() => setIsChatDrawerOpen(false)} />
+
+      {/* Global WebRTC Incoming Call Listener */}
+      <IncomingCallListener />
     </div>
   );
 }

@@ -148,6 +148,7 @@ function PortfolioContent() {
                   {student.readinessStatus || "Red"} Status
                </span>
             </div>
+            <button onClick={() => router.push(`/counselor/students/${student.uid}/pack`)} className="py-3 px-4 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-2xl font-black text-sm border border-indigo-200 dark:border-indigo-800">📋 View Interview Pack</button>
             <button onClick={() => setEvalOpen(true)} className="py-3 px-4 bg-blue-600 text-white rounded-2xl font-black text-sm">🎤 Conduct Live Interview</button>
             <button onClick={() => setReminderModalOpen(true)} className="py-3 px-4 bg-purple-600 text-white rounded-2xl font-black text-sm flex items-center gap-2"><CalendarPlus className="w-4 h-4" /> Set Reminder</button>
          </div>

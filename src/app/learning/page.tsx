@@ -4,15 +4,16 @@ import React, { useEffect, useState } from "react";
 import AppShell from "@/components/layout/app-shell";
 import Link from "next/link";
 import { BookOpen, CheckCircle2, Play, Lock, Sparkles, FolderOpen, Award, HelpCircle } from "lucide-react";
-import { collection, getDocs, doc, getDoc, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, orderBy, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { useAuth } from "@/lib/auth/auth-context";
-import { LearningModule, UserProfile } from "@/types";
+import { LearningModule, UserProfile, QuestionPack } from "@/types";
 import ResourceVaultModal from "@/components/common/ResourceVaultModal";
 
 export default function LearningModulesPage() {
   const { user, userId } = useAuth();
   const [modules, setModules] = useState<LearningModule[]>([]);
+  const [extraPacks, setExtraPacks] = useState<QuestionPack[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
@@ -23,19 +24,31 @@ export default function LearningModulesPage() {
       try {
         // 1. Get user profile
         const userSnap = await getDoc(doc(db, "Users", userId));
+        let profile: UserProfile | null = null;
         if (userSnap.exists()) {
-          setUserProfile({ uid: userSnap.id, ...userSnap.data() } as UserProfile);
+          profile = { uid: userSnap.id, ...userSnap.data() } as UserProfile;
+          setUserProfile(profile);
         }
 
-        // 2. Get all learning modules from Firestore (Repaired logic to prevent duplication)
+        // 2. Get all learning modules from Firestore
         const modulesQuery = query(collection(db, "learning_modules"), orderBy("order", "asc"));
         const modulesSnap = await getDocs(modulesQuery);
+        setModules(modulesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as LearningModule)));
 
-        const allModules = modulesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as LearningModule));
-        setModules(allModules); // Completely replace state
+        // 3. Get assigned question packs
+        const assignedIds = profile?.assignedPackIds || [];
+        if (assignedIds.length > 0) {
+           const packsQuery = query(collection(db, "question_packs"), where("__name__", "in", assignedIds));
+           const packsSnap = await getDocs(packsQuery);
+           setExtraPacks(packsSnap.docs.map(d => ({ id: d.id, ...d.data() } as QuestionPack)));
+        } else {
+           // Also show default packs
+           const defaultQuery = query(collection(db, "question_packs"), where("isDefault", "==", true));
+           const defaultSnap = await getDocs(defaultQuery);
+           setExtraPacks(defaultSnap.docs.map(d => ({ id: d.id, ...d.data() } as QuestionPack)));
+        }
       } catch (err) {
         console.error("Error fetching learning track:", err);
-        setModules([]);
       } finally {
         setLoading(false);
       }
@@ -160,6 +173,56 @@ export default function LearningModulesPage() {
                   </div>
                 </div>
               );
+            })}
+
+            {/* Extra Question Packs */}
+            {extraPacks.map((pack) => {
+               const score = moduleScores[pack.id];
+               const isPassed = score !== undefined && score >= (pack.passScore || 80);
+
+               return (
+                <div
+                  key={pack.id}
+                  className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-gray-200/80 dark:border-gray-700 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                        Supplemental Pack
+                      </span>
+                      {isPassed && (
+                        <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Passed ({score}%)
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base leading-snug">{pack.title}</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-3">{pack.description || "Additional UKVI credibility drill."}</p>
+
+                    <div className="flex items-center gap-4 text-xs font-medium text-gray-600 dark:text-gray-300 pt-1">
+                      <span className="flex items-center gap-1">
+                        <HelpCircle className="w-3.5 h-3.5 text-indigo-500" />
+                        {pack.questions ? pack.questions.length : 0} Questions
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Award className="w-3.5 h-3.5 text-amber-500" />
+                        Pass: {pack.passScore || 80}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <Link
+                      href={`/learning/detail?packId=${pack.id}`}
+                      className="w-full py-3 px-4 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>{isPassed ? "Retake for Score" : "Start Quiz"}</span>
+                    </Link>
+                  </div>
+                </div>
+               );
             })}
           </div>
         )}

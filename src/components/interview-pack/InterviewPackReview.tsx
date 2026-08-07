@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, getDocs } from "firebase/firestore";
 import { PackField, StudentPackData, PackFile } from "@/types/pack";
-import { Loader2, ShieldCheck, ExternalLink, Download, FileText, Plus, Save, Trash2, User } from "lucide-react";
+import { Loader2, ShieldCheck, ExternalLink, Download, FileText, Plus, Save, Trash2, User, Phone } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function InterviewPackReview({ studentId }: { studentId: string }) {
   const [fields, setFields] = useState<PackField[]>([]);
@@ -12,6 +13,7 @@ export default function InterviewPackReview({ studentId }: { studentId: string }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [studentInfo, setStudentInfo] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (studentId) fetchData();
@@ -84,12 +86,20 @@ export default function InterviewPackReview({ studentId }: { studentId: string }
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Reviewing Completed Pack</p>
              </div>
           </div>
-          <button
-            onClick={addCustomField}
-            className="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-          >
-            <Plus size={16} /> Request Custom Data
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => router.push(`/counselor/live-mock/${studentId}`)}
+              className="bg-emerald-600 text-white px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+            >
+              <Phone size={16} /> Start Live Mock
+            </button>
+            <button
+              onClick={addCustomField}
+              className="bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+            >
+              <Plus size={16} /> Request Custom Data
+            </button>
+          </div>
         </div>
 
         <div className="p-8 md:p-10 space-y-12">

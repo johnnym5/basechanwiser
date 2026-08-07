@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
+import { verifyRequestRole } from '@/lib/server/verify-role';
 
 export async function POST(req: Request) {
   try {
+    const authResult = await verifyRequestRole(req, ["Super Admin", "Admin", "Counselor", "Head of Compliance"]);
+    if (authResult.error) return authResult.error;
+
     const modulesRef = adminDb.collection('learning_modules');
 
     const seedModules = [

@@ -7,7 +7,7 @@ export function useMediaRecorder() {
   const [isRecording, setIsRecording] = useState(false);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(async (options?: { lowBandwidth?: boolean }) => {
     try {
       const userStream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -21,6 +21,7 @@ export function useMediaRecorder() {
 
       const mediaRecorder = new MediaRecorder(userStream, {
         mimeType: 'video/webm;codecs=vp8,opus',
+        videoBitsPerSecond: options?.lowBandwidth ? 250000 : 2500000,
       });
 
       const chunks: Blob[] = [];
