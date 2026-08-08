@@ -18,7 +18,7 @@ export async function uploadPackFile(studentId: string, fieldId: string, file: F
 
 export async function uploadMockVideo(studentId: string, blob: Blob) {
   const timestamp = Date.now();
-  const filePath = `mock_interviews/${studentId}/${timestamp}_interview.webm`;
+  const filePath = `mock_interviews/${studentId}/${timestamp}.webm`;
   const fileRef = ref(storage, filePath);
 
   const snapshot = await uploadBytes(fileRef, blob);
