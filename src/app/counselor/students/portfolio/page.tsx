@@ -47,6 +47,34 @@ import EmptyState from "@/components/common/EmptyState";
  * Feature: Auto-Status Upgrade Engine & Sleek Empty States.
  * Pattern: Progressive Disclosure UX.
  */
+// ── Status Badge Renderers ──
+
+const renderOverallStatus = (status: string) => {
+  const base = "inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all duration-200";
+
+  const getStyles = () => {
+    switch (status?.toUpperCase()) {
+      case 'RED': return { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', dot: 'bg-red-500' };
+      case 'AMBER':
+      case 'YELLOW':
+      case 'ORANGE':
+        return { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', dot: 'bg-amber-500' };
+      case 'GREEN': return { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', dot: 'bg-emerald-500' };
+      default: return { bg: 'bg-slate-800/50', text: 'text-slate-400', border: 'border-slate-700', dot: 'bg-slate-500' };
+    }
+  };
+
+  const styles = getStyles();
+  const label = status ? status.toUpperCase() : 'GRAY';
+
+  return (
+    <span className={`${base} ${styles.bg} ${styles.text} ${styles.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${styles.dot} shadow-[0_0_8px_rgba(0,0,0,0.5)]`}></span>
+      {label}
+    </span>
+  );
+};
+
 function PortfolioContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
@@ -197,10 +225,7 @@ function PortfolioContent() {
             </div>
          </div>
          <div className="flex items-center gap-4">
-            <div className={`px-6 py-3 rounded-2xl bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 shadow-sm flex items-center gap-3`}>
-               <div className={`w-3 h-3 rounded-full bg-current ${statusColor} animate-pulse`} />
-               <span className={`text-xs font-black uppercase tracking-widest ${statusColor}`}>{student.readinessStatus || "Red"} Status</span>
-            </div>
+            {renderOverallStatus(student.readinessStatus || "Gray")}
             {canEdit && (
                <button onClick={() => isEditing ? handleSaveChanges() : setIsEditing(true)} disabled={isSaving} className={`py-3 px-6 rounded-2xl font-black text-sm flex items-center gap-2 transition-all ${isEditing ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 'bg-white dark:bg-[#1E293B] text-gray-700 dark:text-white border border-gray-200 dark:border-slate-700'}`}>
                   {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : isEditing ? <Save className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}

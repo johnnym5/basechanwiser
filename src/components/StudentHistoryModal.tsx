@@ -36,6 +36,34 @@ interface StudentHistoryModalProps {
   onRefreshParent?: () => void;
 }
 
+// ── Status Badge Renderers ──
+
+const renderOverallStatus = (status: string) => {
+  const base = "inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all duration-200";
+
+  const getStyles = () => {
+    switch (status?.toUpperCase()) {
+      case 'RED': return { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', dot: 'bg-red-500' };
+      case 'AMBER':
+      case 'YELLOW':
+      case 'ORANGE':
+        return { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', dot: 'bg-amber-500' };
+      case 'GREEN': return { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', dot: 'bg-emerald-500' };
+      default: return { bg: 'bg-slate-800/50', text: 'text-slate-400', border: 'border-slate-700', dot: 'bg-slate-500' };
+    }
+  };
+
+  const styles = getStyles();
+  const label = status ? status.toUpperCase() : 'GRAY';
+
+  return (
+    <span className={`${base} ${styles.bg} ${styles.text} ${styles.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${styles.dot} shadow-[0_0_8px_rgba(0,0,0,0.5)]`}></span>
+      {label}
+    </span>
+  );
+};
+
 export default function StudentHistoryModal({ student, onClose, onRefreshParent }: StudentHistoryModalProps) {
   const [activeTab, setActiveTab] = useState<"quizzes" | "pack" | "evaluations">("quizzes");
   const [loading, setLoading] = useState(true);
@@ -139,11 +167,7 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className="font-extrabold text-lg sm:text-xl font-google truncate">{student.name}</h2>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
-                  student.status === "Green" ? "bg-emerald-500/20 border-emerald-300 text-emerald-100"
-                  : student.status === "Yellow" ? "bg-amber-500/20 border-amber-300 text-amber-100"
-                  : "bg-red-500/20 border-red-300 text-red-100"
-                }`}>● {student.status}</span>
+                {renderOverallStatus(student.status)}
               </div>
               <p className="text-xs text-blue-100 truncate">{student.email} • Office: {student.location}</p>
             </div>

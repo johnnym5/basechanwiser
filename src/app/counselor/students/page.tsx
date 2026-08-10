@@ -27,7 +27,8 @@ import {
   Filter,
   ArrowUpDown,
   FileCheck,
-  CheckCircle2
+  CheckCircle2,
+  ChevronRight
 } from "lucide-react";
 import { collection, doc, setDoc, query, deleteDoc, serverTimestamp, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
@@ -41,6 +42,60 @@ import EmptyState from "@/components/common/EmptyState";
 const generateStudentId = () => {
   const randomNum = Math.floor(10000 + Math.random() * 90000);
   return `BW-${randomNum}`;
+};
+
+// ── Status Badge Renderers ──
+
+const renderPackStatus = (status: string) => {
+  const base = "inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all duration-200";
+
+  switch (status?.toUpperCase()) {
+    case 'VERIFIED':
+    case 'GRADED':
+      return (
+        <span className={`${base} bg-emerald-500/10 text-emerald-400 border-emerald-500/20`}>
+          VERIFIED
+        </span>
+      );
+    case 'SUBMITTED':
+      return (
+        <span className={`${base} bg-blue-500/10 text-blue-400 border-blue-500/20`}>
+          SUBMITTED
+        </span>
+      );
+    default:
+      return (
+        <span className={`${base} bg-slate-800/50 text-slate-400 border-slate-700`}>
+          NOT STARTED
+        </span>
+      );
+  }
+};
+
+const renderOverallStatus = (status: string) => {
+  const base = "inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all duration-200";
+
+  const getStyles = () => {
+    switch (status?.toUpperCase()) {
+      case 'RED': return { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', dot: 'bg-red-500' };
+      case 'AMBER':
+      case 'YELLOW':
+      case 'ORANGE':
+        return { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', dot: 'bg-amber-500' };
+      case 'GREEN': return { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', dot: 'bg-emerald-500' };
+      default: return { bg: 'bg-slate-800/50', text: 'text-slate-400', border: 'border-slate-700', dot: 'bg-slate-500' };
+    }
+  };
+
+  const styles = getStyles();
+  const label = status ? status.toUpperCase() : 'GRAY';
+
+  return (
+    <span className={`${base} ${styles.bg} ${styles.text} ${styles.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${styles.dot} shadow-[0_0_8px_rgba(0,0,0,0.5)]`}></span>
+      {label}
+    </span>
+  );
 };
 
 export default function CounselorStudentsPage() {
@@ -251,7 +306,7 @@ export default function CounselorStudentsPage() {
     });
 
     return processed;
-  }, [students, interviewPacks, searchQuery, filterStatus, filterPack, sortBy]);
+  }, [students, interviewPacks, searchQuery, smartFilter, sortBy, counselorFilter]);
 
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -517,7 +572,7 @@ export default function CounselorStudentsPage() {
                       title="No Results Found"
                       description="Try adjusting your filters or reset search to see students."
                       actionText="Reset All Filters"
-                      onAction={() => { setSearchQuery(""); setFilterStatus("All"); setFilterPack("All"); setCounselorFilter("ALL"); }}
+                      onAction={() => { setSearchQuery(""); setSmartFilter("ALL"); setCounselorFilter("ALL"); }}
                     />
                   </td></tr>
                 ) : (
@@ -564,20 +619,10 @@ export default function CounselorStudentsPage() {
                            <p className="text-[9px] font-black text-gray-400 mt-1 uppercase">{student.learningProgress || 0}% Complete</p>
                         </td>
                         <td className="p-6">
-                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
-                             packStatus === 'Verified' ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                             : packStatus === 'Submitted' ? 'bg-blue-50 text-blue-600 border-blue-200'
-                             : 'bg-gray-50 text-gray-400 border-gray-200'
-                           }`}>
-                             {packStatus}
-                           </span>
+                           {renderPackStatus(packStatus)}
                         </td>
                         <td className="p-6">
-                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
-                             student.readinessStatus === "Green" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                             : student.readinessStatus === "Yellow" ? "bg-amber-50 text-amber-600 border-amber-200"
-                             : "bg-rose-50 text-rose-600 border-rose-200"
-                           }`}>● {student.readinessStatus || "Gray"}</span>
+                           {renderOverallStatus(student.readinessStatus || "Gray")}
                         </td>
                         <td className="p-6 text-right">
                            <button onClick={(e) => { e.stopPropagation(); setSelectedQuickStudent(student); }} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 transition-colors"><Eye size={16}/></button>
@@ -607,8 +652,7 @@ export default function CounselorStudentsPage() {
                 actionText="Reset All Filters"
                 onAction={() => {
                   setSearchQuery("");
-                  setFilterStatus("All");
-                  setFilterPack("All");
+                  setSmartFilter("ALL");
                   setCounselorFilter("ALL");
                 }}
               />
@@ -633,10 +677,7 @@ export default function CounselorStudentsPage() {
                           <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">{student.studentId}</p>
                         </div>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-[8px] font-black uppercase border ${
-                        student.readinessStatus === "Green" ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                        : "bg-rose-50 text-rose-600 border-rose-200"
-                      }`}>● {student.readinessStatus || "Gray"}</span>
+                      {renderOverallStatus(student.readinessStatus || "Gray")}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-50 dark:border-gray-700">
