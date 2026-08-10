@@ -15,7 +15,7 @@ import {
   where,
   limit
 } from "firebase/firestore";
-import { MockQuestionSet, MockInterviewAttempt, QuestionTimestamp } from "@/types/mock";
+import { MockQuestionSet, MockInterviewAttempt, QuestionTimestamp, MockQuestion } from "@/types/mock";
 import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 import LiveCallArena from "./LiveCallArena";
 import { uploadMockVideo } from "@/lib/firebase/storage-utils";
@@ -47,7 +47,7 @@ export default function MockInterviewLive() {
   const { stream, volume, getPermissions, startRecording, stopRecording, videoPreviewRef, recordedChunks } = useMediaRecorder();
 
   const [questionSet, setQuestionSet] = useState<MockQuestionSet | null>(null);
-  const [questions, setQuestions] = useState<string[]>([]);
+  const [questions, setQuestions] = useState<(string | MockQuestion)[]>([]);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<'setup' | 'interview' | 'uploading' | 'finished'>('setup');
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -241,15 +241,18 @@ export default function MockInterviewLive() {
       const attempt: MockInterviewAttempt = {
         studentId: userId!,
         studentName: userProfile?.displayName || user?.displayName || "Student",
-        answers: questions.map((q, idx) => ({ questionId: `q${idx + 1}`, questionText: q })),
+        answers: questions.map((q, idx) => ({
+          questionId: `q${idx + 1}`,
+          questionText: typeof q === 'string' ? q : q.text
+        })),
         questionTimestamps: timestamps,
-        videoUrl,
+        videoUrls: [videoUrl],
         startedAt: serverTimestamp(),
         submittedAt: serverTimestamp(),
         timeTakenSeconds: (Date.now() - startTimeRef.current) / 1000,
         status: 'pending_review',
         setId: questionSet?.id || "default",
-        askedQuestions: questions // Immutable exact array presented to student
+        askedQuestions: questions.map(q => typeof q === 'string' ? q : q.text)
       };
 
       await addDoc(collection(db, "mock_interview_attempts"), attempt);
@@ -294,7 +297,11 @@ export default function MockInterviewLive() {
     );
   }
 
-  const currentQ = questions[currentIdx];
+  const currentQRaw = questions[currentIdx];
+  const currentQ = typeof currentQRaw === 'string' ? currentQRaw : currentQRaw?.text;
+
+  const firstQuestionRaw = questionSet?.questions[0];
+  const firstQuestion = typeof firstQuestionRaw === 'string' ? firstQuestionRaw : firstQuestionRaw?.text;
 
   return (
     <LiveCallArena
@@ -304,7 +311,7 @@ export default function MockInterviewLive() {
       timeLeft={timeLeft}
       currentIdx={currentIdx}
       totalQuestions={questions.length || questionSet?.questions.length || 0}
-      currentQuestion={currentQ || (questionSet?.questions[0] || "Loading...")}
+      currentQuestion={currentQ || (firstQuestion || "Loading...")}
       isRecording={phase === 'interview' && countdown === null}
       isFinalizing={isFinalizing}
       volume={volume}

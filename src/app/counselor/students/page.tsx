@@ -57,8 +57,7 @@ export default function CounselorStudentsPage() {
 
   // ── Filter & Sort States ──
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("All");
-  const [filterPack, setFilterPack] = useState("All");
+  const [smartFilter, setSmartFilter] = useState("ALL");
   const [counselorFilter, setCounselorFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("recent");
 
@@ -66,8 +65,8 @@ export default function CounselorStudentsPage() {
 
   // Read initial filters from URL
   useEffect(() => {
-    const status = searchParams.get("status");
-    if (status) setFilterStatus(status);
+    const filter = searchParams.get("filter");
+    if (filter) setSmartFilter(filter);
 
     const initialSearch = searchParams.get("search");
     if (initialSearch) setSearchQuery(initialSearch);
@@ -202,14 +201,32 @@ export default function CounselorStudentsPage() {
       );
     }
 
-    // Readiness Status
-    if (filterStatus !== "All") {
-      processed = processed.filter(s => s.readinessStatus === filterStatus);
-    }
-
-    // Interview Pack Status
-    if (filterPack !== "All") {
-      processed = processed.filter(s => (interviewPacks[s.uid]?.status || "Not Started") === filterPack);
+    // Smart Filters
+    if (smartFilter !== "ALL") {
+      switch (smartFilter) {
+        case "STAR":
+          processed = processed.filter(s => (s.learningProgress || 0) >= 80);
+          break;
+        case "IN_PROGRESS":
+          processed = processed.filter(s => (s.learningProgress || 0) > 0 && (s.learningProgress || 0) < 100);
+          break;
+        case "AT_RISK":
+          processed = processed.filter(s => s.readinessStatus === 'Red');
+          break;
+        case "READY":
+          processed = processed.filter(s => s.readinessStatus === 'Green');
+          break;
+        case "INACTIVE":
+          const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+          processed = processed.filter(s => {
+            if (!s.lastLoginAt) return true;
+            return (s.lastLoginAt.seconds * 1000) < sevenDaysAgo;
+          });
+          break;
+        case "SUBMITTED":
+          processed = processed.filter(s => (interviewPacks[s.uid]?.status === 'Submitted'));
+          break;
+      }
     }
 
     // Counselor Filter
@@ -394,7 +411,7 @@ export default function CounselorStudentsPage() {
         </div>
 
         {/* Filter & Sort Controls */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-[32px] border border-gray-100 dark:border-gray-700 shadow-sm space-y-4">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-[32px] border border-gray-100 dark:border-slate-700 shadow-sm space-y-4">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -403,61 +420,62 @@ export default function CounselorStudentsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search name, ID, or email..."
-                className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl pl-11 pr-4 py-3 text-sm font-bold text-gray-700 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 transition-all"
+                className="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-2xl pl-11 pr-4 py-3 text-sm font-bold text-gray-700 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 transition-all"
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-               <select
-                 value={filterStatus}
-                 onChange={(e) => setFilterStatus(e.target.value)}
-                 className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl px-4 py-3 text-xs font-black text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-               >
-                 <option value="All">All Statuses</option>
-                 <option value="Green">Green (Ready)</option>
-                 <option value="Yellow">Yellow (Warning)</option>
-                 <option value="Orange">Orange (Risk)</option>
-                 <option value="Red">Red (Critical)</option>
-                 <option value="Gray">Gray (New)</option>
-               </select>
-
-               <select
-                 value={filterPack}
-                 onChange={(e) => setFilterPack(e.target.value)}
-                 className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl px-4 py-3 text-xs font-black text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-               >
-                 <option value="All">All Pack States</option>
-                 <option value="Not Started">Not Started</option>
-                 <option value="In Progress">In Progress</option>
-                 <option value="Submitted">Submitted</option>
-                 <option value="Verified">Verified</option>
-               </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+               <div className="relative group">
+                  <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-blue-500 pointer-events-none" />
+                  <select
+                    value={smartFilter}
+                    onChange={(e) => setSmartFilter(e.target.value)}
+                    className="w-full appearance-none bg-gray-50 dark:bg-slate-900 border-none rounded-2xl pl-11 pr-10 py-3 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                  >
+                    <option value="ALL">All Scholars</option>
+                    <option value="STAR">Star Students (80%+)</option>
+                    <option value="IN_PROGRESS">In-Progress</option>
+                    <option value="READY">Ready (Green)</option>
+                    <option value="AT_RISK">At-Risk (Red)</option>
+                    <option value="INACTIVE">Inactive (7+ Days)</option>
+                    <option value="SUBMITTED">Packs Submitted</option>
+                  </select>
+                  <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none rotate-90" />
+               </div>
 
                {isAdmin && (
-                 <select
-                   value={counselorFilter}
-                   onChange={(e) => setCounselorFilter(e.target.value)}
-                   className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl px-4 py-3 text-xs font-black text-[#1a73e8] focus:ring-2 focus:ring-blue-500"
-                 >
-                   <option value="ALL">All Counselors</option>
-                   <option value="UNASSIGNED">Unassigned</option>
-                   {counselorsList.map(c => (
-                     <option key={c.uid} value={c.uid}>{c.displayName}</option>
-                   ))}
-                 </select>
+                 <div className="relative group">
+                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-indigo-500 pointer-events-none" />
+                   <select
+                     value={counselorFilter}
+                     onChange={(e) => setCounselorFilter(e.target.value)}
+                     className="w-full appearance-none bg-gray-50 dark:bg-slate-900 border-none rounded-2xl pl-11 pr-10 py-3 text-[10px] font-black uppercase tracking-widest text-[#1a73e8] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                   >
+                     <option value="ALL">All Counselors</option>
+                     <option value="UNASSIGNED">Unassigned</option>
+                     {counselorsList.map(c => (
+                       <option key={c.uid} value={c.uid}>{c.displayName}</option>
+                     ))}
+                   </select>
+                   <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none rotate-90" />
+                 </div>
                )}
 
-               <select
-                 value={sortBy}
-                 onChange={(e) => setSortBy(e.target.value)}
-                 className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl px-4 py-3 text-xs font-black text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
-               >
-                 <option value="recent">Recently Added</option>
-                 <option value="lastActive">Recently Active</option>
-                 <option value="progressHigh">Progress: High → Low</option>
-                 <option value="progressLow">Progress: Low → High</option>
-                 <option value="name">Name (A-Z)</option>
-               </select>
+               <div className="relative group">
+                  <ArrowUpDown className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-500 pointer-events-none" />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full appearance-none bg-gray-50 dark:bg-slate-900 border-none rounded-2xl pl-11 pr-10 py-3 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                  >
+                    <option value="recent">Recently Added</option>
+                    <option value="lastActive">Recently Active</option>
+                    <option value="progressHigh">Progress: High → Low</option>
+                    <option value="progressLow">Progress: Low → High</option>
+                    <option value="name">Name (A-Z)</option>
+                  </select>
+                  <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none rotate-90" />
+               </div>
             </div>
           </div>
         </div>

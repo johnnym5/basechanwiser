@@ -14,7 +14,7 @@ import {
   writeBatch,
   where
 } from "firebase/firestore";
-import { MockQuestionSet } from "@/types/mock";
+import { MockQuestionSet, MockQuestion } from "@/types/mock";
 import { UserProfile } from "@/types";
 import {
   Loader2,

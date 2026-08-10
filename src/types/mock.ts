@@ -22,12 +22,19 @@ export interface MockInterviewAnswer {
   videoUrl?: string; // specific URL for this chunk
 }
 
+export interface QuestionTimestamp {
+  questionId: string;
+  startTime: number;
+}
+
 export interface MockInterviewAttempt {
   id?: string;
   studentId: string;
   studentName: string;
   answers: MockInterviewAnswer[];
+  videoUrl?: string; // fallback
   videoUrls: string[]; // List of all chunk URLs
+  questionTimestamps?: QuestionTimestamp[];
   startedAt: any;
   submittedAt: any;
   timeTakenSeconds: number;
