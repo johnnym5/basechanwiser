@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Search, Filter, Download, Activity, ExternalLink, Clock, ChevronRight } from 'lucide-center'; // wait, lucide-react
 import { Search as SearchIcon, Filter as FilterIcon, Download as DownloadIcon, Activity as ActivityIcon, ExternalLink as ExternalLinkIcon, Clock as ClockIcon, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import AppShell from "@/components/layout/app-shell";
 
