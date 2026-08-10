@@ -192,33 +192,45 @@ export default function CounselorDashboard() {
                   </div>
                 ) : (
                   <AnimatePresence>
-                    {priorityTasks.map((task, idx) => (
-                      <motion.div
-                        key={task.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className="flex items-center justify-between p-5 bg-gray-50 dark:bg-[#0F172A] rounded-3xl border border-gray-100 dark:border-slate-800 hover:border-blue-500/50 transition-all group shadow-sm"
-                      >
-                        <div className="flex items-center gap-5">
-                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${task.type === 'mock' ? 'bg-orange-50 text-orange-500 shadow-inner' : 'bg-blue-50 text-blue-500 shadow-inner'}`}>
-                            {task.type === 'mock' ? <Zap size={24} /> : <FileText size={24} />}
-                          </div>
-                          <div>
-                            <p className="text-sm font-black dark:text-white uppercase tracking-tighter">{task.title}</p>
-                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{task.subtitle}</p>
-                          </div>
-                        </div>
-                        <Link
-                          href={task.type === 'mock'
-                            ? `/counselor/mock-interviews/${task.id}`
-                            : `/counselor/students/portfolio?id=${task.studentId}`}
-                          className="px-5 py-2.5 bg-white dark:bg-[#1E293B] hover:bg-blue-600 hover:text-white dark:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all flex items-center gap-2"
+                    {priorityTasks.map((task, idx) => {
+                      const hoursOld = task.timestamp?.seconds
+                        ? (Date.now() / 1000 - task.timestamp.seconds) / 3600
+                        : 0;
+
+                      const getSLAStyles = (hours: number) => {
+                        if (hours > 48) return 'border-red-500/50 bg-red-500/5 hover:bg-red-500/10';
+                        if (hours > 24) return 'border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10';
+                        return 'border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-[#0F172A] hover:border-blue-500/50';
+                      };
+
+                      return (
+                        <motion.div
+                          key={task.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.1 }}
+                          className={`flex items-center justify-between p-5 rounded-3xl border transition-all group shadow-sm ${getSLAStyles(hoursOld)}`}
                         >
-                          Review Now <ChevronRight size={14} />
-                        </Link>
-                      </motion.div>
-                    ))}
+                          <div className="flex items-center gap-5">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${task.type === 'mock' ? 'bg-orange-50 text-orange-500 shadow-inner' : 'bg-blue-50 text-blue-500 shadow-inner'}`}>
+                              {task.type === 'mock' ? <Zap size={24} /> : <FileText size={24} />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black dark:text-white uppercase tracking-tighter">{task.title}</p>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{task.subtitle}</p>
+                            </div>
+                          </div>
+                          <Link
+                            href={task.type === 'mock'
+                              ? `/counselor/mock-interviews/${task.id}`
+                              : `/counselor/students/portfolio?id=${task.studentId}`}
+                            className="px-5 py-2.5 bg-white dark:bg-[#1E293B] hover:bg-blue-600 hover:text-white dark:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all flex items-center gap-2"
+                          >
+                            Review Now <ChevronRight size={14} />
+                          </Link>
+                        </motion.div>
+                      );
+                    })}
                   </AnimatePresence>
                 )}
               </div>
@@ -262,6 +274,7 @@ export default function CounselorDashboard() {
                <h2 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Live Activity Feed</h2>
                <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2 before:h-full before:w-0.5 before:bg-blue-900/30">
                   <ActivityItem
+                    studentId="123"
                     user="Cletus M."
                     action="Passed Module 2 (90%)"
                     time="10m ago"
@@ -269,6 +282,7 @@ export default function CounselorDashboard() {
                     color="emerald"
                   />
                   <ActivityItem
+                    studentId="456"
                     user="John D."
                     action="Uploaded Statement"
                     time="1h ago"
@@ -276,6 +290,7 @@ export default function CounselorDashboard() {
                     color="blue"
                   />
                   <ActivityItem
+                    studentId="789"
                     user="Sarah K."
                     action="Started Mock Prep"
                     time="2h ago"
@@ -283,6 +298,7 @@ export default function CounselorDashboard() {
                     color="orange"
                   />
                   <ActivityItem
+                    studentId="101"
                     user="David O."
                     action="Submitted Interview"
                     time="4h ago"
@@ -290,9 +306,9 @@ export default function CounselorDashboard() {
                     color="indigo"
                   />
                </div>
-               <button className="w-full py-3 bg-white/5 border border-white/5 hover:border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest text-blue-400 transition-all">
+               <Link href="/counselor/activity-log" className="block w-full py-3 bg-white/5 border border-white/5 hover:border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest text-blue-400 transition-all text-center">
                   View Full Event Log
-               </button>
+               </Link>
             </div>
 
           </div>
@@ -343,7 +359,7 @@ function QuickActionButton({ icon: Icon, label, color, onClick }: any) {
   );
 }
 
-function ActivityItem({ user, action, time, icon: Icon, color }: any) {
+function ActivityItem({ studentId, user, action, time, icon: Icon, color }: any) {
   const colorMap: any = {
     emerald: "bg-emerald-500",
     blue: "bg-blue-500",
@@ -352,15 +368,15 @@ function ActivityItem({ user, action, time, icon: Icon, color }: any) {
   };
 
   return (
-    <div className="relative flex items-center gap-4 group">
-      <div className={`w-4 h-4 rounded-full border-4 border-[#0F172A] ${colorMap[color]} shrink-0 z-10`} />
-      <div className="flex-1 bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+    <Link href={`/counselor/students/portfolio?id=${studentId}`} className="relative flex items-center gap-4 group cursor-pointer">
+      <div className={`w-4 h-4 rounded-full border-4 border-[#0F172A] ${colorMap[color]} shrink-0 z-10 transition-transform group-hover:scale-125`} />
+      <div className="flex-1 bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/5 group-hover:border-white/20 group-hover:bg-white/10 transition-all">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs font-black uppercase tracking-tight">{user}</span>
           <time className="text-[9px] font-bold text-gray-500 flex items-center"><Clock size={10} className="mr-1"/> {time}</time>
         </div>
         <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{action}</p>
       </div>
-    </div>
+    </Link>
   );
 }
