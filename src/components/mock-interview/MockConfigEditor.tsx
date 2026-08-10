@@ -194,7 +194,12 @@ export default function MockConfigEditor() {
 
   const addQuestion = () => {
     if (!editingSet) return;
-    setEditingSet({ ...editingSet, questions: [...editingSet.questions, "New Question Text"] });
+    const newQ: MockQuestion = {
+      id: `q_${Date.now()}`,
+      text: "New Question Text",
+      timeLimit: editingSet.timePerQuestionSeconds || 60
+    };
+    setEditingSet({ ...editingSet, questions: [...editingSet.questions, newQ] });
   };
 
   const removeQuestion = (idx: number) => {
@@ -204,10 +209,27 @@ export default function MockConfigEditor() {
     setEditingSet({ ...editingSet, questions: q });
   };
 
-  const updateQuestion = (idx: number, text: string) => {
+  const updateQuestionText = (idx: number, text: string) => {
     if (!editingSet) return;
     const q = [...editingSet.questions];
-    q[idx] = text;
+    const currentQ = q[idx];
+    if (typeof currentQ === 'string') {
+      q[idx] = text;
+    } else {
+      q[idx] = { ...currentQ, text };
+    }
+    setEditingSet({ ...editingSet, questions: q });
+  };
+
+  const updateQuestionTime = (idx: number, time: number) => {
+    if (!editingSet) return;
+    const q = [...editingSet.questions];
+    const currentQ = q[idx];
+    if (typeof currentQ === 'string') {
+      q[idx] = { id: `q_${idx}`, text: currentQ, timeLimit: time };
+    } else {
+      q[idx] = { ...currentQ, timeLimit: time };
+    }
     setEditingSet({ ...editingSet, questions: q });
   };
 
@@ -433,26 +455,43 @@ export default function MockConfigEditor() {
             </div>
 
             <div className="space-y-3">
-              {editingSet.questions.map((q, idx) => (
-                <div key={idx} className="flex items-center gap-4 bg-gray-50 dark:bg-[#0F172A] p-4 rounded-2xl border border-gray-100 dark:border-slate-800 group">
-                  <div className="p-2 text-gray-300 group-hover:text-blue-500 cursor-grab active:cursor-grabbing">
-                    <GripVertical size={20} />
+              {editingSet.questions.map((q, idx) => {
+                const questionText = typeof q === 'string' ? q : q.text;
+                const questionTime = typeof q === 'string' ? editingSet.timePerQuestionSeconds : q.timeLimit;
+
+                return (
+                  <div key={idx} className="flex items-center gap-4 bg-gray-50 dark:bg-[#0F172A] p-4 rounded-2xl border border-gray-100 dark:border-slate-800 group">
+                    <div className="p-2 text-gray-300 group-hover:text-blue-500 cursor-grab active:cursor-grabbing">
+                      <GripVertical size={20} />
+                    </div>
+                    <span className="text-xs font-black text-gray-400 w-8">#{idx + 1}</span>
+                    <input
+                      value={questionText}
+                      onChange={e => updateQuestionText(idx, e.target.value)}
+                      className="flex-1 bg-transparent border-none text-sm font-bold dark:text-slate-200 focus:ring-0"
+                      placeholder="Enter question text..."
+                    />
+
+                    <div className="flex items-center gap-2 px-3 py-1 bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm">
+                       <Clock size={12} className="text-gray-400" />
+                       <input
+                         type="number"
+                         value={questionTime}
+                         onChange={e => updateQuestionTime(idx, parseInt(e.target.value) || 60)}
+                         className="w-12 bg-transparent border-none text-[10px] font-black text-blue-600 focus:ring-0 p-0 text-center"
+                       />
+                       <span className="text-[8px] font-bold text-gray-400 uppercase">Sec</span>
+                    </div>
+
+                    <button
+                      onClick={() => removeQuestion(idx)}
+                      className="p-2 text-rose-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
-                  <span className="text-xs font-black text-gray-400 w-8">#{idx + 1}</span>
-                  <input
-                    value={q}
-                    onChange={e => updateQuestion(idx, e.target.value)}
-                    className="flex-1 bg-transparent border-none text-sm font-bold dark:text-slate-200 focus:ring-0"
-                    placeholder="Enter question text..."
-                  />
-                  <button
-                    onClick={() => removeQuestion(idx)}
-                    className="p-2 text-rose-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
