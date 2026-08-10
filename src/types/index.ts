@@ -1,15 +1,23 @@
 export type AppRole = "Super Admin" | "Head of Compliance" | "Admin" | "Counselor" | "Student";
 
+export interface StaffPermissions {
+  canDownloadDocs: boolean;
+  canEditSettings: boolean;
+  canManageModules: boolean;
+}
+
 export interface UserProfile {
   uid: string;
   studentId?: string; // Unique short ID (e.g. BW-12345)
   email: string | null;
   displayName: string | null;
   role: AppRole;
+  permissions?: StaffPermissions;
   intake?: string;
   office?: string;
   targetUniversity?: string;
   targetCourse?: string;
+  assignedCounselorId?: string; // UID of the counselor managing this student
   assignedPackIds?: string[];
   completedPackIds?: string[];
   currentModuleLevel?: number;
@@ -22,9 +30,15 @@ export interface UserProfile {
   suspended?: boolean;
   status?: 'Active' | 'Suspended';
   photoURL?: string;
+  phoneNumber?: string;
+  bio?: string;
   documents?: Record<string, string>; // e.g. { passport: "url", transcript: "url" }
+  isOnline?: boolean;
+  lastActive?: any; // Firestore Timestamp
 
   // Advanced Counselor/Admin Preferences
+  assignedMockSetId?: string | null;
+  assignedTestSetId?: string | null;
   themePreference?: "light" | "dark" | "system";
   defaultDashboard?: "analytics" | "table";
   emailSignature?: string;
@@ -120,6 +134,7 @@ export interface InterviewPack {
   studentName: string;
   studentEmail: string;
   status: 'Not Started' | 'In Progress' | 'Submitted' | 'Verified';
+  docsVerified?: boolean;
   updatedAt: any;
   createdAt?: any;
 
@@ -228,6 +243,17 @@ export interface AnalyticsDashboardData {
 }
 
 // ── Module 13: Notifications & Reminders ──────────────────
+
+export interface InAppNotification {
+  id?: string;
+  targetUserId: string; // The counselor receiving the alert
+  title: string;
+  message: string;
+  type: 'assignment' | 'alert' | 'message';
+  isRead: boolean;
+  createdAt: any; // Firestore Timestamp
+  actionUrl?: string; // e.g., '/counselor/students/portfolio?id=...'
+}
 
 export interface AppNotification {
   id?: string;

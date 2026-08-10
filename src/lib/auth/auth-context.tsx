@@ -17,8 +17,8 @@ import { evaluateDomainRole } from "./domain-roles";
 import { AppRole, UserProfile } from "@/types";
 
 function resolveUserRole(domainRole: AppRole, storedRole?: AppRole | null): AppRole {
-  if (storedRole === "Head of Compliance") return "Head of Compliance";
   if (domainRole === "Super Admin") return "Super Admin";
+  if (storedRole) return storedRole;
   return domainRole;
 }
 
@@ -101,10 +101,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUserProfile({ uid: existingDoc.id, ...existingData, role: computedRole });
             setRole(computedRole);
 
-            await updateDoc(doc(db, "Users", existingDoc.id), {
+            const updates: any = {
               lastLoginAt: serverTimestamp(),
+              lastActive: serverTimestamp(),
+              isOnline: true,
               role: computedRole,
-            });
+            };
+
+            // Sync permissions from Firestore to local state
+            if (existingData.permissions) {
+              setUserProfile(prev => prev ? { ...prev, permissions: existingData.permissions } : null);
+            }
+
+            await updateDoc(doc(db, "Users", existingDoc.id), updates);
             return;
           }
         } catch (e) {
@@ -129,6 +138,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const computedRole = resolveUserRole(domainRole, existingProfile.role);
         const updates: any = {
           lastLoginAt: serverTimestamp(),
+          lastActive: serverTimestamp(),
+          isOnline: true,
           role: computedRole,
         };
 
@@ -164,6 +175,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         moduleScores: {},
         readinessStatus: "Gray",
         learningProgress: 0,
+        isOnline: true,
+        lastActive: serverTimestamp(),
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp(),
       };
@@ -276,6 +289,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     setLoading(true);
     try {
+      if (user) {
+        await updateDoc(doc(db, "Users", user.uid), {
+          isOnline: false,
+          lastActive: serverTimestamp()
+        });
+      }
       localStorage.removeItem("bw_guest_email");
       localStorage.removeItem("bw_guest_name");
       await firebaseSignOut(auth);

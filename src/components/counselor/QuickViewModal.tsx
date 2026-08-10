@@ -5,6 +5,7 @@ import { db } from "@/lib/firebase/config";
 import { doc, deleteDoc } from "firebase/firestore";
 import { UserProfile } from "@/types";
 import { X, ChevronRight, ChevronLeft, Trash2, ExternalLink, ShieldCheck, PieChart, UserCheck, Edit3 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 
 export default function QuickViewModal({ student, onClose }: { student: UserProfile, onClose: () => void }) {
@@ -35,7 +36,7 @@ export default function QuickViewModal({ student, onClose }: { student: UserProf
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-       <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-[40px] shadow-2xl border border-gray-100 dark:border-slate-700 overflow-hidden">
+       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-[40px] shadow-2xl border border-gray-100 dark:border-slate-700 overflow-hidden">
           <div className="p-8 border-b border-gray-50 dark:border-slate-700 flex justify-between items-start">
              <div className="space-y-1">
                 <h2 className="text-2xl font-black dark:text-white uppercase tracking-tighter leading-none">{student.displayName}</h2>
@@ -53,15 +54,17 @@ export default function QuickViewModal({ student, onClose }: { student: UserProf
              </div>
 
              <div className="flex justify-center">
-                <div className="w-full max-w-[280px] bg-gray-50 dark:bg-[#0F172A] p-10 rounded-[40px] border border-gray-100 dark:border-slate-800 flex flex-col items-center text-center space-y-4">
-                   <div className={`w-16 h-16 rounded-[24px] ${stats[currentIndex].bg} flex items-center justify-center ${stats[currentIndex].color}`}>
-                      <StatIcon size={32} />
-                   </div>
-                   <div className="space-y-1">
-                      <p className="text-3xl font-black dark:text-white uppercase tracking-tighter leading-none">{stats[currentIndex].val}</p>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stats[currentIndex].label}</p>
-                   </div>
-                </div>
+                <AnimatePresence mode="wait">
+                   <motion.div key={currentIndex} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="w-full max-w-[280px] bg-gray-50 dark:bg-[#0F172A] p-10 rounded-[40px] border border-gray-100 dark:border-slate-800 flex flex-col items-center text-center space-y-4">
+                      <div className={`w-16 h-16 rounded-[24px] ${stats[currentIndex].bg} flex items-center justify-center ${stats[currentIndex].color}`}>
+                         <StatIcon size={32} />
+                      </div>
+                      <div className="space-y-1">
+                         <p className="text-3xl font-black dark:text-white uppercase tracking-tighter leading-none">{stats[currentIndex].val}</p>
+                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stats[currentIndex].label}</p>
+                      </div>
+                   </motion.div>
+                </AnimatePresence>
              </div>
 
              <div className="flex justify-center gap-2 mt-6">
@@ -82,7 +85,7 @@ export default function QuickViewModal({ student, onClose }: { student: UserProf
              <button onClick={() => router.push(`/counselor/students/${student.uid}?edit=true`)} className="flex-1 min-w-[140px] py-4 bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">Edit Student <Edit3 size={16} /></button>
              <button onClick={handleDelete} className={`px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 border-2 ${confirmDelete ? 'bg-rose-600 text-white border-rose-600' : 'bg-white dark:bg-slate-800 text-rose-600 border-rose-100 dark:border-rose-900/30'}`}>{confirmDelete ? 'Confirm?' : <Trash2 size={18} />}</button>
           </div>
-       </div>
+       </motion.div>
     </div>
   );
 }

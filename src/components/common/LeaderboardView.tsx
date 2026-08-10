@@ -102,6 +102,7 @@ export default function LeaderboardView({ isCounselorView = false }: Leaderboard
 
     filtered.forEach((attempt) => {
       const existing = topUserMap.get(attempt.userId);
+      // Logic: Only update if user is not in map OR if new attempt has higher gamifiedScore
       if (!existing || attempt.gamifiedScore > existing.gamifiedScore) {
         topUserMap.set(attempt.userId, attempt);
       }

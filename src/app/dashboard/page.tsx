@@ -6,16 +6,10 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth/auth-context";
 import {
   BookOpen,
-  FileCheck,
   CheckCircle2,
   Lock,
   ArrowRight,
-  Clock,
   ShieldCheck,
-  AlertTriangle,
-  FolderOpen,
-  Flame,
-  Trophy,
   Zap,
   Sparkles,
   MessageSquare,
@@ -24,13 +18,15 @@ import {
   Star,
   Info,
   History,
-  XCircle
+  XCircle,
+  Flame,
+  Trophy,
+  FolderOpen
 } from "lucide-react";
-import { doc, getDoc, collection, getDocs, query, orderBy, where, limit } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
 import ResourceVaultModal from "@/components/common/ResourceVaultModal";
 import ReactConfetti from "react-confetti";
-import { LearningModule, UserProfile } from "@/types";
+import { useStudentDashboard } from "@/hooks/useStudentDashboard";
+import { motion } from "framer-motion";
 
 const MOTIVATIONAL_PHRASES = [
   "You're 1 step closer to your UK university journey! 🇬🇧",
@@ -49,72 +45,22 @@ const UKVI_TIPS = [
 ];
 
 export default function StudentDashboardPage() {
-  const { user, userProfile, userId } = useAuth();
+  const { user, userId } = useAuth();
+  const { data, loading: dataLoading } = useStudentDashboard(userId);
 
-  const [modules, setModules] = useState<LearningModule[]>([]);
-  const [completedModulesCount, setCompletedModulesCount] = useState<number>(0);
-  const [totalModulesCount] = useState<number>(5);
-  const [interviewPackSubmitted, setInterviewPackSubmitted] = useState<boolean>(false);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [attempts, setAttempts] = useState<any[]>([]);
-  const [liveProfile, setLiveProfile] = useState<UserProfile | null>(null);
-
   const [showConfetti, setShowConfetti] = useState(false);
   const [currentTipIdx, setCurrentTipIdx] = useState(0);
 
   useEffect(() => {
-    async function fetchData() {
-      if (!userId) return;
-      try {
-        // 1. Fetch modules (Repaired logic to prevent duplication)
-        const modulesQuery = query(collection(db, "learning_modules"), orderBy("order", "asc"));
-        const modSnap = await getDocs(modulesQuery);
-        const mods = modSnap.docs.map(d => ({ id: d.id, ...d.data() } as LearningModule));
-        setModules(mods); // Completely replace state
-
-        // 2. Fetch profile directly for real-time gamification fields
-        const userRef = doc(db, "Users", userId);
-        const uSnap = await getDoc(userRef);
-        if (uSnap.exists()) {
-          setLiveProfile(uSnap.data() as UserProfile);
-          setCompletedModulesCount(Object.keys(uSnap.data().moduleScores || {}).length);
-        }
-
-        // 3. Fetch Interview Pack status
-        const packRef = doc(db, "Interview_Packs", userId);
-        const packSnap = await getDoc(packRef);
-        if (packSnap.exists()) {
-          setInterviewPackSubmitted(true);
-        }
-
-        // 4. Fetch recent quiz attempts
-        const attemptsQ = query(
-          collection(db, "quiz_attempts"),
-          where("userId", "==", userId),
-          orderBy("createdAt", "desc"),
-          limit(5)
-        );
-        const attemptsSnap = await getDocs(attemptsQ);
-        const recentAttempts = attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setAttempts(recentAttempts); // Completely replace state
-
-        // Check if we should show confetti
-        const lastScore = sessionStorage.getItem("last_quiz_score");
-        if (lastScore && parseInt(lastScore) >= 80) {
-          setShowConfetti(true);
-          sessionStorage.removeItem("last_quiz_score");
-          setTimeout(() => setShowConfetti(false), 5000);
-        }
-
-      } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-      } finally {
-        setLoading(false);
-      }
+    // Check if we should show confetti from a recent pass
+    const lastScore = sessionStorage.getItem("last_quiz_score");
+    if (lastScore && parseInt(lastScore) >= 80) {
+      setShowConfetti(true);
+      sessionStorage.removeItem("last_quiz_score");
+      setTimeout(() => setShowConfetti(false), 5000);
     }
-    fetchData();
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     const tipInterval = setInterval(() => {
@@ -122,9 +68,6 @@ export default function StudentDashboardPage() {
     }, 8000);
     return () => clearInterval(tipInterval);
   }, []);
-
-  const percentage = Math.round((completedModulesCount / totalModulesCount) * 100);
-  const isModulesComplete = completedModulesCount >= totalModulesCount;
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -139,15 +82,14 @@ export default function StudentDashboardPage() {
   }, []);
 
   const nextAction = useMemo(() => {
-    if (!isModulesComplete) {
-      const nextMod = modules.find(m => m.order === completedModulesCount + 1);
+    if (data.passedModulesCount < 5) {
       return {
-        label: `Next Task: Start Module ${completedModulesCount + 1} - ${nextMod?.title || "Next Drill"}`,
+        label: `Next Task: Start Module ${data.nextModuleOrder}`,
         cta: "Resume Journey 🚀",
-        href: `/learning/detail?packId=${nextMod?.id}`
+        href: `/learning/detail?packId=${data.nextModuleId}`
       };
     }
-    if (!interviewPackSubmitted) {
+    if (!data.interviewPackSubmitted) {
       return {
         label: "Foundation Complete! Time to fill out your Interview Pack.",
         cta: "Complete Profile ✍️",
@@ -159,21 +101,22 @@ export default function StudentDashboardPage() {
       cta: "Review Materials 📚",
       href: "/learning"
     };
-  }, [isModulesComplete, completedModulesCount, modules, interviewPackSubmitted]);
+  }, [data]);
 
   const rank = useMemo(() => {
-    if (interviewPackSubmitted) return "Interview Ready";
-    if (isModulesComplete) return "Compliance Cadet";
-    if (completedModulesCount > 0) return "Active Scholar";
+    if (data.readiness >= 90) return "Global Ambassador";
+    if (data.interviewPackSubmitted) return "Interview Ready";
+    if (data.passedModulesCount >= 5) return "Compliance Cadet";
+    if (data.passedModulesCount > 0) return "Active Scholar";
     return "Beginner";
-  }, [isModulesComplete, interviewPackSubmitted, completedModulesCount]);
+  }, [data]);
 
-  if (loading) {
+  if (dataLoading) {
     return (
       <AppShell>
         <div className="flex flex-col items-center justify-center p-20 gap-4">
-           <Sparkles className="w-12 h-12 text-blue-500 animate-spin" />
-           <p className="text-sm font-black uppercase text-gray-500 tracking-widest">Building your journey...</p>
+           <Sparkles className="w-12 h-12 text-[#1a73e8] animate-spin" />
+           <p className="text-sm font-black uppercase text-gray-500 tracking-widest">Hydrating Dashboard...</p>
         </div>
       </AppShell>
     );
@@ -195,13 +138,13 @@ export default function StudentDashboardPage() {
                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 dark:bg-orange-900/20 text-orange-600 border border-orange-100 dark:border-orange-800">
                     <Flame className="w-4 h-4 fill-current" />
                     <span className="text-[10px] font-black uppercase">
-                       {liveProfile?.dayStreak || 0} Day Streak
+                       {data.streak} Day Streak
                     </span>
                  </div>
                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 border border-purple-100 dark:border-purple-800">
                     <Trophy className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase">
-                       {liveProfile?.gamifiedScore?.toLocaleString() || 0} PTS
+                       {data.points.toLocaleString()} PTS
                     </span>
                  </div>
                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 border border-blue-100 dark:border-blue-800">
@@ -214,19 +157,34 @@ export default function StudentDashboardPage() {
            <div className="relative group cursor-default">
               <div className="absolute -inset-2 bg-blue-500/20 blur-xl rounded-full group-hover:bg-blue-500/30 transition-all duration-500" />
               <div className="relative flex items-center gap-6 bg-white dark:bg-[#1E293B] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-xl">
+
+                {/* Circular Progress Ring UI */}
                 <div className="relative w-24 h-24 flex items-center justify-center">
-                  <svg className="w-24 h-24 transform -rotate-90 drop-shadow-md">
-                    <circle cx="48" cy="48" r="42" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-gray-100 dark:text-slate-800" />
-                    <circle cx="48" cy="48" r="42" stroke="#1a73e8" strokeWidth="10" fill="transparent" strokeDasharray={264} strokeDashoffset={264 - (264 * percentage) / 100} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
+                  <svg className="w-24 h-24 transform -rotate-90">
+                    <circle
+                      cx="48" cy="48" r="40"
+                      stroke="currentColor" strokeWidth="8" fill="transparent"
+                      className="text-gray-100 dark:text-slate-800"
+                    />
+                    <motion.circle
+                      cx="48" cy="48" r="40"
+                      stroke="#1a73e8" strokeWidth="8" fill="transparent"
+                      strokeDasharray={2 * Math.PI * 40}
+                      initial={{ strokeDashoffset: 2 * Math.PI * 40 }}
+                      animate={{ strokeDashoffset: 2 * Math.PI * 40 * (1 - data.readiness / 100) }}
+                      strokeLinecap="round"
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                    />
                   </svg>
-                  <span className="absolute text-xl font-black text-gray-900 dark:text-white">{percentage}%</span>
+                  <span className="absolute text-xl font-black text-gray-900 dark:text-white">{data.readiness}%</span>
                 </div>
+
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Readiness</p>
-                  <p className="text-base font-black dark:text-white">{completedModulesCount} of {totalModulesCount} Passed</p>
+                  <p className="text-base font-black dark:text-white">{data.passedModulesCount} of 5 Passed</p>
                   <div className="flex gap-1">
-                     {[...Array(totalModulesCount)].map((_, i) => (
-                        <div key={i} className={`w-2.5 h-1.5 rounded-full ${i < completedModulesCount ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-slate-800'}`} />
+                     {[...Array(5)].map((_, i) => (
+                        <div key={i} className={`w-2.5 h-1.5 rounded-full ${i < data.passedModulesCount ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-slate-800'}`} />
                      ))}
                   </div>
                 </div>
@@ -234,7 +192,7 @@ export default function StudentDashboardPage() {
            </div>
         </div>
 
-        {/* ── Next Best Action Hero Banner ────────────────────────── */}
+        {/* ── Priority Task Hero Banner ────────────────────────── */}
         <div className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 p-10 text-white shadow-2xl animate-in fade-up duration-700">
            <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-80 h-80 bg-white/10 blur-[100px] rounded-full" />
            <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/4 w-60 h-60 bg-blue-400/20 blur-[80px] rounded-full" />
@@ -257,7 +215,7 @@ export default function StudentDashboardPage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
-           {/* ── Learning Journey Timeline (Timeline Inspired) ─────── */}
+           {/* ── Learning Path Roadmap ─────── */}
            <div className="xl:col-span-2 bg-white dark:bg-[#1E293B] rounded-[40px] p-10 border border-gray-100 dark:border-slate-800 shadow-sm space-y-8">
               <div className="flex items-center justify-between">
                  <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
@@ -267,20 +225,22 @@ export default function StudentDashboardPage() {
               </div>
 
               <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8 py-4">
-                 {/* Connecting Line */}
                  <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-50 dark:bg-slate-800 -translate-y-1/2 hidden sm:block" />
 
-                 {modules.map((mod, idx) => {
-                    const isCompleted = mod.order <= completedModulesCount;
-                    const isUnlocked = mod.order === completedModulesCount + 1;
-                    const isLocked = mod.order > completedModulesCount + 1;
+                 {[1, 2, 3, 4, 5].map((order) => {
+                    const isCompleted = order <= data.passedModulesCount;
+                    const isUnlocked = order === data.passedModulesCount + 1;
+                    const isLocked = order > data.passedModulesCount + 1;
 
                     return (
-                       <div key={mod.id} className="relative z-10 flex-1 w-full sm:w-auto">
-                          <Link href={isLocked ? "#" : `/learning/detail?packId=${mod.id}`} className={`flex flex-col items-center gap-3 transition-all ${isLocked ? 'cursor-not-allowed' : 'hover:scale-110'}`}>
+                       <div key={order} className="relative z-10 flex-1 w-full sm:w-auto">
+                          <Link
+                            href={isLocked ? "#" : `/learning/detail?packId=module_${order}`}
+                            className={`flex flex-col items-center gap-3 transition-all ${isLocked ? 'cursor-not-allowed opacity-50' : 'hover:scale-110'}`}
+                          >
                              <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center border-4 shadow-xl transition-all
                                 ${isCompleted ? 'bg-emerald-500 border-emerald-200 text-white shadow-emerald-500/20' :
-                                  isUnlocked ? 'bg-blue-600 border-blue-200 text-white shadow-blue-500/40 animate-pulse' :
+                                  isUnlocked ? 'bg-[#1a73e8] border-blue-200 text-white shadow-blue-500/40 animate-pulse' :
                                   'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 shadow-none'}`}
                              >
                                 {isCompleted ? <CheckCircle2 className="w-8 h-8" /> :
@@ -288,8 +248,7 @@ export default function StudentDashboardPage() {
                                  <Sparkles className="w-8 h-8 fill-current" />}
                              </div>
                              <div className="text-center space-y-1 px-2">
-                                <p className={`text-[10px] font-black uppercase tracking-tighter ${isLocked ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>Module {mod.order}</p>
-                                <p className="text-[9px] font-bold text-gray-500 line-clamp-1 max-w-[100px]">{mod.title}</p>
+                                <p className={`text-[10px] font-black uppercase tracking-tighter ${isLocked ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>Module {order}</p>
                              </div>
                           </Link>
                        </div>
@@ -301,69 +260,73 @@ export default function StudentDashboardPage() {
                  <div className="p-6 rounded-3xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 flex items-start gap-4 group">
                     <Star className="w-6 h-6 text-blue-500 shrink-0 mt-1" />
                     <div>
-                       <p className="text-xs font-black uppercase text-blue-900 dark:text-blue-300">Learning Milestone</p>
-                       <p className="text-xs font-medium text-blue-700 dark:text-blue-400 leading-relaxed">Submit your Interview Pack after Module 5 to schedule your face-to-face mock session.</p>
+                       <p className="text-xs font-black uppercase text-blue-900 dark:text-blue-300">Milestone reached</p>
+                       <p className="text-xs font-medium text-blue-700 dark:text-blue-400 leading-relaxed">
+                         Complete all 5 modules to unlock your Final Interview Pack and Mock session.
+                       </p>
                     </div>
                  </div>
                  <div className="p-6 rounded-3xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 flex items-start gap-4">
                     <Info className="w-6 h-6 text-amber-500 shrink-0 mt-1" />
                     <div>
-                       <p className="text-xs font-black uppercase text-amber-900 dark:text-amber-300">Preparation Tip</p>
-                       <p className="text-xs font-medium text-amber-700 dark:text-amber-400 leading-relaxed">Don't rush! We recommend watching the video in the Resource Vault before each quiz.</p>
+                       <p className="text-xs font-black uppercase text-amber-900 dark:text-amber-300">Strategy Tip</p>
+                       <p className="text-xs font-medium text-amber-700 dark:text-amber-400 leading-relaxed">
+                         The faster you answer questions, the more points you earn. Speed reflects interview confidence!
+                       </p>
                     </div>
                  </div>
               </div>
            </div>
 
-           {/* ── Insight & Help Sidebar ─────────────────────────────── */}
+           {/* ── Recent Activity Sidebar ─────────────────────────────── */}
            <div className="space-y-8">
 
-              {/* Recent Activity */}
+              {/* Real-time Activity List */}
               <div className="bg-white dark:bg-[#1E293B] rounded-[40px] p-8 border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                    <History className="w-4 h-4" /> Recent Missions
+                    <History className="w-4 h-4" /> Mission History
                  </h3>
                  <div className="space-y-4">
-                    {attempts.length === 0 ? (
-                       <p className="text-[10px] font-bold text-gray-400 text-center py-4">No recent activity.</p>
-                    ) : attempts.map(a => (
+                    {data.recentActivity.length === 0 ? (
+                       <p className="text-[10px] font-bold text-gray-400 text-center py-4">No recent attempts logged.</p>
+                    ) : data.recentActivity.map(a => (
                        <div key={a.id} className="flex items-center justify-between gap-4 border-b border-gray-50 dark:border-slate-800 pb-4 last:border-0 last:pb-0">
                           <div className="flex items-center gap-3 overflow-hidden">
-                             <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${a.passed ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                             <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${a.passed ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>
                                 {a.passed ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                              </div>
                              <div className="truncate">
-                                <p className="text-[11px] font-black dark:text-white truncate">{a.packTitle}</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase">{a.score}% Accuracy</p>
+                                <p className="text-[11px] font-black dark:text-white truncate">{a.packTitle || "Quiz Drill"}</p>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase">{a.scorePercentage || 0}% Accuracy</p>
                              </div>
                           </div>
-                          <span className="text-[10px] font-black text-blue-500">+{a.gamifiedScore}</span>
+                          <span className="text-[10px] font-black text-[#1a73e8]">+{a.gamifiedScore?.toLocaleString()}</span>
                        </div>
                     ))}
                  </div>
-                 <Link href="/student/history" className="block text-center text-[10px] font-black uppercase text-blue-500 hover:underline pt-2">View Full Log</Link>
+                 <Link href="/student/history" className="block text-center text-[10px] font-black uppercase text-[#1a73e8] hover:underline pt-2">View Full Audit Log</Link>
               </div>
 
-              {/* Tip Carousel */}
-              <div className="bg-gradient-to-br from-gray-900 to-[#1e293b] rounded-[40px] p-8 text-white shadow-xl relative overflow-hidden h-48 flex flex-col justify-center border border-slate-700">
-                 <div className="absolute top-4 right-6 text-blue-500/20"><Info className="w-20 h-20" /></div>
+              {/* Dynamic Tip Carousel */}
+              <div className="bg-gradient-to-br from-[#0F172A] to-[#1e293b] rounded-[40px] p-8 text-white shadow-xl relative overflow-hidden h-48 flex flex-col justify-center border border-slate-700/50">
+                 <div className="absolute top-4 right-6 text-blue-500/10"><Info size={80} /></div>
                  <div className="relative z-10 space-y-3 animate-in fade-in slide-in-from-right duration-1000" key={currentTipIdx}>
                     <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                       <HelpCircle className="w-3 h-3" /> UKVI Insight
+                       <ShieldCheck className="w-3 h-3" /> UKVI Credibility Insight
                     </p>
                     <p className="text-sm font-bold leading-relaxed">{UKVI_TIPS[currentTipIdx]}</p>
                  </div>
               </div>
 
-              {/* Vault Quick Access */}
+              {/* Resource Vault Quick Link */}
               <button
                 onClick={() => setIsVaultOpen(true)}
-                className="w-full bg-blue-50 dark:bg-blue-900/10 rounded-[32px] p-6 border-2 border-dashed border-blue-200 dark:border-blue-900/30 flex items-center justify-between group hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all"
+                className="w-full bg-blue-50 dark:bg-blue-900/10 rounded-[32px] p-6 border-2 border-dashed border-blue-200 dark:border-blue-900/30 flex items-center justify-between group hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all shadow-sm"
               >
                  <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#0F172A] shadow-md flex items-center justify-center text-[#1a73e8] group-hover:scale-110 transition-transform"><FolderOpen className="w-6 h-6" /></div>
                     <div className="text-left">
-                       <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Resource Vault</p>
+                       <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest leading-none mb-1">Resource Vault</p>
                        <p className="text-xs font-black dark:text-white uppercase tracking-tighter">Guides & Templates</p>
                     </div>
                  </div>

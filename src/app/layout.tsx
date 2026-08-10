@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/lib/theme/theme-context";
 import SystemGuard from "@/components/layout/SystemGuard";
 import LeadAssignmentModal from "@/components/admin/LeadAssignmentModal";
 import InitialSeeder from "@/components/common/InitialSeeder";
+import OfflineIndicator from "@/components/common/OfflineIndicator";
 import { SettingsProvider } from "@/context/SettingsContext";
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen">
+        <OfflineIndicator />
         <ThemeProvider>
           <AuthProvider>
             <SettingsProvider>

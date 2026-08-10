@@ -68,8 +68,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const counselorLinks = [
     { name: "Dashboard", href: "/counselor/dashboard", icon: LayoutDashboard },
     { name: "My Students", href: "/counselor/students", icon: Users },
-    { name: "Mock Interviews", href: "/counselor/mock-interviews", icon: MessageSquare },
-    { name: "Academy Manager", href: "/counselor/packs", icon: LayoutGrid },
+    { name: "Academy Manager", href: "/counselor/academy-manager", icon: LayoutGrid },
     { name: "Resource Library", href: "/counselor/library", icon: BookOpen },
     { name: "Leaderboard", href: "/counselor/leaderboard", icon: Trophy },
   ];
@@ -261,6 +260,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       )}
                     </div>
 
+                    <div className="p-2 border-b border-gray-100 dark:border-slate-700">
+                      <Link
+                        href={role === "Student" ? "/dashboard" : "/counselor/profile"}
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-gray-700 dark:text-gray-300"
+                      >
+                        <UserIcon size={16}/> My Profile
+                      </Link>
+                    </div>
+
                     {/* Simulation Controls (Admins Only) */}
                     {isAdmin && (
                       <div className="p-2 border-b border-gray-100 dark:border-slate-700">
@@ -361,26 +370,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* ── Mobile Bottom Navigation — student only, lg:hidden ── */}
-      {role === "Student" && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1E293B] border-t border-gray-200 dark:border-slate-800 z-40 flex pb-safe shadow-lg">
-          {studentLinks.map((link) => {
-            const isActive = pathname === link.href;
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.name}
-                href={link.href}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-colors ${isActive ? "text-[#1a73e8] dark:text-blue-400 font-bold" : "text-gray-500 dark:text-slate-500"
-                  }`}
-              >
-                <Icon size={20} />
-                <span className="text-[10px] uppercase tracking-tighter">{link.name.split(" ")[0]}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      )}
       {/* Global Chat Drawer */}
       <ChatDrawer isOpen={isChatDrawerOpen} onClose={() => setIsChatDrawerOpen(false)} />
 

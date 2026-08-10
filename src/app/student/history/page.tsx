@@ -20,6 +20,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import EmptyState from "@/components/common/EmptyState";
 
+import { AskedQuestion } from "@/types/academy";
+
 interface AttemptDetail {
   questionText: string;
   selectedOption: string;
@@ -34,13 +36,16 @@ interface QuizAttempt {
   score: number; // For Accuracy %
   scorePercentage: number; // Standard field
   gamifiedScore: number;
-  correctAnswers: number;
+  correctCount: number;
   totalQuestions: number;
   totalTimeSpentSeconds: number;
   passed: boolean;
   createdAt: any;
+  submittedAt?: any; // New field
   details: AttemptDetail[];
   historyDetails: AttemptDetail[];
+  askedQuestions?: AskedQuestion[];
+  studentAnswers?: (number | null)[];
 }
 
 export default function ActivityHistoryPage() {
@@ -124,7 +129,15 @@ export default function ActivityHistoryPage() {
                         <div className="space-y-1">
                            <h3 className="font-black text-gray-900 dark:text-white uppercase tracking-tighter">{attempt.packTitle}</h3>
                            <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {attempt.createdAt?.seconds ? new Date(attempt.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {(() => {
+                                   const ts = attempt.createdAt || attempt.submittedAt;
+                                   if (!ts) return 'N/A';
+                                   const date = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
+                                   return date.toLocaleDateString();
+                                })()}
+                              </span>
                               <span className="flex items-center gap-1"><Timer className="w-3 h-3" /> {attempt.totalTimeSpentSeconds}s Total</span>
                            </div>
                         </div>
@@ -133,7 +146,9 @@ export default function ActivityHistoryPage() {
                      <div className="flex items-center gap-8 w-full sm:w-auto border-t sm:border-t-0 pt-4 sm:pt-0">
                         <div className="text-center">
                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Accuracy</p>
-                           <p className={`text-lg font-black ${attempt.passed ? 'text-emerald-500' : 'text-rose-500'}`}>{attempt.score}%</p>
+                           <p className={`text-lg font-black ${attempt.passed ? 'text-emerald-500' : 'text-rose-500'}`}>
+                             {attempt.scorePercentage ?? attempt.score ?? 0}%
+                           </p>
                         </div>
                         <div className="text-center">
                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Score</p>
@@ -157,35 +172,67 @@ export default function ActivityHistoryPage() {
                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100 dark:border-slate-800 pb-4">Detailed Question Breakdown</p>
 
                              <div className="space-y-4">
-                                {attempt.details?.map((log, idx) => (
-                                  <div key={idx} className={`p-6 rounded-3xl border-2 space-y-4 transition-all ${log.isCorrect ? 'bg-emerald-50/30 dark:bg-emerald-900/10 border-emerald-100/50 dark:border-emerald-900/30' : 'bg-rose-50/30 dark:bg-rose-900/10 border-rose-100/50 dark:border-rose-900/30'}`}>
-                                     <div className="flex items-start justify-between gap-4">
-                                        <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200">
-                                           <span className="text-gray-400 mr-2">Q{idx + 1}.</span> {log.questionText}
-                                        </h4>
-                                        <div className="shrink-0 flex items-center gap-1.5 text-[9px] font-black uppercase text-gray-400 bg-white dark:bg-[#1E293B] px-2 py-1 rounded-lg border border-gray-100 dark:border-slate-800">
-                                           <Timer className="w-3 h-3" /> {log.timeTakenSeconds}s
+                                {(() => {
+                                   // Try to normalize legacy 'details' or new 'askedQuestions/studentAnswers' pipeline
+                                   const logs = attempt.details || attempt.historyDetails || [];
+                                   if (logs.length > 0) return logs.map((log, idx) => (
+                                     <div key={idx} className={`p-6 rounded-3xl border-2 space-y-4 transition-all ${log.isCorrect ? 'bg-emerald-50/30 dark:bg-emerald-900/10 border-emerald-100/50 dark:border-emerald-900/30' : 'bg-rose-50/30 dark:bg-rose-900/10 border-rose-100/50 dark:border-rose-900/30'}`}>
+                                        <div className="flex items-start justify-between gap-4">
+                                           <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200">
+                                              <span className="text-gray-400 mr-2">Q{idx + 1}.</span> {log.questionText}
+                                           </h4>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                           <div className="space-y-1">
+                                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Your Answer</p>
+                                              <p className={`text-xs font-bold p-3 rounded-xl border ${log.isCorrect ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-600'}`}>
+                                                 {log.selectedOption}
+                                              </p>
+                                           </div>
+                                           {!log.isCorrect && (
+                                             <div className="space-y-1">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Correct Answer</p>
+                                                <p className="text-xs font-bold p-3 rounded-xl border bg-gray-100 dark:bg-[#1E293B] border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300">
+                                                   {log.correctOption}
+                                                </p>
+                                             </div>
+                                           )}
                                         </div>
                                      </div>
+                                   ));
 
-                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                           <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Your Answer</p>
-                                           <p className={`text-xs font-bold p-3 rounded-xl border ${log.isCorrect ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-600'}`}>
-                                              {log.selectedOption}
-                                           </p>
+                                   // New pipeline: askedQuestions + studentAnswers
+                                   if (attempt.askedQuestions) return attempt.askedQuestions.map((q, idx) => {
+                                      const studentAnsIdx = attempt.studentAnswers?.[idx];
+                                      const isCorrect = studentAnsIdx === q.correctAnswerIndex;
+                                      return (
+                                        <div key={idx} className={`p-6 rounded-3xl border-2 space-y-4 transition-all ${isCorrect ? 'bg-emerald-50/30 dark:bg-emerald-900/10 border-emerald-100/50 dark:border-emerald-900/30' : 'bg-rose-50/30 dark:bg-rose-900/10 border-rose-100/50 dark:border-rose-900/30'}`}>
+                                           <div className="flex items-start justify-between gap-4">
+                                              <h4 className="text-sm font-bold text-gray-800 dark:text-slate-200">
+                                                 <span className="text-gray-400 mr-2">Q{idx + 1}.</span> {q.prompt}
+                                              </h4>
+                                           </div>
+                                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                              <div className="space-y-1">
+                                                 <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Your Answer</p>
+                                                 <p className={`text-xs font-bold p-3 rounded-xl border ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-rose-500/10 border-rose-500/20 text-rose-600'}`}>
+                                                    {studentAnsIdx !== null ? q.shuffledOptions[studentAnsIdx!] : "No Answer"}
+                                                 </p>
+                                              </div>
+                                              {!isCorrect && (
+                                                <div className="space-y-1">
+                                                   <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Correct Answer</p>
+                                                   <p className="text-xs font-bold p-3 rounded-xl border bg-gray-100 dark:bg-[#1E293B] border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300">
+                                                      {q.shuffledOptions[q.correctAnswerIndex]}
+                                                   </p>
+                                                </div>
+                                              )}
+                                           </div>
                                         </div>
-                                        {!log.isCorrect && (
-                                          <div className="space-y-1">
-                                             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Correct Answer</p>
-                                             <p className="text-xs font-bold p-3 rounded-xl border bg-gray-100 dark:bg-[#1E293B] border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300">
-                                                {log.correctOption}
-                                             </p>
-                                          </div>
-                                        )}
-                                     </div>
-                                  </div>
-                                ))}
+                                      );
+                                   });
+                                   return <p className="text-center text-gray-400">No question data available for this attempt.</p>;
+                                })()}
                              </div>
                           </div>
                        </motion.div>

@@ -411,7 +411,7 @@ export default function CounselorAnalyticsDashboardPage() {
     try {
       await setDoc(doc(db, "Interview_Packs", student.uid), { status: 'Verified', updatedAt: serverTimestamp() }, { merge: true });
       await setDoc(doc(db, "Users", student.uid), { readinessStatus: 'Green' }, { merge: true });
-      showToast("Dossier Verified & Student Set to Green!");
+      showToast("Candidate Verified & Readiness Set to Green!");
       setShowDossier(null);
       fetchRealData();
     } catch (err) {
@@ -651,7 +651,7 @@ export default function CounselorAnalyticsDashboardPage() {
                              <button onClick={() => setActiveMenuUid(activeMenuUid === s.uid ? null : s.uid)} className="p-2 rounded-xl text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-[#0F172A] transition-all"><MoreVertical className="w-4 h-4" /></button>
                              {activeMenuUid === s.uid && (
                                 <div className="absolute right-12 top-5 w-56 bg-white dark:bg-[#1E293B] rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-800 py-2 z-[100] text-left animate-in fade-in slide-in-from-right-2">
-                                   <button onClick={() => { setShowDossier(s); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 flex items-center gap-3"><FileCheck className="w-4 h-4 text-emerald-500" /> View Compliance Dossier</button>
+                                   <button onClick={() => { setShowDossier(s); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 flex items-center gap-3"><FileCheck className="w-4 h-4 text-emerald-500" /> View Student Details</button>
                                    <button onClick={() => { setHistoryStudent(s); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 flex items-center gap-3"><History className="w-4 h-4 text-blue-500" /> Full Audit History</button>
                                    <button onClick={() => { setSelectedStudent(s); setActiveMenuUid(null); }} className="w-full px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#0F172A] text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 flex items-center gap-3"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Evaluate Readiness</button>
                                    <div className="border-t border-gray-50 dark:border-slate-800 my-1" />
@@ -689,7 +689,7 @@ export default function CounselorAnalyticsDashboardPage() {
              <div className="bg-white dark:bg-[#1E293B] w-full max-w-4xl max-h-[90vh] rounded-[40px] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in duration-200">
                 <div className="p-8 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-[#0F172A]/50">
                    <div>
-                      <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Student Compliance Dossier</h2>
+                      <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Student Profile Details</h2>
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{showDossier.name} • {showDossier.email}</p>
                    </div>
                    <button onClick={() => setShowDossier(null)} className="p-3 hover:bg-white dark:hover:bg-slate-800 rounded-2xl transition-all"><X className="w-6 h-6 text-gray-400" /></button>
@@ -768,7 +768,7 @@ export default function CounselorAnalyticsDashboardPage() {
                    ) : (
                      <div className="text-center py-20">
                         <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-400 font-black uppercase tracking-widest">Student has not started the dossier.</p>
+                        <p className="text-gray-400 font-black uppercase tracking-widest">Student has not updated their details.</p>
                      </div>
                    )}
                 </div>

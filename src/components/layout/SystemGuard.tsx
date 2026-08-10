@@ -17,20 +17,34 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
 
+  /**
+   * SystemGuard Global Session & Loading Resolution:
+   * Ensures that system settings snapshots and auth resolution are strictly guarded with
+   * try/catch/finally resolution and an 8-second safety fallback timeout.
+   * setLoading(false) is called on snapshot success AND snapshot error.
+   */
   useEffect(() => {
     // Safety fallback: if Firebase/System check hangs for more than 8 seconds, force a resolution
-    const timer = setTimeout(() => setIsTimeout(true), 8000);
+    const timer = setTimeout(() => {
+      setIsTimeout(true);
+      setLoading(false);
+    }, 8000);
 
     // Listen to global system settings
     const unsub = onSnapshot(doc(db, "system_settings", "global"), (snap) => {
-      if (snap.exists()) {
-        const settings = snap.data() as SystemSettings;
-        setMaintenanceMode(!!settings.maintenanceMode);
+      try {
+        if (snap.exists()) {
+          const settings = snap.data() as SystemSettings;
+          setMaintenanceMode(!!settings.maintenanceMode);
+        }
+      } catch (e) {
+        console.error("System settings parsing error:", e);
+      } finally {
+        setLoading(false); // Universally resolved
       }
-      setLoading(false);
     }, (err) => {
       console.error("System settings snapshot error:", err);
-      setLoading(false);
+      setLoading(false); // Universally resolved on error
     });
 
     return () => {

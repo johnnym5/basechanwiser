@@ -1,22 +1,25 @@
-export interface MockInterviewQuestion {
+export interface MockQuestion {
   id: string;
   text: string;
+  timeLimit: number; // in seconds
 }
 
-export interface MockInterviewConfig {
-  questions: MockInterviewQuestion[];
-  durationMinutes: number;
+export interface MockQuestionSet {
+  id: string;
+  title: string; // e.g., "Standard UKVI Core"
+  category?: 'core' | 'supplemental';
+  timePerQuestionSeconds: number; // fallback/legacy
+  isRandomized: boolean;
+  questions: (string | MockQuestion)[]; // Supports both simple text and objects
+  isDefault: boolean;
+  isArchived?: boolean;
+  createdAt: any;
 }
 
 export interface MockInterviewAnswer {
   questionId: string;
   questionText: string;
-  answerText?: string; // Text answer (optional now we have video)
-}
-
-export interface QuestionTimestamp {
-  questionId: string;
-  startTime: number;
+  videoUrl?: string; // specific URL for this chunk
 }
 
 export interface MockInterviewAttempt {
@@ -24,10 +27,12 @@ export interface MockInterviewAttempt {
   studentId: string;
   studentName: string;
   answers: MockInterviewAnswer[];
-  questionTimestamps: QuestionTimestamp[];
-  videoUrl?: string;
+  videoUrls: string[]; // List of all chunk URLs
   startedAt: any;
   submittedAt: any;
   timeTakenSeconds: number;
-  status: 'completed' | 'timeout' | 'pending_review';
+  status: 'in_progress' | 'completed' | 'timeout' | 'pending_review';
+  setId: string;
+  askedQuestions: string[];
 }
+

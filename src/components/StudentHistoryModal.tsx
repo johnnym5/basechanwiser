@@ -18,8 +18,10 @@ import {
 } from "lucide-react";
 import { collection, query, where, getDocs, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { TrafficLightStatus, UserProfile } from "@/types";
-import EmptyState from "./common/EmptyState";
+import TestReviewDashboard from "./academy/TestReviewDashboard";
+import { AskedQuestion, TestAttempt } from "@/types/academy";
+import { TrafficLightStatus } from "@/types";
+import EmptyState from "@/components/common/EmptyState";
 
 interface StudentHistoryModalProps {
   student: {
@@ -41,6 +43,7 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
   const [interviewPack, setInterviewPack] = useState<any | null>(null);
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [expandedQuizId, setExpandedQuizId] = useState<string | null>(null);
+  const [selectedAttempt, setSelectedAttempt] = useState<TestAttempt | null>(null);
   const [actionProcessing, setActionProcessing] = useState<string | null>(null);
 
   useEffect(() => {
@@ -109,6 +112,19 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
   const handlePrintRecord = () => {
     window.print();
   };
+
+  if (selectedAttempt) {
+    return (
+      <div className="fixed inset-0 z-[60] bg-white dark:bg-gray-900 overflow-y-auto">
+        <div className="p-6">
+          <TestReviewDashboard
+            attempt={selectedAttempt}
+            onBack={() => setSelectedAttempt(null)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -229,6 +245,14 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
                           >
                             Score: {attempt.score}% ({isPass ? "Passed" : "Failed"})
                           </span>
+
+                          <button
+                            onClick={() => setSelectedAttempt(attempt as TestAttempt)}
+                            className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                            title="Review Graded Attempt"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
 
                           <button
                             onClick={() => handlePurgeQuizAttempt(attempt.id)}
