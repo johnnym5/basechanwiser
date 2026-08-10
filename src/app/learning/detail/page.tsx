@@ -181,12 +181,12 @@ function ModuleDetailContent() {
              </div>
 
              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                {pack.learningResources && pack.learningResources.length > 0 && (
+                {(pack.learningContent || (pack.learningResources && pack.learningResources.length > 0)) && (
                   <button
                     onClick={() => setPhase('learning')}
                     className="px-12 py-5 bg-indigo-600 text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
                   >
-                    Study Notes <BookOpen className="w-5 h-5" />
+                    Mission Briefing <BookOpen className="w-5 h-5" />
                   </button>
                 )}
                 <button
@@ -203,12 +203,19 @@ function ModuleDetailContent() {
                 <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Mission Briefing</h2>
 
                 <div className="space-y-6">
-                   {pack.learningResources?.map((res, idx) => (
-                      <div key={idx} className="space-y-2">
-                         <h3 className="text-lg font-black text-indigo-600 dark:text-indigo-400">{res.heading}</h3>
-                         <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{res.content}</p>
-                      </div>
-                   ))}
+                   {pack.learningContent ? (
+                      <div
+                        className="prose prose-invert max-w-none dark:text-slate-300"
+                        dangerouslySetInnerHTML={{ __html: pack.learningContent }}
+                      />
+                   ) : (
+                     pack.learningResources?.map((res, idx) => (
+                        <div key={idx} className="space-y-2">
+                           <h3 className="text-lg font-black text-indigo-600 dark:text-indigo-400">{res.heading}</h3>
+                           <p className="text-sm text-gray-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{res.content}</p>
+                        </div>
+                     ))
+                   )}
                 </div>
 
                 <button

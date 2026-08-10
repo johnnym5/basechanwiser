@@ -54,10 +54,13 @@ export default function QuizExecution({ testSet, onFinish }: QuizExecutionProps)
 
   // ── Initialization & Randomization ──
   // Rule: If isRandomized is true, shuffle questions AND options exactly ONCE.
+  // NEW: Only pick 10 random questions from the pool.
   useEffect(() => {
     let rawQuestions = [...testSet.questions];
     if (testSet.isRandomized) {
-      rawQuestions = shuffleArray(rawQuestions);
+      rawQuestions = shuffleArray(rawQuestions).slice(0, 10);
+    } else {
+      rawQuestions = rawQuestions.slice(0, 10);
     }
 
     const prepped = rawQuestions.map(q => {

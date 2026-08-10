@@ -24,6 +24,7 @@ export interface TestQuestionSet {
   orderIndex?: number; // Used to sort Core Modules (1, 2, 3, 4, 5) to enforce linear progression
   summary?: string;
   description?: string;
+  learningContent?: string; // Rich HTML/Markdown for pre-quiz briefing
   learningResources?: { heading: string; content: string }[];
   passScore?: number;
 }
