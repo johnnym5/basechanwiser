@@ -32,7 +32,11 @@ import {
   Users,
   CheckCircle2,
   AlertCircle,
-  ShieldCheck
+  ShieldCheck,
+  FileText,
+  Video,
+  Mic,
+  FileCode
 } from "lucide-react";
 
 export default function TestConfigEditor() {
@@ -321,6 +325,44 @@ export default function TestConfigEditor() {
                       <Shuffle size={16} className="inline mr-2" /> {editingSet.isRandomized ? 'Shuffle On' : 'Fixed Order'}
                     </button>
                   </div>
+                </div>
+
+                {/* ── MEDIA ATTACHMENTS SECTION ── */}
+                <div className="pt-6 border-t border-gray-100 dark:border-slate-800 space-y-6">
+                   <h3 className="text-sm font-black uppercase tracking-widest text-indigo-500 flex items-center gap-2">
+                     <FileText size={18} /> Pre-Quiz Briefing Media
+                   </h3>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div>
+                         <label className="text-[10px] font-black uppercase text-gray-400 block mb-2">Attachment Type</label>
+                         <select
+                           value={editingSet.attachmentType || ""}
+                           onChange={e => setEditingSet({ ...editingSet, attachmentType: e.target.value as any || undefined })}
+                           className="w-full bg-gray-50 dark:bg-slate-900 dark:text-white border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500"
+                         >
+                            <option value="">None / No Media</option>
+                            <option value="video">🎥 Instructional Video</option>
+                            <option value="audio">🔊 Audio Briefing</option>
+                            <option value="pdf">📄 PDF Document</option>
+                            <option value="word">📝 Word Document</option>
+                         </select>
+                      </div>
+                      <div>
+                         <label className="text-[10px] font-black uppercase text-gray-400 block mb-2">Attachment URL</label>
+                         <input
+                           type="url"
+                           value={editingSet.attachmentUrl || ""}
+                           onChange={e => setEditingSet({ ...editingSet, attachmentUrl: e.target.value })}
+                           placeholder="https://example.com/video.mp4"
+                           className="w-full bg-gray-50 dark:bg-slate-900 dark:text-white border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-blue-500"
+                         />
+                      </div>
+                   </div>
+                   {editingSet.attachmentUrl && (
+                     <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 text-[10px] font-bold text-gray-400 flex items-center gap-3 italic truncate">
+                        <AlertCircle size={14} className="text-blue-500" /> Linked Resource: {editingSet.attachmentUrl}
+                     </div>
+                   )}
                 </div>
               </div>
             </div>

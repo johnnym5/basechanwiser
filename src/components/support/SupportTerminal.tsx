@@ -4,6 +4,14 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useChat } from "@/hooks/useChat";
 import { useAddressBook } from "@/hooks/useAddressBook";
+import { db } from "@/lib/firebase/config";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  onSnapshot
+} from "firebase/firestore";
 import {
   Send,
   Users,
@@ -28,7 +36,11 @@ type AdminTab = 'students' | 'staff';
  * Features: Address book hydration, real-time presence, and global broadcast.
  */
 export default function SupportTerminal() {
-  const { userProfile } = useAuth();
+  const { userProfile, userId } = useAuth();
+
+  // Role-Based Support State
+  const [assignedStudents, setAssignedStudents] = useState<any[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   // 1. Hook Integration
   const {
@@ -54,7 +66,32 @@ export default function SupportTerminal() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isGlobalAdmin = userProfile?.role === 'Admin' || userProfile?.role === 'Super Admin';
 
-  // 2. Filter Registry (Address Book) Logic
+  // 2. Role-Based Support Initialization
+  useEffect(() => {
+    if (userProfile?.role === 'Counselor') {
+      const fetchStudents = async () => {
+        try {
+          const q = query(collection(db, 'Users'), where('assignedCounselorId', '==', userProfile.uid));
+          const snap = await getDocs(q);
+          const students = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+          setAssignedStudents(students);
+          if (students.length > 0) {
+            // Automatically select the first student to start the link
+            handleSelectContact(students[0]);
+            setSelectedStudentId(students[0].uid);
+          }
+        } catch (err) {
+          console.error("Error fetching assigned students:", err);
+        }
+      };
+      fetchStudents();
+    } else if (userProfile?.role === 'Student') {
+      setSelectedStudentId(userProfile.uid);
+      // Students automatically link to their counselor or support
+    }
+  }, [userProfile]);
+
+  // 3. Filter Registry (Address Book) Logic
   // Optimized with useMemo to handle instant search across high-density lists.
   const displayList = useMemo(() => {
     return users.filter(u => {
@@ -221,14 +258,42 @@ export default function SupportTerminal() {
                    <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
                       <MessageSquare size={24} />
                    </div>
-                   <div>
-                      <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">
-                        {Object.entries(activeConv.participantNames).find(([uid]) => uid !== userProfile?.uid)?.[1]}
-                      </h3>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        Encrypted Data Link
-                      </p>
+                   <div className="flex items-center gap-4">
+                      <div>
+                         <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">
+                           {Object.entries(activeConv.participantNames).find(([uid]) => uid !== userProfile?.uid)?.[1]}
+                         </h3>
+                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                           Encrypted Data Link
+                         </p>
+                      </div>
+
+                      {userProfile?.role === 'Counselor' && (
+                        <div className="ml-4">
+                          <select
+                            value={selectedStudentId || ""}
+                            onChange={(e) => {
+                              const student = assignedStudents.find(s => s.uid === e.target.value);
+                              if (student) {
+                                handleSelectContact(student);
+                                setSelectedStudentId(student.uid);
+                              }
+                            }}
+                            className="bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-700 text-xs font-bold dark:text-white rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                          >
+                            {assignedStudents.length === 0 ? (
+                              <option value="">No Assigned Students</option>
+                            ) : (
+                              assignedStudents.map(student => (
+                                <option key={student.uid} value={student.uid}>
+                                  {student.displayName || student.email}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+                      )}
                    </div>
                 </div>
                 <div className="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 text-[9px] font-black text-gray-400 uppercase tracking-widest">

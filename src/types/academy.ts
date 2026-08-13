@@ -27,6 +27,8 @@ export interface TestQuestionSet {
   learningContent?: string; // Rich HTML/Markdown for pre-quiz briefing
   learningResources?: { heading: string; content: string }[];
   passScore?: number;
+  attachmentType?: 'video' | 'audio' | 'pdf' | 'word'; // Enum for media briefing
+  attachmentUrl?: string; // Direct link or storage path
 }
 
 export interface AskedQuestion {

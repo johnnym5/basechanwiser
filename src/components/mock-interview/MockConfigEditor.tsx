@@ -114,14 +114,15 @@ export default function MockConfigEditor() {
       await setDoc(setRef, {
         ...editingSet,
         isArchived: editingSet.isArchived ?? false,
-        createdAt: editingSet.createdAt || serverTimestamp()
+        createdAt: editingSet.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp()
       }, { merge: true });
 
       alert("Question set saved successfully!");
       fetchSets();
     } catch (e) {
       console.error("Error saving set:", e);
-      alert("Save failed");
+      alert("Save failed. Check your connection or permissions.");
     } finally {
       setSaving(false);
     }

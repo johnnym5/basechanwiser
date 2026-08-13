@@ -29,6 +29,36 @@ function ModuleDetailContent() {
   const [gamifiedScore, setGamifiedScore] = useState(0);
   const [quizFinished, setQuizFinished] = useState(false);
 
+  const renderAttachment = () => {
+    if (!pack || !pack.attachmentUrl) return null;
+
+    switch (pack.attachmentType) {
+      case 'video':
+        return (
+          <div className="rounded-[32px] overflow-hidden border border-slate-800 bg-black shadow-2xl">
+            <video src={pack.attachmentUrl} controls className="w-full max-h-[500px] object-contain" />
+          </div>
+        );
+      case 'audio':
+        return (
+          <div className="p-8 rounded-[32px] bg-slate-900 border border-slate-800 shadow-xl flex flex-col items-center gap-4">
+             <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500"><Zap /></div>
+             <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Audio Briefing Transmission</p>
+             <audio src={pack.attachmentUrl} controls className="w-full" />
+          </div>
+        );
+      case 'pdf':
+      case 'word':
+        return (
+          <div className="rounded-[32px] overflow-hidden border border-slate-800 shadow-2xl bg-white h-[600px]">
+            <iframe src={pack.attachmentUrl} className="w-full h-full border-none" />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   useEffect(() => {
     async function fetchData() {
       if (!userId) return;
@@ -203,6 +233,9 @@ function ModuleDetailContent() {
                 <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Mission Briefing</h2>
 
                 <div className="space-y-6">
+                   {/* ── ATTACHMENT PLAYER ── */}
+                   {renderAttachment()}
+
                    {pack.learningContent ? (
                       <div
                         className="prose prose-invert max-w-none dark:text-slate-300"
