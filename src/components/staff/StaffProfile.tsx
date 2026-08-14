@@ -292,7 +292,7 @@ export default function StaffProfile({ staffMember }: StaffProfileProps) {
                                    </td>
                                    <td className="py-5 px-4 text-right">
                                       <button
-                                        onClick={() => window.location.href = `/counselor/mock-interviews/${m.id}`}
+                                        onClick={() => window.location.href = `/counselor/mock-interviews/playback?attemptId=${m.id}`}
                                         className="px-4 py-2 rounded-xl bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 flex items-center gap-2 ml-auto hover:bg-blue-700 transition-all"
                                       >
                                          <Video size={14} /> Review

@@ -3,6 +3,8 @@ import { adminDb } from '@/lib/firebaseAdmin';
 import { completelyWipeUser } from '@/lib/server/dataRetention';
 import { subDays } from 'date-fns';
 
+export const dynamic = process.env.NEXT_STATIC_EXPORT ? 'force-static' : 'force-dynamic';
+
 /**
  * Daily Cleanup Task: Purge inactive students.
  * Triggered by: Vercel Cron

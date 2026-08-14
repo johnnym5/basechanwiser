@@ -250,7 +250,7 @@ export default function CounselorDashboard() {
                           </div>
                           <Link
                             href={task.type === 'mock'
-                              ? `/counselor/mock-interviews/${task.id}`
+                              ? `/counselor/mock-interviews/playback?attemptId=${task.id}`
                               : `/counselor/students/portfolio?id=${task.studentId}`}
                             className="px-5 py-2.5 bg-white dark:bg-[#1E293B] hover:bg-blue-600 hover:text-white dark:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all flex items-center gap-2"
                           >

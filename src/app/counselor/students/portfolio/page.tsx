@@ -381,7 +381,7 @@ function PortfolioContent() {
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Submitted {ma.submittedAt?.toDate ? ma.submittedAt.toDate().toLocaleDateString() : 'Recently'}</p>
                                  </div>
                               </div>
-                              <button onClick={() => router.push(`/counselor/mock-interviews/${ma.id}`)} className="px-6 py-2 rounded-xl bg-white dark:bg-slate-800 text-xs font-black uppercase border border-gray-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hover:text-white">Playback</button>
+                              <button onClick={() => router.push(`/counselor/mock-interviews/playback?attemptId=${ma.id}`)} className="px-6 py-2 rounded-xl bg-white dark:bg-slate-800 text-xs font-black uppercase border border-gray-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hover:text-white">Playback</button>
                            </div>
                         ))}
                     </div>

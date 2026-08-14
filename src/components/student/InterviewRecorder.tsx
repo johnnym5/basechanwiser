@@ -175,7 +175,7 @@ export default function InterviewRecorder({ stream, questions, studentId, studen
         counselorId: counselorId || "",
         type: 'MOCK_INTERVIEW',
         message: `finalized a Mock Interview session. Review pending.`,
-        link: `/counselor/mock-interviews/${attemptId}`
+        link: `/counselor/mock-interviews/playback?attemptId=${attemptId}`
       });
 
       // ── SYSTEM PUSH NOTIFICATION ──

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { aggregateAnalytics } from "@/lib/server/analytics-aggregator";
 import { verifyRequestRole } from "@/lib/server/verify-role";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = process.env.NEXT_STATIC_EXPORT ? 'force-static' : 'force-dynamic';
 
 export async function GET(request: Request) {
   const authResult = await verifyRequestRole(request);
