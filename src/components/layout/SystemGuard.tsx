@@ -76,7 +76,8 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
 
     // If maintenance mode is OFF but user is on the maintenance page
     if (!maintenanceMode && pathname === "/maintenance") {
-      router.push("/dashboard");
+      const homePath = effectiveRole === "Student" ? "/dashboard" : "/counselor/dashboard";
+      router.push(homePath);
     }
   }, [maintenanceMode, effectiveRole, loading, authLoading, pathname, router, user, userProfile]);
 
