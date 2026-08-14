@@ -76,7 +76,7 @@ export default function QuizExecution({ testSet, onFinish }: QuizExecutionProps)
         prompt: q.prompt,
         shuffledOptions: shuffledOptions.map(o => o.text),
         correctAnswerIndex: newCorrectIndex,
-        explanation: q.explanation
+        explanation: q.explanation || null // ── FIX: Ensure undefined is never passed to Firestore ──
       } as AskedQuestion;
     });
 

@@ -113,18 +113,18 @@ function ModuleDetailContent() {
 
     try {
       const attemptPayload = {
-        userId,
+        userId: userId || "",
         studentId: userProfile?.studentId || "N/A",
         studentName: user?.displayName || "Student",
-        setId: pack.id,
-        packTitle: pack.title,
+        setId: pack.id || "unknown",
+        packTitle: pack.title || "Learning Test",
         askedQuestions: results.askedQuestions,
         studentAnswers: results.studentAnswers,
-        scorePercentage,
-        gamifiedScore: results.gamifiedScore,
-        correctCount: results.correctCount,
-        totalQuestions,
-        passed,
+        scorePercentage: scorePercentage || 0,
+        gamifiedScore: results.gamifiedScore || 0,
+        correctCount: results.correctCount || 0,
+        totalQuestions: totalQuestions || 10,
+        passed: !!passed,
         submittedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
         status: 'pending'
