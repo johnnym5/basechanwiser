@@ -111,7 +111,8 @@ export default function StudentMockInterviewPage() {
           answers: [],
           status: 'in_progress',
           startedAt: serverTimestamp(),
-          askedQuestions: questions.map(q => q.text)
+          askedQuestions: questions.map(q => q.text),
+          counselorId: userProfile?.assignedCounselorId || ""
         });
       }
 

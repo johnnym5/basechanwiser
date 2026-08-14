@@ -164,7 +164,8 @@ export default function InterviewRecorder({ stream, questions, studentId, studen
         answers,
         status: 'pending_review',
         submittedAt: serverTimestamp(),
-        timeTakenSeconds: totalDuration
+        timeTakenSeconds: totalDuration,
+        counselorId: counselorId || "" // Save counselorId to allow filtering in dashboard
       });
 
       // 3. Log Activity & Notify Counselor

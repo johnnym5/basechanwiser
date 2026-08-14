@@ -252,7 +252,8 @@ export default function MockInterviewLive() {
         timeTakenSeconds: (Date.now() - startTimeRef.current) / 1000,
         status: 'pending_review',
         setId: questionSet?.id || "default",
-        askedQuestions: questions.map(q => typeof q === 'string' ? q : q.text)
+        askedQuestions: questions.map(q => typeof q === 'string' ? q : q.text),
+        counselorId: userProfile?.assignedCounselorId || ""
       };
 
       await addDoc(collection(db, "mock_interview_attempts"), attempt);

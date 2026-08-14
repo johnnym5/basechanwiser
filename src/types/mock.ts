@@ -41,5 +41,6 @@ export interface MockInterviewAttempt {
   status: 'in_progress' | 'completed' | 'timeout' | 'pending_review';
   setId: string;
   askedQuestions: string[];
+  counselorId?: string; // New field for dashboard filtering
 }
 

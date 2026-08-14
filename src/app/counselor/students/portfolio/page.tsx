@@ -114,9 +114,44 @@ function PortfolioContent() {
         const attemptsSnap = await getDocs(attemptsQ);
         setAttempts(attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-        const mockQ = query(collection(db, "mock_interview_attempts"), where("studentId", "==", id), orderBy("submittedAt", "desc"));
-        const mockSnap = await getDocs(mockQ);
-        setMockAttempts(mockSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        // ── RESILIENT MOCK FETCH ──
+        // We check multiple collections and field names to ensure we catch the session.
+        let mocks: any[] = [];
+
+        const fetchFromCollection = async (collName: string, fieldName: string) => {
+          try {
+            const q = query(collection(db, collName), where(fieldName, "==", id));
+            const snap = await getDocs(q);
+            return snap.docs.map(d => ({ id: d.id, ...d.data(), sourceCollection: collName }));
+          } catch (e) {
+            console.warn(`Fetch from ${collName} via ${fieldName} failed:`, e);
+            return [];
+          }
+        };
+
+        const [attemptsA, attemptsB, attemptsC] = await Promise.all([
+          fetchFromCollection("mock_interview_attempts", "studentId"),
+          fetchFromCollection("mock_interview_attempts", "userId"),
+          fetchFromCollection("ai_mock_sessions", "userId")
+        ]);
+
+        // Merge and deduplicate by document ID
+        const seenIds = new Set();
+        [...attemptsA, ...attemptsB, ...attemptsC].forEach(m => {
+          if (!seenIds.has(m.id)) {
+            mocks.push(m);
+            seenIds.add(m.id);
+          }
+        });
+
+        // Client-side sort by submission time
+        mocks.sort((a, b) => {
+          const timeA = a.submittedAt?.seconds || a.createdAt?.seconds || 0;
+          const timeB = b.submittedAt?.seconds || b.createdAt?.seconds || 0;
+          return timeB - timeA;
+        });
+
+        setMockAttempts(mocks);
 
         const packSnap = await getDoc(doc(db, "Interview_Packs", id));
         if (packSnap.exists()) {
