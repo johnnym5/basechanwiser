@@ -140,7 +140,7 @@ export default function LearningModulesPage() {
 
                           <div className="flex items-center gap-4">
                              <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                <HelpCircle className="w-3.5 h-3.5 text-blue-500" /> {mod.questions.length} Drills
+                                <HelpCircle className="w-3.5 h-3.5 text-blue-500" /> 10 Drills
                              </div>
                              <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
                                 <Award className="w-3.5 h-3.5 text-amber-500" /> {mod.passScore || 80}% Target
@@ -208,7 +208,7 @@ export default function LearningModulesPage() {
 
                             <div className="flex items-center gap-4">
                                <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                  <Zap className="w-3.5 h-3.5 text-amber-500" /> {pack.questions.length} Questions
+                                  <Zap className="w-3.5 h-3.5 text-amber-500" /> 10 Questions
                                </div>
                             </div>
                          </div>

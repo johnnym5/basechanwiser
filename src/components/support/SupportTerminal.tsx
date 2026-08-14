@@ -8,6 +8,8 @@ import { db } from "@/lib/firebase/config";
 import {
   collection,
   getDocs,
+  getDoc,
+  doc,
   query,
   where,
   onSnapshot
@@ -41,6 +43,7 @@ export default function SupportTerminal() {
   // Role-Based Support State
   const [assignedStudents, setAssignedStudents] = useState<any[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [counselorName, setCounselorName] = useState<string | null>(null);
 
   // 1. Hook Integration
   const {
@@ -87,7 +90,15 @@ export default function SupportTerminal() {
       fetchStudents();
     } else if (userProfile?.role === 'Student') {
       setSelectedStudentId(userProfile.uid);
-      // Students automatically link to their counselor or support
+
+      // Fetch assigned counselor name
+      if (userProfile?.assignedCounselorId) {
+        const fetchCounselor = async () => {
+          const cSnap = await getDoc(doc(db, "Users", userProfile.assignedCounselorId!));
+          if (cSnap.exists()) setCounselorName(cSnap.data().displayName);
+        };
+        fetchCounselor();
+      }
     }
   }, [userProfile]);
 
@@ -259,15 +270,29 @@ export default function SupportTerminal() {
                       <MessageSquare size={24} />
                    </div>
                    <div className="flex items-center gap-4">
-                      <div>
-                         <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">
-                           {Object.entries(activeConv.participantNames).find(([uid]) => uid !== userProfile?.uid)?.[1]}
-                         </h3>
-                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                           Encrypted Data Link
-                         </p>
-                      </div>
+                      {userProfile?.role === 'Student' ? (
+                        <div className="flex items-center gap-3">
+                           <div>
+                              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
+                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                 Security Uplink Active
+                              </p>
+                              <h3 className="text-sm font-black dark:text-white uppercase tracking-widest mt-0.5">
+                                 Chatting with Counselor {counselorName || 'Support'}
+                              </h3>
+                           </div>
+                        </div>
+                      ) : (
+                        <div>
+                           <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">
+                             {Object.entries(activeConv.participantNames).find(([uid]) => uid !== userProfile?.uid)?.[1]}
+                           </h3>
+                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                             Encrypted Data Link
+                           </p>
+                        </div>
+                      )}
 
                       {userProfile?.role === 'Counselor' && (
                         <div className="ml-4">
@@ -280,8 +305,9 @@ export default function SupportTerminal() {
                                 setSelectedStudentId(student.uid);
                               }
                             }}
-                            className="bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-700 text-xs font-bold dark:text-white rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                            className="bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-700 text-xs font-bold dark:text-white rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
                           >
+                            <option value="" disabled>Select a Student to Chat</option>
                             {assignedStudents.length === 0 ? (
                               <option value="">No Assigned Students</option>
                             ) : (
@@ -297,7 +323,7 @@ export default function SupportTerminal() {
                    </div>
                 </div>
                 <div className="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                   ID: {activeChatId}
+                   Channel: {activeChatId}
                 </div>
              </div>
 

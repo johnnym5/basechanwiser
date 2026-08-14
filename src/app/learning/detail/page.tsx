@@ -11,6 +11,8 @@ import { AskedQuestion, TestQuestionSet } from "@/types/academy";
 import { db } from "@/lib/firebase/config";
 import { UserProfile } from "@/types";
 import { Resource } from "@/types/resource";
+import { logActivityAndNotify } from "@/lib/server/notifications";
+import { showPushNotification } from "@/lib/client/push-notifications";
 
 function ModuleDetailContent() {
   const searchParams = useSearchParams();
@@ -164,6 +166,16 @@ function ModuleDetailContent() {
           }
 
           await updateDoc(userRef, updatePayload);
+
+          // 3. Log Activity & Notify Counselor
+          await logActivityAndNotify({
+            studentId: userId,
+            studentName: user?.displayName || "Student",
+            counselorId: userProfile?.assignedCounselorId || "",
+            type: 'ACADEMY_MODULE',
+            message: `successfully completed ${pack.title} with a score of ${scorePercentage}%.`,
+            link: `/counselor/students/portfolio?id=${userId}`
+          });
         }
       }
     } catch (err) {
@@ -255,7 +267,7 @@ function ModuleDetailContent() {
                  onClick={() => setPhase('quiz')}
                  className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
                 >
-                   Begin Quiz Challenge <ArrowRight className="w-5 h-5" />
+                   I have reviewed the material. Start 10-Second Drills <ArrowRight className="w-5 h-5" />
                 </button>
              </div>
           </div>
@@ -271,7 +283,7 @@ function ModuleDetailContent() {
                    <Trophy className="w-16 h-16 text-amber-500" />
                 </div>
                 <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-2 rounded-xl shadow-lg border-4 border-white dark:border-slate-800">
-                   <span className="text-xs font-black uppercase px-2">{Math.round((correctCount / pack.questions.length) * 100)}%</span>
+                   <span className="text-xs font-black uppercase px-2">{Math.round((correctCount / 10) * 100)}%</span>
                 </div>
              </div>
 
@@ -284,9 +296,9 @@ function ModuleDetailContent() {
 
              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                   { label: 'Accuracy', val: `${correctCount}/${pack.questions.length}`, icon: Award, c: 'text-emerald-500' },
+                   { label: 'Accuracy', val: `${correctCount}/10`, icon: Award, c: 'text-emerald-500' },
                    { label: 'Points', val: gamifiedScore, icon: Zap, c: 'text-purple-500' },
-                   { label: 'Status', val: (correctCount / pack.questions.length) >= 0.8 ? 'PASSED' : 'RETRY', icon: CheckCircle2, c: 'text-emerald-500' },
+                   { label: 'Status', val: (correctCount / 10) >= 0.8 ? 'PASSED' : 'RETRY', icon: CheckCircle2, c: 'text-emerald-500' },
                 ].map((stat, i) => (
                    <div key={i} className="bg-gray-50 dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-700">
                       <stat.icon className={`w-4 h-4 mx-auto mb-2 ${stat.c}`} />

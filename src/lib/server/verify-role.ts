@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuth } from "firebase-admin/auth";
-import { db, adminApp } from "@/lib/firebaseAdmin";
+import { adminDb as db, adminApp } from "@/lib/firebaseAdmin";
 import { AppRole } from "@/types";
 
 export const ANALYTICS_ROLES: AppRole[] = ["Super Admin", "Head of Compliance"];

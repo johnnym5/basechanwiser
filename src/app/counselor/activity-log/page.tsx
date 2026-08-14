@@ -1,30 +1,54 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search as SearchIcon, Filter as FilterIcon, Download as DownloadIcon, Activity as ActivityIcon, ExternalLink as ExternalLinkIcon, Clock as ClockIcon, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { Search as SearchIcon, Filter as FilterIcon, Download as DownloadIcon, Activity as ActivityIcon, ExternalLink as ExternalLinkIcon, Clock as ClockIcon, ChevronRight as ChevronRightIcon, Loader2 } from 'lucide-react';
 import AppShell from "@/components/layout/app-shell";
+import { db } from "@/lib/firebase/config";
+import { collection, query, getDocs, orderBy, limit, where } from "firebase/firestore";
+import { formatDistanceToNow, format } from "date-fns";
 
 export default function ActivityLogPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [eventType, setEventType] = useState('ALL');
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for initial UI scaffolding
-  const mockEvents = [
-    { id: 1, studentName: 'Cletus M.', studentId: '123', type: 'ACADEMIC', action: 'Passed Module 2', desc: 'Score: 90%. Auto-advanced to Module 3.', timestamp: '10 mins ago', date: 'Oct 24, 2023' },
-    { id: 2, studentName: 'John D.', studentId: '456', type: 'DOCUMENT', action: 'Uploaded Statement', desc: 'Bank Statement (PDF) submitted for review.', timestamp: '1 hour ago', date: 'Oct 24, 2023' },
-    { id: 3, studentName: 'Sarah K.', studentId: '789', type: 'SYSTEM', action: 'Account Created', desc: 'Invited by Admin. Status set to New.', timestamp: '2 hours ago', date: 'Oct 24, 2023' },
-    { id: 4, studentName: 'David O.', studentId: '101', type: 'INTERVIEW', action: 'Submitted Mock', desc: 'UKVI Drill #1 recording finalized.', timestamp: '4 hours ago', date: 'Oct 24, 2023' },
-  ];
+  useEffect(() => {
+    fetchLogs();
+  }, [eventType]);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      let q = query(collection(db, "activity_logs"), orderBy("createdAt", "desc"), limit(50));
+
+      if (eventType !== 'ALL') {
+        q = query(collection(db, "activity_logs"), where("type", "==", eventType), orderBy("createdAt", "desc"), limit(50));
+      }
+
+      const snap = await getDocs(q);
+      setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error("Fetch logs error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredLogs = logs.filter(log =>
+    log.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    log.action?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const renderTypeBadge = (type: string) => {
     const base = "inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all duration-200";
     switch(type) {
-      case 'ACADEMIC': return <span className={`${base} bg-emerald-500/10 text-emerald-400 border-emerald-500/20`}>ACADEMIC</span>;
+      case 'ACADEMIC_MODULE': return <span className={`${base} bg-emerald-500/10 text-emerald-400 border-emerald-500/20`}>ACADEMIC</span>;
       case 'DOCUMENT': return <span className={`${base} bg-blue-500/10 text-blue-400 border-blue-500/20`}>DOCUMENT</span>;
-      case 'INTERVIEW': return <span className={`${base} bg-orange-500/10 text-orange-400 border-orange-500/20`}>INTERVIEW</span>;
+      case 'MOCK_INTERVIEW': return <span className={`${base} bg-orange-500/10 text-orange-400 border-orange-500/20`}>INTERVIEW</span>;
       case 'SYSTEM': return <span className={`${base} bg-slate-500/10 text-slate-400 border-slate-500/20`}>SYSTEM</span>;
-      default: return null;
+      default: return <span className={`${base} bg-slate-800/50 text-slate-400 border-slate-700`}>{type}</span>;
     }
   };
 
@@ -73,9 +97,9 @@ export default function ActivityLogPage() {
                     className="w-full pl-11 pr-10 py-3 bg-slate-800 border border-slate-700 rounded-2xl text-xs font-black uppercase tracking-widest text-white focus:outline-none focus:border-indigo-500 appearance-none transition-all cursor-pointer"
                   >
                     <option value="ALL">All Event Types</option>
-                    <option value="ACADEMIC">Academic</option>
+                    <option value="ACADEMIC_MODULE">Academic</option>
                     <option value="DOCUMENT">Documents</option>
-                    <option value="INTERVIEW">Interviews</option>
+                    <option value="MOCK_INTERVIEW">Interviews</option>
                     <option value="SYSTEM">System</option>
                   </select>
                   <ChevronRightIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none rotate-90" />
@@ -96,25 +120,44 @@ export default function ActivityLogPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
-                {mockEvents.map((event) => (
-                  <tr key={event.id} className="hover:bg-slate-800/20 transition-colors group">
-                    <td className="px-8 py-6 whitespace-nowrap">
-                      <div className="text-white font-black text-xs uppercase tracking-tighter">{event.date}</div>
-                      <div className="text-[10px] text-slate-500 font-bold flex items-center mt-1 uppercase tracking-widest"><ClockIcon className="w-3 h-3 mr-1.5"/> {event.timestamp}</div>
-                    </td>
-                    <td className="px-8 py-6 whitespace-nowrap font-black text-slate-200 text-sm uppercase tracking-tighter">{event.studentName}</td>
-                    <td className="px-8 py-6 whitespace-nowrap">{renderTypeBadge(event.type)}</td>
-                    <td className="px-8 py-6">
-                      <div className="text-slate-200 font-black text-xs uppercase tracking-widest">{event.action}</div>
-                      <div className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-tight line-clamp-1">{event.desc}</div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <Link href={`/counselor/students/portfolio?id=${event.studentId}`} className="inline-flex items-center bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-indigo-500/20">
-                        Profile <ExternalLinkIcon className="w-3 h-3 ml-2" />
-                      </Link>
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="py-20 text-center">
+                       <Loader2 className="animate-spin text-indigo-500 mx-auto mb-4" size={32} />
+                       <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Retrieving Audit Data...</p>
                     </td>
                   </tr>
-                ))}
+                ) : filteredLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-20 text-center text-gray-500 italic uppercase text-xs font-bold tracking-widest">
+                       No events found matching your criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLogs.map((event) => (
+                    <tr key={event.id} className="hover:bg-slate-800/20 transition-colors group">
+                      <td className="px-8 py-6 whitespace-nowrap">
+                        <div className="text-white font-black text-xs uppercase tracking-tighter">
+                          {event.createdAt?.seconds ? format(event.createdAt.seconds * 1000, 'MMM dd, yyyy') : 'Recently'}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-bold flex items-center mt-1 uppercase tracking-widest">
+                          <ClockIcon className="w-3 h-3 mr-1.5"/>
+                          {event.createdAt?.seconds ? formatDistanceToNow(event.createdAt.seconds * 1000) + ' ago' : 'Just now'}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 whitespace-nowrap font-black text-slate-200 text-sm uppercase tracking-tighter">{event.studentName}</td>
+                      <td className="px-8 py-6 whitespace-nowrap">{renderTypeBadge(event.type)}</td>
+                      <td className="px-8 py-6">
+                        <div className="text-slate-200 font-black text-xs uppercase tracking-widest line-clamp-1">{event.action}</div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <Link href={`/counselor/students/portfolio?id=${event.studentId}`} className="inline-flex items-center bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-indigo-500/20">
+                          Profile <ExternalLinkIcon className="w-3 h-3 ml-2" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

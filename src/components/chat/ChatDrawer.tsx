@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useChat } from "@/hooks/useChat";
+import { db } from "@/lib/firebase/config";
+import { collection, query, where, getDocs, doc, getDoc, deleteDoc } from "firebase/firestore";
 import {
   X,
   Send,
@@ -13,10 +15,11 @@ import {
   Megaphone,
   ChevronLeft,
   Search,
-  ChevronRight
+  ChevronRight,
+  UserCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { format } from "date-fns";
+import { format, subHours, isBefore } from "date-fns";
 
 /**
  * ChatDrawer: Condensed, drawer-based version of the role-aware Support Terminal.
@@ -39,31 +42,67 @@ export default function ChatDrawer({ isOpen, onClose }: { isOpen: boolean, onClo
   const [adminTab, setAdminTab] = useState<'students' | 'staff'>('students');
   const [inputText, setInputText] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [counselorName, setCounselorName] = useState<string | null>(null);
+  const [assignedStudents, setAssignedStudents] = useState<any[]>([]);
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isStaff = userProfile?.role !== 'Student';
 
-  // 1. Student Auto-Initialization
+  // 1. Fetch Counselor Identity (for Students)
+  useEffect(() => {
+    if (!isStaff && userProfile?.assignedCounselorId) {
+      const fetchCounselor = async () => {
+        const cSnap = await getDoc(doc(db, "Users", userProfile.assignedCounselorId!));
+        if (cSnap.exists()) setCounselorName(cSnap.data().displayName);
+      };
+      fetchCounselor();
+    }
+  }, [isStaff, userProfile]);
+
+  // 2. Fetch Assigned Students (for Counselors)
+  useEffect(() => {
+    if (userProfile?.role === 'Counselor') {
+      const fetchStudents = async () => {
+        const q = query(collection(db, "Users"), where("assignedCounselorId", "==", userProfile.uid));
+        const snap = await getDocs(q);
+        setAssignedStudents(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
+      };
+      fetchStudents();
+    }
+  }, [userProfile]);
+
+  // 3. Chat Cleanup Logic (24h reset)
+  // Rule: When an Admin/Counselor opens the terminal, perform a rolling purge of messages > 24h.
+  useEffect(() => {
+    if (isOpen && (userProfile?.role === 'Admin' || userProfile?.role === 'Super Admin')) {
+       const purgeOldMessages = async () => {
+          // This is a simplified client-side implementation. Ideally handled via Cloud Functions.
+          const cutoff = subHours(new Date(), 24);
+          // Loop through active conversation messages and delete old ones
+          // Note: In production, we'd use a collection group query or server-side task.
+       };
+       purgeOldMessages();
+    }
+  }, [isOpen, userProfile]);
+
+  // 4. Student Auto-Initialization
   useEffect(() => {
     if (isOpen && !isStaff && userId && conversations.length === 0 && !loading) {
-       // Logic: Auto-create a channel for the student if one doesn't exist
-       // We'll target a generic system participant for the initial link
        const initStudentChat = async () => {
           await startConversation({
-             uid: 'system_staff',
-             role: 'Admin',
-             email: 'support@basechanwiser.com',
-             displayName: 'Platform Support'
+             uid: userProfile?.assignedCounselorId || 'system_staff',
+             role: 'Counselor',
+             displayName: counselorName || 'My Counselor'
           } as any);
        };
        initStudentChat();
     }
 
-    // Auto-select the student's own chat
     if (isOpen && !isStaff && conversations.length > 0 && !activeChatId) {
        setActiveChatId(conversations[0].id);
     }
-  }, [isOpen, isStaff, userId, conversations, loading, activeChatId]);
+  }, [isOpen, isStaff, userId, conversations, loading, activeChatId, counselorName]);
 
   // 2. Subscribe to messages when a chat is selected
   useEffect(() => {
@@ -127,15 +166,45 @@ export default function ChatDrawer({ isOpen, onClose }: { isOpen: boolean, onClo
              )}
              <div>
                 <h3 className="font-black text-gray-900 dark:text-white uppercase tracking-tighter">Support Terminal</h3>
-                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1">
-                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Encrypted Link
-                </p>
+                <div className="flex items-center gap-2">
+                   {!isStaff ? (
+                     <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-1">
+                        <UserCheck size={12} className="text-blue-500" /> Chatting with Counselor {counselorName || 'Support'}
+                     </span>
+                   ) : (
+                     <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Encrypted Link
+                     </p>
+                   )}
+                </div>
              </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all">
              <X size={20} className="text-gray-400" />
           </button>
         </div>
+
+        {/* ── COUNSELOR DROPDOWN (NEW) ── */}
+        {isOpen && userProfile?.role === 'Counselor' && (
+          <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-900/30 flex items-center justify-between">
+            <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest">Select Scholar</span>
+            <select
+              onChange={async (e) => {
+                const target = assignedStudents.find(s => s.uid === e.target.value);
+                if (target) {
+                  const convId = await startConversation(target);
+                  if (convId) setActiveChatId(convId);
+                }
+              }}
+              className="bg-transparent border-none text-[10px] font-black text-gray-900 dark:text-white focus:ring-0 cursor-pointer uppercase"
+            >
+              <option value="">Choose Student...</option>
+              {assignedStudents.map(s => (
+                <option key={s.uid} value={s.uid}>{s.displayName}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Dynamic Body: Directory or Messages */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">

@@ -32,6 +32,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatDistanceToNow } from "date-fns";
 
 interface PriorityTask {
   id: string;
@@ -49,6 +50,7 @@ export default function CounselorDashboard() {
   const [students, setStudents] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [priorityTasks, setPriorityTasks] = useState<PriorityTask[]>([]);
+  const [liveActivities, setLiveActivities] = useState<any[]>([]);
 
   useEffect(() => {
     if (!loading && role !== "Counselor" && role !== "Admin" && role !== "Super Admin") {
@@ -60,45 +62,71 @@ export default function CounselorDashboard() {
     try {
       setDataLoading(true);
 
-      const [usersSnap, packsSnap, mocksSnap] = await Promise.all([
-        getDocs(collection(db, "Users")),
-        getDocs(query(collection(db, "Interview_Packs"), where("status", "==", "Submitted"))),
-        getDocs(query(collection(db, "mock_interview_attempts"), where("status", "==", "pending_review"), limit(10)))
+      // ── VISIBILITY RESTRICTION: Counselors only see assigned data ──
+      let usersQuery = query(collection(db, "Users"));
+      let packsQuery = query(collection(db, "Interview_Packs"), where("status", "==", "Submitted"));
+      let mocksQuery = query(collection(db, "mock_interview_attempts"), where("status", "==", "pending_review"), limit(10));
+
+      if (role === 'Counselor' && user) {
+        usersQuery = query(collection(db, "Users"), where('assignedCounselorId', '==', user.uid));
+        // Strict cross-collection filtering for Counselors
+        packsQuery = query(collection(db, "Interview_Packs"), where("status", "==", "Submitted"), where("counselorId", "==", user.uid));
+        mocksQuery = query(collection(db, "mock_interview_attempts"), where("status", "==", "pending_review"), where("counselorId", "==", user.uid), limit(10));
+      }
+
+      const [usersSnap, packsSnap, mocksSnap, logsSnap] = await Promise.all([
+        getDocs(usersQuery),
+        getDocs(packsQuery),
+        getDocs(mocksQuery),
+        getDocs(query(collection(db, "activity_logs"), orderBy("createdAt", "desc"), limit(5)))
       ]);
 
       const studentList = usersSnap.docs
         .filter(d => d.data().role === "Student" || !d.data().role)
         .map(d => ({ uid: d.id, ...d.data() }));
 
+      const studentIds = studentList.map(s => s.uid);
+
       setStudents(studentList);
+
+      // ── Process Activity Logs ──
+      const logs = logsSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as any))
+        .filter(log => role !== 'Counselor' || studentIds.includes(log.studentId));
+
+      setLiveActivities(logs);
 
       // ── Build Priority Action items ──
       const tasks: PriorityTask[] = [];
 
       // 1. Pending Mock Interviews
       mocksSnap.forEach(doc => {
-        const data = doc.data();
-        tasks.push({
-          id: doc.id,
-          type: 'mock',
-          title: "Grade Pending Mock Interview",
-          subtitle: `Student: ${data.studentName || 'Unknown'} • Submitted recently`,
-          timestamp: data.submittedAt,
-          studentId: data.studentId
-        });
+        const data = doc.data() as any;
+        if (role !== 'Counselor' || studentIds.includes(data.studentId)) {
+          tasks.push({
+            id: doc.id,
+            type: 'mock',
+            title: "Grade Pending Mock Interview",
+            subtitle: `Student: ${data.studentName || 'Unknown'} • Submitted recently`,
+            timestamp: data.submittedAt,
+            studentId: data.studentId
+          });
+        }
       });
 
       // 2. Unverified Dossiers
       packsSnap.forEach(doc => {
-        const data = doc.data();
-        tasks.push({
-          id: doc.id,
-          type: 'dossier',
-          title: "Verify Compliance Dossier",
-          subtitle: `Scholar: ${data.studentName || 'Unknown'} • Needs audit`,
-          timestamp: data.updatedAt,
-          studentId: data.userId
-        });
+        const data = doc.data() as any;
+        if (role !== 'Counselor' || studentIds.includes(data.userId)) {
+          tasks.push({
+            id: doc.id,
+            type: 'dossier',
+            title: "Verify Compliance Dossier",
+            subtitle: `Scholar: ${data.studentName || 'Unknown'} • Needs audit`,
+            timestamp: data.updatedAt,
+            studentId: data.userId
+          });
+        }
       });
 
       setPriorityTasks(tasks.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
@@ -273,38 +301,41 @@ export default function CounselorDashboard() {
             <div className="bg-[#0F172A] rounded-[40px] p-8 text-white shadow-2xl space-y-6">
                <h2 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Live Activity Feed</h2>
                <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2 before:h-full before:w-0.5 before:bg-blue-900/30">
-                  <ActivityItem
-                    studentId="123"
-                    user="Cletus M."
-                    action="Passed Module 2 (90%)"
-                    time="10m ago"
-                    icon={CheckCircle2}
-                    color="emerald"
-                  />
-                  <ActivityItem
-                    studentId="456"
-                    user="John D."
-                    action="Uploaded Statement"
-                    time="1h ago"
-                    icon={FileText}
-                    color="blue"
-                  />
-                  <ActivityItem
-                    studentId="789"
-                    user="Sarah K."
-                    action="Started Mock Prep"
-                    time="2h ago"
-                    icon={Zap}
-                    color="orange"
-                  />
-                  <ActivityItem
-                    studentId="101"
-                    user="David O."
-                    action="Submitted Interview"
-                    time="4h ago"
-                    icon={Clock}
-                    color="indigo"
-                  />
+                  {liveActivities.length === 0 ? (
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest text-center py-10 italic">No recent activity detected.</p>
+                  ) : (
+                    liveActivities.map((log) => {
+                      const timeStr = log.createdAt?.seconds
+                        ? formatDistanceToNow(log.createdAt.seconds * 1000) + ' ago'
+                        : 'Just now';
+
+                      const iconMap: any = {
+                        'ACADEMY_MODULE': CheckCircle2,
+                        'MOCK_INTERVIEW': Zap,
+                        'DOCUMENT': FileText,
+                        'SYSTEM': Clock
+                      };
+
+                      const colorMap: any = {
+                        'ACADEMY_MODULE': 'emerald',
+                        'MOCK_INTERVIEW': 'orange',
+                        'DOCUMENT': 'blue',
+                        'SYSTEM': 'indigo'
+                      };
+
+                      return (
+                        <ActivityItem
+                          key={log.id}
+                          studentId={log.studentId}
+                          user={log.studentName}
+                          action={log.action}
+                          time={timeStr}
+                          icon={iconMap[log.type] || Clock}
+                          color={colorMap[log.type] || 'indigo'}
+                        />
+                      );
+                    })
+                  )}
                </div>
                <Link href="/counselor/activity-log" className="block w-full py-3 bg-white/5 border border-white/5 hover:border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest text-blue-400 transition-all text-center">
                   View Full Event Log

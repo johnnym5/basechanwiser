@@ -1,6 +1,7 @@
-import { initializeApp, getApps, getApp } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
 import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 
 /**
  * Initialize Firebase Admin SDK for server-side use.
@@ -15,8 +16,8 @@ try {
 }
 
 export const adminApp = getApp();
-export const db = getFirestore();
-export const adminDb = db;
-export const auth = getAuth();
+export const adminDb = getFirestore();
+export const adminAuth = getAuth();
+export const adminStorage = getStorage();
 
 export { Timestamp, FieldValue };

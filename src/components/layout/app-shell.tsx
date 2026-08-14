@@ -9,6 +9,7 @@ import IncomingCallListener from "@/components/mock-interview/IncomingCallListen
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTheme } from "@/lib/theme/theme-context";
+import { useSystemNotifications } from "@/hooks/useSystemNotifications";
 import {
   LayoutDashboard,
   BookOpen,
@@ -38,6 +39,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
+
+  // ── PUSH NOTIFICATIONS: Global Real-time Listener ──
+  useSystemNotifications(user, role);
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);

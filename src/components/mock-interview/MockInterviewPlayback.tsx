@@ -13,23 +13,21 @@ interface MockInterviewPlaybackProps {
 export default function MockInterviewPlayback({ attemptId }: MockInterviewPlaybackProps) {
   const [attempt, setAttempt] = useState<MockInterviewAttempt | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeQuestionIdx, setActiveQuestionIdx] = useState<number | null>(null);
+  const [activeQuestionIdx, setActiveQuestionIdx] = useState<number>(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     if (attemptId) fetchAttempt();
   }, [attemptId]);
 
-  /**
-   * Data Source Binding:
-   * Reads the MockInterviewAttempt document directly from Firestore.
-   * Uses attempt.askedQuestions (the exact array of questions presented to the student).
-   */
   const fetchAttempt = async () => {
     try {
       const snap = await getDoc(doc(db, "mock_interview_attempts", attemptId));
       if (snap.exists()) {
-        setAttempt({ id: snap.id, ...snap.data() } as MockInterviewAttempt);
+        const data = snap.data() as MockInterviewAttempt;
+        setAttempt({ id: snap.id, ...data });
+        // Auto-select first chunk if available
+        setActiveQuestionIdx(0);
       }
     } catch (e) {
       console.error("Error fetching attempt for playback:", e);
@@ -39,17 +37,20 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
   };
 
   /**
-   * Clickable Timestamp Seeking Handler:
-   * Performs robust null check on videoRef.current, sets currentTime to target startTime,
-   * and starts video playback immediately.
+   * Playback Handler:
+   * Supports both legacy single-video seeking and new per-question chunk loading.
    */
-  const jumpToTimestamp = (seconds: number, idx: number) => {
+  const handleSelection = (idx: number) => {
     setActiveQuestionIdx(idx);
-    if (videoRef.current) {
-      videoRef.current.currentTime = seconds;
-      videoRef.current.play().catch(err => {
-        console.warn("Autoplay playback error upon timestamp seek:", err);
-      });
+
+    // If it's legacy mode (single video), we seek to the specific timestamp
+    if (attempt && !attempt.videoUrls?.length && attempt.videoUrl) {
+      const timestampObj = attempt.questionTimestamps?.[idx];
+      const startTime = timestampObj?.startTime ?? 0;
+      if (videoRef.current) {
+        videoRef.current.currentTime = startTime;
+        videoRef.current.play().catch(() => {});
+      }
     }
   };
 
@@ -57,6 +58,7 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
    * Helper function to format raw seconds into clean MM:SS format
    */
   const formatMMSS = (seconds: number): string => {
+    if (!seconds || isNaN(seconds)) return "00:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -74,12 +76,14 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
     return <div className="p-8 text-center text-gray-500 font-bold">Interview attempt recording not found.</div>;
   }
 
-  /**
-   * Resolve Question List for Playback:
-   * 1. Primary source: attempt.askedQuestions (exact saved randomized array)
-   * 2. Fallback: attempt.answers map for legacy recordings
-   */
-  const questionList: string[] = attempt.askedQuestions && attempt.askedQuestions.length > 0
+  const isChunked = attempt.videoUrls && attempt.videoUrls.length > 0;
+
+  // Resolve which video URL to play
+  const currentVideoUrl = isChunked
+    ? (attempt.answers[activeQuestionIdx]?.videoUrl || attempt.videoUrls[activeQuestionIdx])
+    : attempt.videoUrl;
+
+  const questionList = attempt.askedQuestions && attempt.askedQuestions.length > 0
     ? attempt.askedQuestions
     : attempt.answers?.map(a => a.questionText) || [];
 
@@ -89,12 +93,20 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
       <div className="lg:col-span-2 space-y-6">
         <div className="bg-black rounded-[40px] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 aspect-video relative group">
           <video
+            key={currentVideoUrl} // Force re-render/reload when URL changes (chunks)
             ref={videoRef}
-            src={attempt.videoUrl}
+            src={currentVideoUrl}
             controls
+            autoPlay={isChunked} // Auto-play when switching chunks
             className="w-full h-full object-cover"
             playsInline
           />
+          {!currentVideoUrl && (
+             <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 text-white flex-col gap-4">
+                <Video size={48} className="text-gray-600 animate-pulse" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Media Segment Unavailable</p>
+             </div>
+          )}
         </div>
 
         {/* Attempt Metadata Header */}
@@ -108,7 +120,7 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 mt-0.5">
                 <Calendar size={12} /> {attempt.submittedAt?.toDate ? attempt.submittedAt.toDate().toLocaleDateString() : "Recorded Session"}
                 <span className="mx-1">•</span>
-                <Clock size={12} /> {formatMMSS(attempt.timeTakenSeconds || 0)} Total Duration
+                <Clock size={12} /> {isChunked ? "PER-QUESTION SEGMENTS" : `${formatMMSS(attempt.timeTakenSeconds || 0)} TOTAL DURATION`}
               </p>
             </div>
           </div>
@@ -123,12 +135,12 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
         </div>
       </div>
 
-      {/* Side-by-Side Asked Questions List with Clickable Timestamps */}
+      {/* Side-by-Side Asked Questions List */}
       <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden flex flex-col h-[calc(100vh-200px)] lg:sticky lg:top-8">
         <div className="p-8 border-b border-gray-50 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-900/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <List className="text-blue-500" size={20} />
-            <h3 className="font-black dark:text-white uppercase tracking-tighter">Asked Questions & Timestamps</h3>
+            <h3 className="font-black dark:text-white uppercase tracking-tighter">Asked Questions & Segments</h3>
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
             {questionList.length} Questions
@@ -138,17 +150,14 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
         {/* Scrollable Question Items */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
           {questionList.map((questionText, idx) => {
-            // Correlate question with saved timestamps array
-            const timestampObj = attempt.questionTimestamps?.[idx];
-            const startTime = timestampObj?.startTime ?? 0;
-            const formattedTime = formatMMSS(startTime);
             const isActive = activeQuestionIdx === idx;
+            const hasMedia = isChunked ? !!attempt.answers[idx]?.videoUrl : !!attempt.videoUrl;
 
             return (
               <button
                 key={idx}
                 type="button"
-                onClick={() => jumpToTimestamp(startTime, idx)}
+                onClick={() => handleSelection(idx)}
                 className={`w-full text-left p-6 rounded-3xl transition-all cursor-pointer border group ${
                   isActive
                     ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500/80 shadow-sm"
@@ -159,18 +168,24 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
                   <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? "text-blue-600 dark:text-blue-400" : "text-blue-500 group-hover:text-blue-300"}`}>
                     Question #{idx + 1}
                   </span>
-                  {/* Clean MM:SS formatted timestamp */}
-                  <span className="text-[10px] font-black font-mono px-2.5 py-1 bg-white dark:bg-slate-900 rounded-full border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-300 group-hover:border-blue-400">
-                    ⏱ {formattedTime}
-                  </span>
+
+                  {!isChunked && attempt.questionTimestamps?.[idx] && (
+                    <span className="text-[10px] font-black font-mono px-2.5 py-1 bg-white dark:bg-slate-900 rounded-full border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-300 group-hover:border-blue-400">
+                      ⏱ {formatMMSS(attempt.questionTimestamps[idx].startTime)}
+                    </span>
+                  )}
                 </div>
 
                 <p className="text-sm font-bold text-gray-800 dark:text-slate-200 leading-snug group-hover:text-white">
                   "{questionText}"
                 </p>
 
-                <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-gray-400 group-hover:text-blue-300 transition-colors">
-                  <PlayCircle size={14} /> JUMP TO {formattedTime}
+                <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-gray-400 group-hover:text-blue-300 transition-colors uppercase tracking-widest">
+                  {isChunked ? (
+                    <><Video size={14} /> Play Segment</>
+                  ) : (
+                    <><PlayCircle size={14} /> Jump to Timestamp</>
+                  )}
                 </div>
               </button>
             );

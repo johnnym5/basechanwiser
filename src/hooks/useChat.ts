@@ -15,14 +15,16 @@ import {
   getDocs,
   setDoc,
   limit,
-  getDoc
+  getDoc,
+  Timestamp
 } from 'firebase/firestore';
 import { Conversation, Message } from '@/types/chat';
 import { UserProfile } from '@/types';
+import { subHours } from 'date-fns';
 
 /**
  * useChat: Operational hook for the Support Terminal.
- * Features: StudentId-tied persistence, role-based filtering, and global broadcast batching.
+ * Features: 24-Hour retention logic, studentId-tied persistence, role-based filtering.
  */
 export function useChat(userProfile: UserProfile | null) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -61,10 +63,14 @@ export function useChat(userProfile: UserProfile | null) {
     return () => unsubscribe();
   }, [userProfile]);
 
-  // 2. Fetch Messages with automatic read receipt
+  // 2. Fetch Messages with 24-Hour retention filter
   const subscribeToMessages = (conversationId: string) => {
+    // ── 24-HOUR RETENTION POLICY ──
+    const twentyFourHoursAgo = Timestamp.fromDate(subHours(new Date(), 24));
+
     const q = query(
       collection(db, 'conversations', conversationId, 'messages'),
+      where('createdAt', '>=', twentyFourHoursAgo), // Strictly fetch last 24 hours
       orderBy('createdAt', 'asc')
     );
 

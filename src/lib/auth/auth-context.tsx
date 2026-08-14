@@ -104,6 +104,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const updates: any = {
               lastLoginAt: serverTimestamp(),
               lastActive: serverTimestamp(),
+              lastActiveAt: serverTimestamp(), // ── HEARTBEAT: Automated Cleanup ──
               isOnline: true,
               role: computedRole,
             };
@@ -139,6 +140,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const updates: any = {
           lastLoginAt: serverTimestamp(),
           lastActive: serverTimestamp(),
+          lastActiveAt: serverTimestamp(), // ── HEARTBEAT: Automated Cleanup ──
           isOnline: true,
           role: computedRole,
         };
@@ -177,6 +179,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         learningProgress: 0,
         isOnline: true,
         lastActive: serverTimestamp(),
+        lastActiveAt: serverTimestamp(), // ── HEARTBEAT: Automated Cleanup ──
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp(),
       };
@@ -292,7 +295,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (user) {
         await updateDoc(doc(db, "Users", user.uid), {
           isOnline: false,
-          lastActive: serverTimestamp()
+          lastActive: serverTimestamp(),
+          lastActiveAt: serverTimestamp() // ── HEARTBEAT: Automated Cleanup ──
         });
       }
       localStorage.removeItem("bw_guest_email");

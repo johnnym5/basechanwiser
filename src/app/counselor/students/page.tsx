@@ -183,8 +183,14 @@ export default function CounselorStudentsPage() {
 
       try {
         // Run primary queries with 10s timeout fail-safe
+        // ── VISIBILITY RESTRICTION: Counselors only see assigned scholars ──
+        let usersQuery = query(collection(db, "Users"));
+        if (role === 'Counselor') {
+          usersQuery = query(collection(db, "Users"), where('assignedCounselorId', '==', userId));
+        }
+
         const [usersSnap, packsSnap, qPacksSnap] = await Promise.all([
-          withTimeout(getDocs(query(collection(db, "Users"))), 10000),
+          withTimeout(getDocs(usersQuery), 10000),
           withTimeout(getDocs(collection(db, "Interview_Packs")), 10000),
           withTimeout(getDocs(collection(db, "question_packs")), 10000)
         ]);

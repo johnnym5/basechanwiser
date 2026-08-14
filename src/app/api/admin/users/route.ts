@@ -1,7 +1,7 @@
 // src/app/api/admin/users/route.ts
 import { NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { db, adminApp } from '@/lib/firebaseAdmin';
+import { adminDb, adminApp } from '@/lib/firebaseAdmin';
 import { verifyRequestRole } from '@/lib/server/verify-role';
 import { AppRole, StaffPermissions } from '@/types';
 
@@ -46,7 +46,7 @@ export async function PATCH(request: Request) {
 
     // 3. FIRESTORE SYNC:
     // Update the authoritative user document.
-    await db.collection("Users").doc(targetUid).update({
+    await adminDb.collection("Users").doc(targetUid).update({
       role,
       permissions,
       updatedAt: new Date(),
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
 
     // In a full implementation, you would trigger a Firebase Auth invite email here.
     // For now, we seed the Firestore doc so the user gets the role upon their first Google sign-in.
-    const newUserRef = db.collection("Users").doc(); // Temporary ID or based on email hash
+    const newUserRef = adminDb.collection("Users").doc(); // Temporary ID or based on email hash
     await newUserRef.set({
       email,
       displayName,

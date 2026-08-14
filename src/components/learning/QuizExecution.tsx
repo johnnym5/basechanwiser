@@ -15,8 +15,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { shuffleArray } from "@/lib/utils/shuffle";
 import { AskedQuestion, TestQuestionSet } from "@/types/academy";
 
-const BASE_POINTS = 1000;
-const TIME_BONUS_MULTIPLIER = 100;
+const BASE_POINTS = 1;
+const TIME_BONUS_MULTIPLIER = 1;
 
 interface QuizExecutionProps {
   testSet: TestQuestionSet;

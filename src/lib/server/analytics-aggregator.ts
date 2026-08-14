@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebaseAdmin";
+import { adminDb as db } from "@/lib/firebaseAdmin";
 import {
   AnalyticsDashboardData,
   CounselorPerformanceRow,

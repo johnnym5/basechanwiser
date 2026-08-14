@@ -122,28 +122,6 @@ export default function StudentMockInterviewPage() {
     }
   };
 
-  const handleFinishRecording = async (videoUrls: string[], answers: MockInterviewAnswer[]) => {
-    if (!userId || !questionSet) return;
-    setStep('uploading');
-
-    try {
-      const attemptId = `${userId}_${questionSet.id}`;
-      const attemptRef = doc(db, 'mock_interview_attempts', attemptId);
-
-      await updateDoc(attemptRef, {
-        videoUrls,
-        answers,
-        status: 'pending_review',
-        submittedAt: serverTimestamp(),
-        timeTakenSeconds: 0 // Could calculate from start time
-      });
-
-      setStep('completed');
-    } catch (err) {
-      console.error("Failed to submit interview", err);
-    }
-  };
-
   return (
     <AppShell>
       <div className="py-8">
@@ -167,8 +145,10 @@ export default function StudentMockInterviewPage() {
             stream={activeStream}
             questions={questions}
             studentId={userId!}
+            studentName={userProfile?.displayName || user?.displayName || "Student"}
+            counselorId={userProfile?.assignedCounselorId}
             mockId={questionSet?.id!}
-            onFinish={handleFinishRecording}
+            onFinish={() => setStep('completed')}
           />
         )}
 
