@@ -153,11 +153,18 @@ function PortfolioContent() {
 
         setMockAttempts(mocks);
 
+        // ── SYNC WITH STUDENT PORTFOLIO (NEW) ──
+        // We fetch the study guide from the student's subcollection for parity
+        const guideSnap = await getDoc(doc(db, "Users", id, "portfolio", "study_guide"));
         const packSnap = await getDoc(doc(db, "Interview_Packs", id));
-        if (packSnap.exists()) {
-          const packData = packSnap.data() as InterviewPack;
-          setInterviewPack(packData);
-          setFormData(packData);
+
+        let combinedPack: Partial<InterviewPack> = {};
+        if (packSnap.exists()) combinedPack = { ...packSnap.data() };
+        if (guideSnap.exists()) combinedPack = { ...combinedPack, ...guideSnap.data() };
+
+        if (Object.keys(combinedPack).length > 0) {
+          setInterviewPack(combinedPack as InterviewPack);
+          setFormData(combinedPack);
         }
 
         const modulesSnap = await getDocs(collection(db, "learning_modules"));
@@ -316,31 +323,55 @@ function PortfolioContent() {
                                  <div className="space-y-6">
                                     <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Academic & Admission</p>
                                     <div className="space-y-4">
+                                       <ViewField label="University" value={interviewPack.universityName} />
+                                       <ViewField label="Course" value={interviewPack.courseName} />
+                                       <ViewField label="Start Date" value={interviewPack.courseStartDate} />
                                        <ViewField label="CAS Number" value={interviewPack.casNumber} />
-                                       <ViewField label="Tuition Fee" value={`£${interviewPack.tuitionAmount?.toLocaleString()}`} />
-                                       <ViewField label="Deposit Paid" value={`£${interviewPack.depositPaid?.toLocaleString()}`} />
-                                       <ViewField label="University Ranking" value={interviewPack.universityRanking} />
+                                       <ViewField label="Tuition Fee" value={interviewPack.tuitionFee || interviewPack.tuitionAmount} />
+                                       <ViewField label="Deposit Paid" value={interviewPack.depositPaid} />
+                                       <ViewField label="Ranking" value={interviewPack.universityRanking} />
                                     </div>
                                  </div>
                                  <div className="space-y-6">
                                     <p className="text-[10px] font-black uppercase text-purple-500 tracking-[0.2em]">Financials & Logistics</p>
                                     <div className="space-y-4">
-                                       <ViewField label="Sponsor Name" value={interviewPack.sponsorName} />
-                                       <ViewField label="Sponsor Income" value={`£${interviewPack.sponsorIncome?.toLocaleString()}`} />
+                                       <ViewField label="Sponsor" value={interviewPack.sponsorName} />
+                                       <ViewField label="Relationship" value={interviewPack.sponsorRelationship} />
+                                       <ViewField label="Occupation" value={interviewPack.sponsorOccupation} />
+                                       <ViewField label="Monthly Income" value={interviewPack.sponsorMonthlyIncome} />
+                                       <ViewField label="Living Costs" value={interviewPack.monthlyLivingCosts} />
+                                       <ViewField label="Total Savings" value={interviewPack.totalSavings} />
                                        <ViewField label="Accommodation" value={interviewPack.accommodationDetails} />
-                                       <ViewField label="Target Date" value={interviewPack.timeline} />
                                     </div>
                                  </div>
                               </div>
 
                               <div className="space-y-8 pt-10 border-t border-gray-50 dark:border-slate-800">
-                                 <div className="space-y-3">
-                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Future Career Plans</p>
-                                    <p className="text-sm font-medium leading-relaxed dark:text-slate-300 italic bg-gray-50 dark:bg-[#0F172A] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800">"{interviewPack.careerPlans || "No plans provided."}"</p>
-                                 </div>
-                                 <div className="space-y-3">
-                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Reason for University Choice</p>
-                                    <p className="text-sm font-medium leading-relaxed dark:text-slate-300 italic bg-gray-50 dark:bg-[#0F172A] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800">"{interviewPack.reasonsForUniversity || interviewPack.whyUniversity || "No reasons provided."}"</p>
+                                 <div className="grid grid-cols-1 gap-8">
+                                    <div className="space-y-3">
+                                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Alternative Universities Considered</p>
+                                       <p className="text-sm font-medium leading-relaxed dark:text-slate-300 italic bg-gray-50 dark:bg-[#0F172A] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800">"{interviewPack.alternativeUniversities || "N/A"}"</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Why This University?</p>
+                                       <p className="text-sm font-medium leading-relaxed dark:text-slate-300 italic bg-gray-50 dark:bg-[#0F172A] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800">"{interviewPack.whyThisUniversity || interviewPack.reasonsForUniversity || "N/A"}"</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Core Modules & Learning Outcomes</p>
+                                       <p className="text-sm font-medium leading-relaxed dark:text-slate-300 italic bg-gray-50 dark:bg-[#0F172A] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800">"{interviewPack.coreModules || "N/A"}"</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Future Career Plans</p>
+                                       <p className="text-sm font-medium leading-relaxed dark:text-slate-300 italic bg-gray-50 dark:bg-[#0F172A] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800">"{interviewPack.careerPlans || "N/A"}"</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Career Justification</p>
+                                       <p className="text-sm font-medium leading-relaxed dark:text-slate-300 italic bg-gray-50 dark:bg-[#0F172A] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800">"{interviewPack.careerJustification || "N/A"}"</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                       <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Intent to Return & Ties</p>
+                                       <p className="text-sm font-medium leading-relaxed dark:text-slate-300 italic bg-gray-50 dark:bg-[#0F172A] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800">"{interviewPack.intentToReturn || "N/A"}"</p>
+                                    </div>
                                  </div>
                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                                     <div className="flex items-center gap-3 p-5 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-3xl">

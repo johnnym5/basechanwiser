@@ -147,6 +147,7 @@ export default function NotificationBell() {
   };
 
   const getIcon = (title: string) => {
+    if (!title) return <Info className="w-4 h-4 text-gray-400" />;
     if (title.includes("Reminder")) return <CalendarClock className="w-4 h-4 text-blue-500" />;
     if (title.includes("Message")) return <MessageSquare className="w-4 h-4 text-purple-500" />;
     if (title.includes("Urgent") || title.includes("Risk")) return <AlertCircle className="w-4 h-4 text-rose-500" />;

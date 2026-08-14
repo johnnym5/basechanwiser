@@ -104,7 +104,7 @@ export function useChat(userProfile: UserProfile | null) {
     } else {
       // Ensure current staff member is a participant (for counselor inheritance)
       const data = snap.data();
-      if (!data.participants.includes(userProfile.uid)) {
+      if (data && data.participants && !data.participants.includes(userProfile.uid)) {
         await updateDoc(convRef, {
           participants: [...data.participants, userProfile.uid],
           [`participantNames.${userProfile.uid}`]: userProfile.displayName || 'Counselor'

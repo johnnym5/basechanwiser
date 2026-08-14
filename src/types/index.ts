@@ -144,9 +144,13 @@ export interface InterviewPack {
   hasFinancials: boolean;
 
   // Academic & Admission Details
+  universityName: string;
+  courseName: string;
+  courseStartDate: string;
   applicationId: string;
   casNumber: string;
   tuitionAmount: number;
+  tuitionFee: string;
   depositPaid: number;
   universityRanking: string;
   modulesToStudy: string[];
@@ -154,7 +158,10 @@ export interface InterviewPack {
   // Compliance & Intent (Text Fields)
   sponsorName: string;
   sponsorIncome: number;
-  sponsorInfo: string; // Who is paying and their occupation
+  sponsorRelationship: string;
+  sponsorFundSource: string;
+  sponsorOccupation: string;
+  sponsorMonthlyIncome: string;
   accommodationDetails: string; // Where they will live, distance to campus
   careerPlans: string; // Target jobs, expected salary back home
   reasonsForCourse: string;
@@ -162,6 +169,16 @@ export interface InterviewPack {
   reasonsForUK: string;
   studyGapReason: string;
   whyUniversity: string; // legacy mapping
+  whyThisUniversity: string;
+  alternativeUniversities: string;
+  coreModules: string;
+  campusFacilities: string;
+  monthlyLivingCosts: string;
+  totalSavings: string;
+  targetCompanies: string;
+  expectedSalary: string;
+  careerJustification: string;
+  intentToReturn: string;
 
   // Logistics
   timeline: string; // Intended travel dates, visa application date

@@ -109,8 +109,8 @@ export default function SupportTerminal() {
       // Security: Don't show self in the address book
       if (u.uid === userProfile?.uid) return false;
 
-      const matchesSearch = u.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (u.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                            (u.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
 
       if (!matchesSearch) return false;
 
