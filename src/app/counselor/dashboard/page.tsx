@@ -33,6 +33,7 @@ import {
 import { db } from "@/lib/firebase/config";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
+import { withTimeout } from "@/lib/utils/promise-timeout";
 
 interface PriorityTask {
   id: string;
@@ -59,6 +60,7 @@ export default function CounselorDashboard() {
   }, [role, loading, router]);
 
   const fetchDashboardData = async () => {
+    let isMounted = true;
     try {
       setDataLoading(true);
 
@@ -75,66 +77,68 @@ export default function CounselorDashboard() {
       }
 
       const [usersSnap, packsSnap, mocksSnap, logsSnap] = await Promise.all([
-        getDocs(usersQuery),
-        getDocs(packsQuery),
-        getDocs(mocksQuery),
-        getDocs(query(collection(db, "activity_logs"), orderBy("createdAt", "desc"), limit(5)))
+        withTimeout(getDocs(usersQuery), 10000),
+        withTimeout(getDocs(packsQuery), 10000),
+        withTimeout(getDocs(mocksQuery), 10000),
+        withTimeout(getDocs(query(collection(db, "activity_logs"), orderBy("createdAt", "desc"), limit(5))), 10000)
       ]);
 
-      const studentList = usersSnap.docs
-        .filter(d => d.data().role === "Student" || !d.data().role)
-        .map(d => ({ uid: d.id, ...d.data() }));
+      if (isMounted) {
+        const studentList = usersSnap.docs
+          .filter(d => d.data().role === "Student" || !d.data().role)
+          .map(d => ({ uid: d.id, ...d.data() }));
 
-      const studentIds = studentList.map(s => s.uid);
+        const studentIds = studentList.map(s => s.uid);
 
-      setStudents(studentList);
+        setStudents(studentList);
 
-      // ── Process Activity Logs ──
-      const logs = logsSnap.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as any))
-        .filter(log => role !== 'Counselor' || studentIds.includes(log.studentId));
+        // ── Process Activity Logs ──
+        const logs = logsSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as any))
+          .filter(log => role !== 'Counselor' || studentIds.includes(log.studentId));
 
-      setLiveActivities(logs);
+        setLiveActivities(logs);
 
-      // ── Build Priority Action items ──
-      const tasks: PriorityTask[] = [];
+        // ── Build Priority Action items ──
+        const tasks: PriorityTask[] = [];
 
-      // 1. Pending Mock Interviews
-      mocksSnap.forEach(doc => {
-        const data = doc.data() as any;
-        if (role !== 'Counselor' || studentIds.includes(data.studentId)) {
-          tasks.push({
-            id: doc.id,
-            type: 'mock',
-            title: "Grade Pending Mock Interview",
-            subtitle: `Student: ${data.studentName || 'Unknown'} • Submitted recently`,
-            timestamp: data.submittedAt,
-            studentId: data.studentId
-          });
-        }
-      });
+        // 1. Pending Mock Interviews
+        mocksSnap.forEach(doc => {
+          const data = doc.data() as any;
+          if (role !== 'Counselor' || studentIds.includes(data.studentId)) {
+            tasks.push({
+              id: doc.id,
+              type: 'mock',
+              title: "Grade Pending Mock Interview",
+              subtitle: `Student: ${data.studentName || 'Unknown'} • Submitted recently`,
+              timestamp: data.submittedAt,
+              studentId: data.studentId
+            });
+          }
+        });
 
-      // 2. Unverified Dossiers
-      packsSnap.forEach(doc => {
-        const data = doc.data() as any;
-        if (role !== 'Counselor' || studentIds.includes(data.userId)) {
-          tasks.push({
-            id: doc.id,
-            type: 'dossier',
-            title: "Verify Compliance Dossier",
-            subtitle: `Scholar: ${data.studentName || 'Unknown'} • Needs audit`,
-            timestamp: data.updatedAt,
-            studentId: data.userId
-          });
-        }
-      });
+        // 2. Unverified Dossiers
+        packsSnap.forEach(doc => {
+          const data = doc.data() as any;
+          if (role !== 'Counselor' || studentIds.includes(data.userId)) {
+            tasks.push({
+              id: doc.id,
+              type: 'dossier',
+              title: "Verify Compliance Dossier",
+              subtitle: `Scholar: ${data.studentName || 'Unknown'} • Needs audit`,
+              timestamp: data.updatedAt,
+              studentId: data.userId
+            });
+          }
+        });
 
-      setPriorityTasks(tasks.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
+        setPriorityTasks(tasks.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
+      }
 
     } catch (err) {
       console.warn("Dashboard fetch error:", err);
     } finally {
-      setDataLoading(false);
+      if (isMounted) setDataLoading(false);
     }
   };
 

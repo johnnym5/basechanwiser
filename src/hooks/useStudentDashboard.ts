@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { differenceInDays, startOfDay, subDays, isSameDay } from 'date-fns';
+import { withTimeout } from '@/lib/utils/promise-timeout';
 
 export interface DashboardData {
   readiness: number;
@@ -41,74 +42,79 @@ export function useStudentDashboard(userId: string | null | undefined) {
       return;
     }
 
+    let isMounted = true;
+
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch Quiz Attempts (Passed & Total)
+        // 1. Fetch Quiz Attempts (Passed & Total) with 10s timeout
         const quizQ = query(collection(db, "quiz_attempts"), where("userId", "==", userId));
-        const quizSnap = await getDocs(quizQ);
+        const quizSnap = await withTimeout(getDocs(quizQ), 10000);
         const attempts = quizSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
         const passedModuleIds = new Set(attempts.filter((a: any) => a.passed).map((a: any) => a.packId));
         const passedCount = Math.min(passedModuleIds.size, 5); // Max 5 modules
 
-        // 2. Fetch Interview Pack Status
+        // 2. Fetch Interview Pack Status with 10s timeout
         const packRef = doc(db, "Interview_Packs", userId);
-        const packSnap = await getDoc(packRef);
+        const packSnap = await withTimeout(getDoc(packRef), 10000);
         const packSubmitted = packSnap.exists() && (packSnap.data()?.status === "Submitted" || packSnap.data()?.status === "Verified");
 
-        // 3. Fetch Mock Interview Sessions
+        // 3. Fetch Mock Interview Sessions with 10s timeout
         const mockQ = query(collection(db, "ai_mock_sessions"), where("userId", "==", userId), orderBy("finalScore", "desc"), limit(1));
-        const mockSnap = await getDocs(mockQ);
+        const mockSnap = await withTimeout(getDocs(mockQ), 10000);
         const bestMockScore = mockSnap.empty ? 0 : mockSnap.docs[0].data().finalScore || 0;
 
-        // 4. Calculate Readiness (Weighted Formula)
-        // Modules: (Passed / 5) * 50%
-        // Pack: Submitted ? 20% : 0%
-        // Mock: (Best Score / 100) * 30%
-        const moduleWeight = (passedCount / 5) * 50;
-        const packWeight = packSubmitted ? 20 : 0;
-        const mockWeight = (bestMockScore / 100) * 30;
-        const totalReadiness = Math.round(moduleWeight + packWeight + mockWeight);
+        if (isMounted) {
+          // 4. Calculate Readiness (Weighted Formula)
+          const moduleWeight = (passedCount / 5) * 50;
+          const packWeight = packSubmitted ? 20 : 0;
+          const mockWeight = (bestMockScore / 100) * 30;
+          const totalReadiness = Math.round(moduleWeight + packWeight + mockWeight);
 
-        // 5. Calculate Points
-        // 100 per mod, 500 for pack, 10 per 1% on mock
-        const points = (passedCount * 100) + (packSubmitted ? 500 : 0) + (bestMockScore * 10);
+          // 5. Calculate Points
+          const points = (passedCount * 100) + (packSubmitted ? 500 : 0) + (bestMockScore * 10);
 
-        // 6. Find Next Module
-        let nextModOrder = passedCount + 1;
-        if (nextModOrder > 5) nextModOrder = 5;
-        const nextModId = `module_${nextModOrder}`;
+          // 6. Find Next Module
+          let nextModOrder = passedCount + 1;
+          if (nextModOrder > 5) nextModOrder = 5;
+          const nextModId = `module_${nextModOrder}`;
 
-        // 7. Recent Activity (3 items)
-        const recent = attempts
-          .sort((a: any, b: any) => {
-            const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
-            const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
-            return dateB - dateA;
-          })
-          .slice(0, 3);
+          // 7. Recent Activity (3 items)
+          const recent = attempts
+            .sort((a: any, b: any) => {
+              const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
+              const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
+              return dateB - dateA;
+            })
+            .slice(0, 3);
 
-        setData({
-          readiness: totalReadiness,
-          passedModulesCount: passedCount,
-          streak: calculateStreak(attempts),
-          points,
-          nextModuleId: nextModId,
-          nextModuleOrder: nextModOrder,
-          recentActivity: recent,
-          interviewPackSubmitted: packSubmitted,
-          bestMockScore
-        });
-
+          setData({
+            readiness: totalReadiness,
+            passedModulesCount: passedCount,
+            streak: calculateStreak(attempts),
+            points,
+            nextModuleId: nextModId,
+            nextModuleOrder: nextModOrder,
+            recentActivity: recent,
+            interviewPackSubmitted: packSubmitted,
+            bestMockScore
+          });
+        }
       } catch (error) {
         console.error("[useStudentDashboard] Fetch Error:", error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchDashboardData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
 
   return { data, loading };

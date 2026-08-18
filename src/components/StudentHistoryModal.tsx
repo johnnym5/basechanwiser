@@ -23,6 +23,8 @@ import { AskedQuestion, TestAttempt } from "@/types/academy";
 import { TrafficLightStatus } from "@/types";
 import EmptyState from "@/components/common/EmptyState";
 
+import { withTimeout } from "@/lib/utils/promise-timeout";
+
 interface StudentHistoryModalProps {
   student: {
     uid: string;
@@ -76,47 +78,61 @@ export default function StudentHistoryModal({ student, onClose, onRefreshParent 
 
   useEffect(() => {
     if (!student) return;
+    let isMounted = true;
 
     async function fetchHistory() {
       if (!student) return;
       setLoading(true);
       try {
         const studentId = student.uid;
-        // 1. Fetch Quiz Attempts
+        // 1. Fetch Quiz Attempts with 10s timeout
         const quizQ = query(
           collection(db, "quiz_attempts"),
           where("userId", "==", studentId),
           orderBy("createdAt", "desc")
         );
-        const quizSnap = await getDocs(quizQ);
-        const quizList: any[] = [];
-        quizSnap.forEach((d) => quizList.push({ id: d.id, ...d.data() }));
-        setQuizAttempts(quizList);
+        const quizSnap = await withTimeout(getDocs(quizQ), 10000);
 
-        // 2. Fetch Interview Pack
-        const packQ = query(collection(db, "interview_packs"), where("userId", "==", studentId));
-        const packSnap = await getDocs(packQ);
-        if (!packSnap.empty) {
-          setInterviewPack({ id: packSnap.docs[0].id, ...packSnap.docs[0].data() });
-        } else {
-          setInterviewPack(null);
+        if (isMounted) {
+          const quizList: any[] = [];
+          quizSnap.forEach((d) => quizList.push({ id: d.id, ...d.data() }));
+          setQuizAttempts(quizList);
         }
 
-        // 3. Fetch Evaluations
+        // 2. Fetch Interview Pack with 10s timeout
+        const packQ = query(collection(db, "interview_packs"), where("userId", "==", studentId));
+        const packSnap = await withTimeout(getDocs(packQ), 10000);
+
+        if (isMounted) {
+          if (!packSnap.empty) {
+            setInterviewPack({ id: packSnap.docs[0].id, ...packSnap.docs[0].data() });
+          } else {
+            setInterviewPack(null);
+          }
+        }
+
+        // 3. Fetch Evaluations with 10s timeout
         const evalQ = query(collection(db, "evaluations"), where("studentId", "==", studentId));
-        const evalSnap = await getDocs(evalQ);
-        const evalList: any[] = [];
-        evalSnap.forEach((d) => evalList.push({ id: d.id, ...d.data() }));
-        setEvaluations(evalList.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+        const evalSnap = await withTimeout(getDocs(evalQ), 10000);
+
+        if (isMounted) {
+          const evalList: any[] = [];
+          evalSnap.forEach((d) => evalList.push({ id: d.id, ...d.data() }));
+          setEvaluations(evalList.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+        }
 
       } catch (err) {
         console.error("Error fetching student history:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
 
     fetchHistory();
+
+    return () => {
+      isMounted = false;
+    };
   }, [student]);
 
   if (!student) return null;

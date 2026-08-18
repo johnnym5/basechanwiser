@@ -215,9 +215,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       try {
         setUser(currentUser);
+        // CRITICAL FIX: Unlock the UI immediately. Do not wait for Firestore synchronization.
+        setLoading(false);
+
         if (currentUser) {
-          // Sync profile but don't let it block indefinitely
-          await syncUserToFirestore(currentUser);
+          // Sync profile in the background - NON-BLOCKING
+          syncUserToFirestore(currentUser).catch((err) => {
+            console.warn("[AuthContext] Background sync failed:", err);
+          });
         } else {
           setRole(null);
           setUserProfile(null);
@@ -226,9 +231,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error("[AuthContext Error]: Auth state transition failed:", err);
         setRole(null);
         setUserProfile(null);
+        setLoading(false);
       } finally {
         clearTimeout(fallbackTimer);
-        setLoading(false); // GUARANTEED to run
       }
     });
 

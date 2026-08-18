@@ -58,6 +58,9 @@ export function useChat(userProfile: UserProfile | null) {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Conversation));
       setConversations(list);
       setLoading(false);
+    }, (err) => {
+      console.error("Conversations Snap Error:", err);
+      setLoading(false);
     });
 
     return () => unsubscribe();

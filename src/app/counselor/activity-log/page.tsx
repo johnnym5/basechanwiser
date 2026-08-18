@@ -7,6 +7,7 @@ import AppShell from "@/components/layout/app-shell";
 import { db } from "@/lib/firebase/config";
 import { collection, query, getDocs, orderBy, limit, where } from "firebase/firestore";
 import { formatDistanceToNow, format } from "date-fns";
+import { withTimeout } from "@/lib/utils/promise-timeout";
 
 export default function ActivityLogPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,26 +16,30 @@ export default function ActivityLogPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchLogs();
-  }, [eventType]);
+    let isMounted = true;
+    const fetchLogs = async () => {
+      setLoading(true);
+      try {
+        let q = query(collection(db, "activity_logs"), orderBy("createdAt", "desc"), limit(50));
 
-  const fetchLogs = async () => {
-    setLoading(true);
-    try {
-      let q = query(collection(db, "activity_logs"), orderBy("createdAt", "desc"), limit(50));
+        if (eventType !== 'ALL') {
+          q = query(collection(db, "activity_logs"), where("type", "==", eventType), orderBy("createdAt", "desc"), limit(50));
+        }
 
-      if (eventType !== 'ALL') {
-        q = query(collection(db, "activity_logs"), where("type", "==", eventType), orderBy("createdAt", "desc"), limit(50));
+        const snap = await withTimeout(getDocs(q), 10000);
+        if (isMounted) {
+          setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        }
+      } catch (err) {
+        console.error("Fetch logs error:", err);
+      } finally {
+        if (isMounted) setLoading(false);
       }
+    };
 
-      const snap = await getDocs(q);
-      setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.error("Fetch logs error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchLogs();
+    return () => { isMounted = false; };
+  }, [eventType]);
 
   const filteredLogs = logs.filter(log =>
     log.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||

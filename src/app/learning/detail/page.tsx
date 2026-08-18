@@ -14,6 +14,8 @@ import { Resource } from "@/types/resource";
 import { logActivityAndNotify } from "@/lib/server/notifications";
 import { showPushNotification } from "@/lib/client/push-notifications";
 
+import { withTimeout } from "@/lib/utils/promise-timeout";
+
 function ModuleDetailContent() {
   const searchParams = useSearchParams();
   const packId = searchParams.get("packId") || searchParams.get("id");
@@ -62,36 +64,46 @@ function ModuleDetailContent() {
   };
 
   useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
     async function fetchData() {
-      if (!userId) return;
       setLoading(true);
       try {
-        const userSnap = await getDoc(doc(db, "Users", userId));
+        const userSnap = await withTimeout(getDoc(doc(db, "Users", userId!)), 10000);
         const profile = userSnap.exists() ? userSnap.data() as UserProfile : null;
 
         let rawData: any = null;
 
         if (profile?.assignedTestSetId) {
-          const setSnap = await getDoc(doc(db, "test_question_sets", profile.assignedTestSetId));
+          const setSnap = await withTimeout(getDoc(doc(db, "test_question_sets", profile.assignedTestSetId)), 10000);
           if (setSnap.exists()) rawData = setSnap.data();
         }
 
         if (!rawData) {
           const q = query(collection(db, "test_question_sets"), where("isDefault", "==", true), limit(1));
-          const snap = await getDocs(q);
+          const snap = await withTimeout(getDocs(q), 10000);
           if (!snap.empty) rawData = snap.docs[0].data();
         }
 
-        if (rawData) {
+        if (isMounted && rawData) {
           setPack({ id: rawData.id || packId, ...rawData } as TestQuestionSet);
         }
       } catch (err) {
-        console.warn("Fetch error:", err);
+        console.warn("Fetch error in Detail page:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [packId, userId]);
 
   const handleQuizFinish = async (results: {

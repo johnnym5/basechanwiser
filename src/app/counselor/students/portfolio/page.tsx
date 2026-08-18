@@ -41,6 +41,7 @@ import { db } from "@/lib/firebase/config";
 import { UserProfile, InterviewPack, LearningModule } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import EmptyState from "@/components/common/EmptyState";
+import { withTimeout } from "@/lib/utils/promise-timeout";
 
 /**
  * StudentPortfolioPage: Deep-dive view of a single scholar.
@@ -101,27 +102,29 @@ function PortfolioContent() {
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
+    let isMounted = true;
+
     async function fetchPortfolio() {
-      if (!id) return;
+      setLoading(true);
       try {
-        const studentSnap = await getDoc(doc(db, "Users", id));
-        if (studentSnap.exists()) {
+        const studentSnap = await withTimeout(getDoc(doc(db, "Users", id!)), 10000);
+        if (isMounted && studentSnap.exists()) {
           const loadedStudent = { uid: studentSnap.id, ...studentSnap.data() } as UserProfile;
           setStudent(loadedStudent);
         }
 
         const attemptsQ = query(collection(db, "quiz_attempts"), where("userId", "==", id), orderBy("createdAt", "desc"));
-        const attemptsSnap = await getDocs(attemptsQ);
-        setAttempts(attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const attemptsSnap = await withTimeout(getDocs(attemptsQ), 10000);
+        if (isMounted) {
+          setAttempts(attemptsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        }
 
         // ── RESILIENT MOCK FETCH ──
-        // We check multiple collections and field names to ensure we catch the session.
-        let mocks: any[] = [];
-
         const fetchFromCollection = async (collName: string, fieldName: string) => {
           try {
             const q = query(collection(db, collName), where(fieldName, "==", id));
-            const snap = await getDocs(q);
+            const snap = await withTimeout(getDocs(q), 10000);
             return snap.docs.map(d => ({ id: d.id, ...d.data(), sourceCollection: collName }));
           } catch (e) {
             console.warn(`Fetch from ${collName} via ${fieldName} failed:`, e);
@@ -135,48 +138,58 @@ function PortfolioContent() {
           fetchFromCollection("ai_mock_sessions", "userId")
         ]);
 
-        // Merge and deduplicate by document ID
-        const seenIds = new Set();
-        [...attemptsA, ...attemptsB, ...attemptsC].forEach(m => {
-          if (!seenIds.has(m.id)) {
-            mocks.push(m);
-            seenIds.add(m.id);
-          }
-        });
+        if (isMounted) {
+          // Merge and deduplicate by document ID
+          const seenIds = new Set();
+          const mocks: any[] = [];
+          [...attemptsA, ...attemptsB, ...attemptsC].forEach(m => {
+            if (!seenIds.has(m.id)) {
+              mocks.push(m);
+              seenIds.add(m.id);
+            }
+          });
 
-        // Client-side sort by submission time
-        mocks.sort((a, b) => {
-          const timeA = a.submittedAt?.seconds || a.createdAt?.seconds || 0;
-          const timeB = b.submittedAt?.seconds || b.createdAt?.seconds || 0;
-          return timeB - timeA;
-        });
+          // Client-side sort by submission time
+          mocks.sort((a, b) => {
+            const timeA = a.submittedAt?.seconds || a.createdAt?.seconds || 0;
+            const timeB = b.submittedAt?.seconds || b.createdAt?.seconds || 0;
+            return timeB - timeA;
+          });
 
-        setMockAttempts(mocks);
-
-        // ── SYNC WITH STUDENT PORTFOLIO (NEW) ──
-        // We fetch the study guide from the student's subcollection for parity
-        const guideSnap = await getDoc(doc(db, "Users", id, "portfolio", "study_guide"));
-        const packSnap = await getDoc(doc(db, "Interview_Packs", id));
-
-        let combinedPack: Partial<InterviewPack> = {};
-        if (packSnap.exists()) combinedPack = { ...packSnap.data() };
-        if (guideSnap.exists()) combinedPack = { ...combinedPack, ...guideSnap.data() };
-
-        if (Object.keys(combinedPack).length > 0) {
-          setInterviewPack(combinedPack as InterviewPack);
-          setFormData(combinedPack);
+          setMockAttempts(mocks);
         }
 
-        const modulesSnap = await getDocs(collection(db, "learning_modules"));
-        setAllModules(modulesSnap.docs.map(d => ({ id: d.id, ...d.data() } as LearningModule)));
+        // ── SYNC WITH STUDENT PORTFOLIO (NEW) ──
+        const guideSnap = await withTimeout(getDoc(doc(db, "Users", id!, "portfolio", "study_guide")), 10000);
+        const packSnap = await withTimeout(getDoc(doc(db, "Interview_Packs", id!)), 10000);
+
+        if (isMounted) {
+          let combinedPack: Partial<InterviewPack> = {};
+          if (packSnap.exists()) combinedPack = { ...packSnap.data() };
+          if (guideSnap.exists()) combinedPack = { ...combinedPack, ...guideSnap.data() };
+
+          if (Object.keys(combinedPack).length > 0) {
+            setInterviewPack(combinedPack as InterviewPack);
+            setFormData(combinedPack);
+          }
+        }
+
+        const modulesSnap = await withTimeout(getDocs(collection(db, "learning_modules")), 10000);
+        if (isMounted) {
+          setAllModules(modulesSnap.docs.map(d => ({ id: d.id, ...d.data() } as LearningModule)));
+        }
 
       } catch (err) {
         console.error("Portfolio fetch error:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
     fetchPortfolio();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   /**
