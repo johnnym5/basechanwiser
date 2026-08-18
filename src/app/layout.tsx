@@ -7,6 +7,7 @@ import LeadAssignmentModal from "@/components/admin/LeadAssignmentModal";
 import InitialSeeder from "@/components/common/InitialSeeder";
 import OfflineIndicator from "@/components/common/OfflineIndicator";
 import { SettingsProvider } from "@/context/SettingsContext";
+import GuardWrapper from "@/components/layout/GuardWrapper";
 
 export const metadata: Metadata = {
   title: "BASECHANWISER — Student Compliance & Operations Platform",
@@ -41,20 +42,4 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
-
-// ── GUARD WRAPPER: Decouples Login from SystemGuard ──
-import { usePathname } from "next/navigation";
-function GuardWrapper({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
-  // Whitelist public routes from the global authentication check.
-  // This allows the login page to render instantly without waiting for Firebase.
-  const isPublicRoute = pathname === "/login" || pathname === "/maintenance" || pathname === "/";
-
-  if (isPublicRoute) {
-    return <>{children}</>;
-  }
-
-  return <SystemGuard>{children}</SystemGuard>;
 }

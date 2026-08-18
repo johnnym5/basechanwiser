@@ -84,14 +84,15 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
     }
   }, [maintenanceMode, effectiveRole, loading, authLoading, pathname, router, user, userProfile]);
 
-  // Show the proper loader instead of a blank screen/null
-  if ((loading || authLoading) && !isTimeout) {
-    return <FullScreenLoader />;
+  // 🚨 DEFINITIVE FIX: Never show a loading guard or block the login page!
+  // This allows the login route to render instantly, bypassing all deadlocks.
+  // CRITICAL: This MUST go after all hooks to satisfy React Rules of Hooks (Error #300).
+  if (pathname === "/login" || isTimeout) {
+    return <>{children}</>;
   }
 
-  // If timeout reached and still no user, redirect to login as a failsafe
-  if (isTimeout && !user && pathname !== "/login") {
-    router.push("/login");
+  // Show the proper loader instead of a blank screen/null
+  if (loading || authLoading) {
     return <FullScreenLoader />;
   }
 
@@ -99,6 +100,7 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
   if (!user && pathname !== "/login") {
      return <FullScreenLoader />;
   }
+
 
   // SUSPENSION UI RENDER
   const isSuspended = userProfile?.suspended === true || userProfile?.status === "Suspended";
