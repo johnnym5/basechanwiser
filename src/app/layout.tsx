@@ -30,15 +30,31 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <SettingsProvider>
-              <SystemGuard>
+              <GuardWrapper>
                 {children}
                 <LeadAssignmentModal />
                 <InitialSeeder />
-              </SystemGuard>
+              </GuardWrapper>
             </SettingsProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
   );
+}
+
+// ── GUARD WRAPPER: Decouples Login from SystemGuard ──
+import { usePathname } from "next/navigation";
+function GuardWrapper({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  // Whitelist public routes from the global authentication check.
+  // This allows the login page to render instantly without waiting for Firebase.
+  const isPublicRoute = pathname === "/login" || pathname === "/maintenance" || pathname === "/";
+
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
+
+  return <SystemGuard>{children}</SystemGuard>;
 }

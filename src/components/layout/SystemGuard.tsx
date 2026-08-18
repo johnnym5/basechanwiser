@@ -17,12 +17,6 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
 
-  // 🚨 DEFINITIVE FIX: Never show a loading guard or block the login page!
-  // This allows the login route to render instantly, bypassing all deadlocks.
-  if (pathname === "/login" || isTimeout) {
-    return <>{children}</>;
-  }
-
   /**
    * SystemGuard Global Session & Loading Resolution:
    * Ensures that system settings snapshots and auth resolution are strictly guarded with
