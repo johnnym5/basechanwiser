@@ -14,21 +14,32 @@ import {
   Clock,
   Zap,
   Users,
+  User,
   Award,
   TrendingUp,
   ChevronRight,
   ClipboardList,
   Loader2,
-  Play,
-  ArrowRight
+  ArrowRight,
+  FolderDown,
+  Calendar,
+  BellRing,
+  FileDown,
+  CheckCircle,
+  ChevronLeft,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import {
   collection,
   getDocs,
+  doc,
   query,
   where,
   orderBy,
   limit,
+  updateDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { motion, AnimatePresence } from "framer-motion";
@@ -52,6 +63,93 @@ export default function CounselorDashboard() {
   const [dataLoading, setDataLoading] = useState(true);
   const [priorityTasks, setPriorityTasks] = useState<PriorityTask[]>([]);
   const [liveActivities, setLiveActivities] = useState<any[]>([]);
+  const [scheduledSessions, setScheduledSessions] = useState<any[]>([]);
+
+  // ── Action Center Filter & Pagination ──
+  const [taskFilter, setTaskFilter] = useState<'ALL' | 'mock' | 'dossier'>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const tasksPerPage = 5;
+
+  const filteredTasks = useMemo(() => {
+    return priorityTasks.filter(t => taskFilter === 'ALL' || t.type === taskFilter);
+  }, [priorityTasks, taskFilter]);
+
+  const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
+  const visibleTasks = filteredTasks.slice((currentPage - 1) * tasksPerPage, currentPage * tasksPerPage);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [taskFilter]);
+
+  // ── Pagination & Grouping State for Live Activity ──
+  const [activityPage, setActivityPage] = useState(1);
+  const activitiesPerPage = 5;
+  const [expandedStudentIds, setExpandedStudentIds] = useState<string[]>([]);
+
+  const groupedActivities = useMemo(() => {
+    const groups: Record<string, { studentId: string; studentName: string; logs: any[] }> = {};
+    liveActivities.forEach(log => {
+      const sId = log.studentId || 'unknown';
+      if (!groups[sId]) {
+        groups[sId] = {
+          studentId: sId,
+          studentName: log.studentName || 'Unknown Student',
+          logs: []
+        };
+      }
+      groups[sId].logs.push(log);
+    });
+    // Sort groups by the latest log in each group
+    return Object.values(groups).sort((a, b) => {
+      const latestA = a.logs[0]?.createdAt?.seconds || 0;
+      const latestB = b.logs[0]?.createdAt?.seconds || 0;
+      return latestB - latestA;
+    });
+  }, [liveActivities]);
+
+  const totalActivityPages = Math.ceil(groupedActivities.length / activitiesPerPage);
+  const visibleActivityGroups = groupedActivities.slice((activityPage - 1) * activitiesPerPage, activityPage * activitiesPerPage);
+
+  const toggleStudentExpansion = (studentId: string) => {
+    setExpandedStudentIds(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  const handleAcknowledge = async (taskId: string, type: 'mock' | 'dossier') => {
+    try {
+      // 1. Determine target collection
+      const collectionName = type === 'mock' ? 'mock_interview_attempts' : 'Interview_Packs';
+      const taskRef = doc(db, collectionName, taskId);
+
+      // 2. Perform Backend update first (to ensure consistency)
+      // or at least prepare it.
+      const updatePromise = updateDoc(taskRef, {
+        status: type === 'mock' ? 'acknowledged' : 'Verified',
+        updatedAt: serverTimestamp()
+      });
+
+      // 3. UI update: Remove from local state
+      setPriorityTasks(prev => prev.filter(t => t.id !== taskId));
+
+      // 4. Adjust pagination if the page becomes empty
+      // We calculate this based on the length BEFORE the state update finishes
+      const currentFilteredCount = filteredTasks.length;
+      if (currentFilteredCount <= 1 && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+      }
+
+      await updatePromise;
+
+    } catch (error) {
+      console.error("Acknowledgment failed:", error);
+      // Re-fetch to ensure UI is accurate if update failed
+      fetchDashboardData();
+    }
+  };
 
   useEffect(() => {
     if (!loading && role !== "Counselor" && role !== "Admin" && role !== "Super Admin") {
@@ -71,16 +169,19 @@ export default function CounselorDashboard() {
 
       if (role === 'Counselor' && user) {
         usersQuery = query(collection(db, "Users"), where('assignedCounselorId', '==', user.uid));
-        // Strict cross-collection filtering for Counselors
-        packsQuery = query(collection(db, "Interview_Packs"), where("status", "==", "Submitted"), where("counselorId", "==", user.uid));
-        mocksQuery = query(collection(db, "mock_interview_attempts"), where("status", "==", "pending_review"), where("counselorId", "==", user.uid), limit(10));
       }
 
-      const [usersSnap, packsSnap, mocksSnap, logsSnap] = await Promise.all([
+      if (!user) {
+        setDataLoading(false);
+        return;
+      }
+
+      const [usersSnap, packsSnap, mocksSnap, logsSnap, sessionsSnap] = await Promise.all([
         withTimeout(getDocs(usersQuery), 10000),
-        withTimeout(getDocs(packsQuery), 10000),
-        withTimeout(getDocs(mocksQuery), 10000),
-        withTimeout(getDocs(query(collection(db, "activity_logs"), orderBy("createdAt", "desc"), limit(5))), 10000)
+        withTimeout(getDocs(query(collection(db, "Interview_Packs"), where("status", "==", "Submitted"))), 10000),
+        withTimeout(getDocs(query(collection(db, "mock_interview_attempts"), where("status", "==", "pending_review"), limit(10))), 10000),
+        withTimeout(getDocs(query(collection(db, "activity_logs"), orderBy("createdAt", "desc"), limit(5))), 10000),
+        withTimeout(getDocs(query(collection(db, "reminders"), where("counselorUid", "==", user.uid), where("isTriggered", "==", false), orderBy("triggerAt", "asc"), limit(10))), 10000)
       ]);
 
       if (isMounted) {
@@ -91,6 +192,10 @@ export default function CounselorDashboard() {
         const studentIds = studentList.map(s => s.uid);
 
         setStudents(studentList);
+
+        // ── Process Scheduled Sessions ──
+        const sessions = sessionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setScheduledSessions(sessions);
 
         // ── Process Activity Logs ──
         const logs = logsSnap.docs
@@ -148,9 +253,13 @@ export default function CounselorDashboard() {
 
   const metrics = useMemo(() => {
     const total = students.length;
-    const atRisk = students.filter(s => s.readinessStatus === 'Red').length;
-    const ready = students.filter(s => s.readinessStatus === 'Green').length;
-    const inProgress = students.filter(s => s.readinessStatus === 'Yellow' || s.readinessStatus === 'Orange').length;
+    const atRisk = students.filter(s => s.readinessStatus === 'Red' || s.readinessStatus === 'AT_RISK').length;
+    const ready = students.filter(s => s.readinessStatus === 'Green' || s.readinessStatus === 'INTERVIEW_READY').length;
+    const inProgress = students.filter(s =>
+      s.readinessStatus === 'Yellow' ||
+      s.readinessStatus === 'Orange' ||
+      s.readinessStatus === 'IN_PROGRESS'
+    ).length;
 
     return { total, atRisk, ready, inProgress };
   }, [students]);
@@ -194,7 +303,7 @@ export default function CounselorDashboard() {
             href="/counselor/students?filter=IN_PROGRESS"
           />
           <StatLink
-            title="Mission Ready"
+            title="Interview Ready"
             value={metrics.ready}
             icon={CheckCircle2}
             color="emerald"
@@ -202,68 +311,128 @@ export default function CounselorDashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
           {/* ── 2. PRIORITY ACTION CENTER (Left 2 Columns) ── */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 rounded-[40px] p-8 shadow-sm h-full">
-              <div className="flex items-center justify-between mb-8">
+            <div className="bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 rounded-[40px] p-8 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
                  <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center">
                    <CheckCircle2 className="mr-3 text-blue-500" /> Priority Action Center
                  </h2>
                  <span className="px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase rounded-full border border-blue-100 dark:border-blue-900/30">
-                    {priorityTasks.length} Pending Tasks
+                    {filteredTasks.length} Pending
                  </span>
               </div>
 
+              {/* Filter Tabs */}
+              <div className="flex items-center space-x-2 mb-8 border-b border-gray-50 dark:border-slate-800 pb-6 overflow-x-auto scrollbar-hide">
+                {(['ALL', 'mock', 'dossier'] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setTaskFilter(type)}
+                    className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${
+                      taskFilter === type
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/30'
+                        : 'bg-gray-50 dark:bg-slate-900 text-gray-400 border-gray-100 dark:border-slate-800 hover:text-gray-600 dark:hover:text-white'
+                    }`}
+                  >
+                    {type === 'mock' ? 'Mock Interviews' : type === 'dossier' ? 'Student Details' : 'All Tasks'}
+                  </button>
+                ))}
+              </div>
+
               <div className="space-y-4">
-                {priorityTasks.length === 0 ? (
+                {filteredTasks.length === 0 ? (
                   <div className="p-20 text-center space-y-3 opacity-40">
                      <ClipboardList className="w-12 h-12 mx-auto" />
                      <p className="text-xs font-bold uppercase tracking-widest">No pending priority actions.</p>
                   </div>
                 ) : (
-                  <AnimatePresence>
-                    {priorityTasks.map((task, idx) => {
-                      const hoursOld = task.timestamp?.seconds
-                        ? (Date.now() / 1000 - task.timestamp.seconds) / 3600
-                        : 0;
+                  <div className="space-y-4">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {visibleTasks.map((task) => {
+                        const hoursOld = task.timestamp?.seconds
+                          ? (Date.now() / 1000 - task.timestamp.seconds) / 3600
+                          : 0;
 
-                      const getSLAStyles = (hours: number) => {
-                        if (hours > 48) return 'border-red-500/50 bg-red-500/5 hover:bg-red-500/10';
-                        if (hours > 24) return 'border-amber-500/50 bg-amber-500/5 hover:bg-amber-500/10';
-                        return 'border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-[#0F172A] hover:border-blue-500/50';
-                      };
+                        const getSLAStyles = (hours: number) => {
+                          if (hours > 48) return 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10';
+                          if (hours > 24) return 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10';
+                          return 'border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-[#0F172A] hover:border-blue-500/50';
+                        };
 
-                      return (
-                        <motion.div
-                          key={task.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                          className={`flex items-center justify-between p-5 rounded-3xl border transition-all group shadow-sm ${getSLAStyles(hoursOld)}`}
-                        >
-                          <div className="flex items-center gap-5">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${task.type === 'mock' ? 'bg-orange-50 text-orange-500 shadow-inner' : 'bg-blue-50 text-blue-500 shadow-inner'}`}>
-                              {task.type === 'mock' ? <Zap size={24} /> : <FileText size={24} />}
-                            </div>
-                            <div>
-                              <p className="text-sm font-black dark:text-white uppercase tracking-tighter">{task.title}</p>
-                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{task.subtitle}</p>
-                            </div>
-                          </div>
-                          <Link
-                            href={task.type === 'mock'
-                              ? `/counselor/mock-interviews/playback?attemptId=${task.id}`
-                              : `/counselor/students/portfolio?id=${task.studentId}`}
-                            className="px-5 py-2.5 bg-white dark:bg-[#1E293B] hover:bg-blue-600 hover:text-white dark:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all flex items-center gap-2"
+                        return (
+                          <motion.div
+                            key={task.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                            className={`flex items-center justify-between p-5 rounded-3xl border transition-all group shadow-sm ${getSLAStyles(hoursOld)}`}
                           >
-                            Review Now <ChevronRight size={14} />
-                          </Link>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
+                            <div className="flex items-center gap-5">
+                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${task.type === 'mock' ? 'bg-orange-50 text-orange-500 shadow-inner' : 'bg-blue-50 text-blue-500 shadow-inner'}`}>
+                                {task.type === 'mock' ? <Zap size={24} /> : <FileText size={24} />}
+                              </div>
+                              <div>
+                                <p className="text-sm font-black dark:text-white uppercase tracking-tighter">{task.title}</p>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{task.subtitle}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleAcknowledge(task.id, task.type);
+                                }}
+                                className="p-3 text-gray-400 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-2xl transition-all active:scale-75 cursor-pointer"
+                                title="Acknowledge & Dismiss"
+                              >
+                                <CheckCircle size={22} />
+                              </button>
+                              <Link
+                                href={task.type === 'mock'
+                                  ? `/counselor/mock-interviews/playback?attemptId=${task.id}`
+                                  : `/counselor/students/portfolio?id=${task.studentId}`}
+                                className="px-5 py-2.5 bg-white dark:bg-[#1E293B] hover:bg-blue-600 hover:text-white dark:text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm transition-all flex items-center gap-2"
+                              >
+                                Review Now <ChevronRight size={14} />
+                              </Link>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-50 dark:border-slate-800">
+                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                          Showing {(currentPage - 1) * tasksPerPage + 1}-{Math.min(currentPage * tasksPerPage, priorityTasks.length)} of {priorityTasks.length}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 text-gray-500 disabled:opacity-30 hover:bg-gray-100 transition-all"
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <span className="text-xs font-black text-blue-600 dark:text-blue-400 px-2">{currentPage} / {totalPages}</span>
+                          <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 text-gray-500 disabled:opacity-30 hover:bg-gray-100 transition-all"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -274,7 +443,7 @@ export default function CounselorDashboard() {
 
             {/* Quick Actions */}
             <div className="bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 rounded-[40px] p-8 shadow-sm">
-              <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Quick Infrastructure</h2>
+              <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Quick Actions</h2>
               <div className="grid grid-cols-2 gap-4">
                 <QuickActionButton
                    icon={UserPlus}
@@ -283,62 +452,198 @@ export default function CounselorDashboard() {
                    onClick={() => router.push('/counselor/students')}
                 />
                 <QuickActionButton
-                   icon={Megaphone}
-                   label="Broadcast"
+                   icon={FolderDown}
+                   label="Assign Pack"
                    color="emerald"
+                   onClick={() => router.push('/counselor/students')}
                 />
                 <QuickActionButton
-                   icon={Play}
-                   label="Conduct Live"
-                   color="indigo"
-                />
-                <QuickActionButton
-                   icon={ClipboardList}
-                   label="View Rubrics"
+                   icon={Calendar}
+                   label="Schedule Mock"
                    color="purple"
-                   onClick={() => router.push('/counselor/settings')}
+                   onClick={() => router.push('/counselor/students')}
                 />
+                <QuickActionButton
+                   icon={BellRing}
+                   label="Send Nudge"
+                   color="amber"
+                   onClick={() => router.push('/counselor/students')}
+                />
+                <button
+                  onClick={() => router.push('/counselor/activity-log')}
+                  className="col-span-2 flex items-center justify-center gap-3 p-4 bg-gray-50 dark:bg-slate-900 border-2 border-gray-100 dark:border-slate-800 rounded-3xl transition-all hover:scale-[1.02] active:scale-95 hover:border-indigo-500/50 group"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                    <FileDown size={18} className="text-indigo-400" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-slate-300">Generate Report</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Upcoming Agenda Widget */}
+            <div className="bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 rounded-[40px] p-8 shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Upcoming Sessions</h2>
+                <button
+                  onClick={() => router.push('/counselor/students')}
+                  className="text-[9px] text-blue-500 hover:underline font-black uppercase tracking-widest"
+                >
+                  View Schedule
+                </button>
+              </div>
+
+              <div className="space-y-4 max-h-[320px] overflow-y-auto pr-2 scrollbar-hide">
+                {scheduledSessions.length === 0 ? (
+                  <div className="py-10 text-center space-y-2 opacity-30">
+                    <Calendar size={32} className="mx-auto" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">No sessions scheduled.</p>
+                  </div>
+                ) : (
+                  scheduledSessions.map((session) => {
+                    const date = new Date(session.triggerAt);
+                    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const isToday = new Date().toDateString() === date.toDateString();
+
+                    return (
+                      <div
+                        key={session.id}
+                        className="p-4 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[28px] relative overflow-hidden group hover:border-blue-500/50 transition-all shadow-sm"
+                      >
+                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600 rounded-l-[28px]"></div>
+                        <div className="flex justify-between items-center">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase">
+                              <Clock size={12} />
+                              {isToday ? 'Today' : date.toLocaleDateString()} • {timeStr}
+                            </div>
+                            <div className="text-sm font-black dark:text-white uppercase tracking-tighter truncate max-w-[150px]">
+                              {session.message}
+                            </div>
+                          </div>
+                          <Link
+                            href={`/counselor/live-mock?studentId=${session.studentUid}`}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 whitespace-nowrap"
+                          >
+                            Join Room
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
             {/* Live Activity Feed */}
             <div className="bg-[#0F172A] rounded-[40px] p-8 text-white shadow-2xl space-y-6">
                <h2 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Live Activity Feed</h2>
-               <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2 before:h-full before:w-0.5 before:bg-blue-900/30">
-                  {liveActivities.length === 0 ? (
+               <div className="space-y-4">
+                  {visibleActivityGroups.length === 0 ? (
                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest text-center py-10 italic">No recent activity detected.</p>
                   ) : (
-                    liveActivities.map((log) => {
-                      const timeStr = log.createdAt?.seconds
-                        ? formatDistanceToNow(log.createdAt.seconds * 1000) + ' ago'
-                        : 'Just now';
+                    <div className="space-y-3">
+                      {visibleActivityGroups.map((group) => {
+                        const isExpanded = expandedStudentIds.includes(group.studentId);
+                        return (
+                          <div key={group.studentId} className="space-y-2">
+                            <button
+                              onClick={() => toggleStudentExpansion(group.studentId)}
+                              className="w-full flex items-center justify-between p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all border border-white/5 group"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                  <User size={16} className="text-blue-400" />
+                                </div>
+                                <span className="text-xs font-black uppercase tracking-tight text-left">{group.studentName}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-bold text-gray-500 uppercase">{group.logs.length} Actions</span>
+                                {isExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+                              </div>
+                            </button>
 
-                      const iconMap: any = {
-                        'ACADEMY_MODULE': CheckCircle2,
-                        'MOCK_INTERVIEW': Zap,
-                        'DOCUMENT': FileText,
-                        'SYSTEM': Clock
-                      };
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="pl-4 space-y-2 pb-2">
+                                    {group.logs.map((log) => {
+                                      const timeStr = log.createdAt?.seconds
+                                        ? formatDistanceToNow(log.createdAt.seconds * 1000) + ' ago'
+                                        : 'Just now';
 
-                      const colorMap: any = {
-                        'ACADEMY_MODULE': 'emerald',
-                        'MOCK_INTERVIEW': 'orange',
-                        'DOCUMENT': 'blue',
-                        'SYSTEM': 'indigo'
-                      };
+                                      const iconMap: any = {
+                                        'ACADEMY_MODULE': CheckCircle2,
+                                        'MOCK_INTERVIEW': Zap,
+                                        'DOCUMENT': FileText,
+                                        'SYSTEM': Clock
+                                      };
 
-                      return (
-                        <ActivityItem
-                          key={log.id}
-                          studentId={log.studentId}
-                          user={log.studentName}
-                          action={log.action}
-                          time={timeStr}
-                          icon={iconMap[log.type] || Clock}
-                          color={colorMap[log.type] || 'indigo'}
-                        />
-                      );
-                    })
+                                      const colorMap: any = {
+                                        'ACADEMY_MODULE': 'emerald',
+                                        'MOCK_INTERVIEW': 'orange',
+                                        'DOCUMENT': 'blue',
+                                        'SYSTEM': 'indigo'
+                                      };
+
+                                      return (
+                                        <ActivityItem
+                                          key={log.id}
+                                          studentId={log.studentId}
+                                          user={log.studentName}
+                                          action={log.action}
+                                          time={timeStr}
+                                          icon={iconMap[log.type] || Clock}
+                                          color={colorMap[log.type] || 'indigo'}
+                                          nested
+                                        />
+                                      );
+                                    })}
+                                    <Link
+                                      href={`/counselor/students/portfolio?id=${group.studentId}`}
+                                      className="block w-full py-2 text-center text-[9px] font-black uppercase text-blue-400 hover:text-blue-300 transition-colors bg-white/5 rounded-xl border border-dashed border-white/10"
+                                    >
+                                      View Full Student Profile
+                                    </Link>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Activity Pagination Controls */}
+                  {totalActivityPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setActivityPage(p => Math.max(1, p - 1))}
+                          disabled={activityPage === 1}
+                          className="p-1.5 rounded-lg bg-white/5 text-gray-400 disabled:opacity-30 hover:bg-white/10 transition-all"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <span className="text-[10px] font-black text-blue-400 px-2">{activityPage} / {totalActivityPages}</span>
+                        <button
+                          onClick={() => setActivityPage(p => Math.min(totalActivityPages, p + 1))}
+                          disabled={activityPage === totalActivityPages}
+                          className="p-1.5 rounded-lg bg-white/5 text-gray-400 disabled:opacity-30 hover:bg-white/10 transition-all"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                      <span className="text-[8px] font-black uppercase text-gray-500">
+                        {groupedActivities.length} Scholars
+                      </span>
+                    </div>
                   )}
                </div>
                <Link href="/counselor/activity-log" className="block w-full py-3 bg-white/5 border border-white/5 hover:border-white/10 rounded-2xl text-[9px] font-black uppercase tracking-widest text-blue-400 transition-all text-center">
@@ -381,6 +686,7 @@ function QuickActionButton({ icon: Icon, label, color, onClick }: any) {
     emerald: "text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/30 hover:border-emerald-500/50",
     indigo: "text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-900/30 hover:border-indigo-500/50",
     purple: "text-purple-500 bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-900/30 hover:border-purple-500/50",
+    amber: "text-amber-500 bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30 hover:border-amber-500/50",
   };
 
   return (
@@ -394,7 +700,7 @@ function QuickActionButton({ icon: Icon, label, color, onClick }: any) {
   );
 }
 
-function ActivityItem({ studentId, user, action, time, icon: Icon, color }: any) {
+function ActivityItem({ studentId, user, action, time, icon: Icon, color, nested }: any) {
   const colorMap: any = {
     emerald: "bg-emerald-500",
     blue: "bg-blue-500",
@@ -404,13 +710,19 @@ function ActivityItem({ studentId, user, action, time, icon: Icon, color }: any)
 
   return (
     <Link href={`/counselor/students/portfolio?id=${studentId}`} className="relative flex items-center gap-4 group cursor-pointer">
-      <div className={`w-4 h-4 rounded-full border-4 border-[#0F172A] ${colorMap[color]} shrink-0 z-10 transition-transform group-hover:scale-125`} />
-      <div className="flex-1 bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/5 group-hover:border-white/20 group-hover:bg-white/10 transition-all">
+      {!nested && <div className={`w-4 h-4 rounded-full border-4 border-[#0F172A] ${colorMap[color]} shrink-0 z-10 transition-transform group-hover:scale-125`} />}
+      <div className={`flex-1 bg-white/5 backdrop-blur-md ${nested ? 'p-3' : 'p-4'} rounded-2xl border border-white/5 group-hover:border-white/20 group-hover:bg-white/10 transition-all`}>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-black uppercase tracking-tight">{user}</span>
-          <time className="text-[9px] font-bold text-gray-500 flex items-center"><Clock size={10} className="mr-1"/> {time}</time>
+          {!nested && <span className="text-xs font-black uppercase tracking-tight">{user}</span>}
+          {nested && (
+            <div className="flex items-center gap-2">
+               <Icon size={12} className={color === 'emerald' ? 'text-emerald-400' : color === 'orange' ? 'text-orange-400' : color === 'blue' ? 'text-blue-400' : 'text-indigo-400'} />
+               <p className="text-[10px] font-black uppercase text-gray-300">{action.split(' ')[0]}</p>
+            </div>
+          )}
+          <time className="text-[9px] font-bold text-gray-500 flex items-center ml-auto"><Clock size={10} className="mr-1"/> {time}</time>
         </div>
-        <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{action}</p>
+        <p className={`${nested ? 'text-[9px]' : 'text-[10px]'} text-gray-400 font-medium uppercase tracking-widest`}>{nested ? action : action}</p>
       </div>
     </Link>
   );

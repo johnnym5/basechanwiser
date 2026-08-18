@@ -9,20 +9,18 @@ import { SystemSettings } from "@/types/resource";
 import FullScreenLoader from "@/components/common/FullScreenLoader";
 import { ShieldAlert, LogOut } from "lucide-react";
 
+/**
+ * SystemGuard: Protects routes and handles maintenance/suspension states.
+ */
 export default function SystemGuard({ children }: { children: React.ReactNode }) {
-  const { user, userProfile, role, loading: authLoading, logout, effectiveRole } = useAuth();
+  const { user, userProfile, loading: authLoading, logout, effectiveRole } = useAuth();
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isTimeout, setIsTimeout] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
-  /**
-   * SystemGuard Global Session & Loading Resolution:
-   * Ensures that system settings snapshots and auth resolution are strictly guarded with
-   * try/catch/finally resolution and an 8-second safety fallback timeout.
-   * setLoading(false) is called on snapshot success AND snapshot error.
-   */
+  // 1. System Settings Listener
   useEffect(() => {
     // Safety fallback: if Firebase/System check hangs for more than 8 seconds, force a resolution
     const timer = setTimeout(() => {
@@ -30,7 +28,6 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
       setLoading(false);
     }, 8000);
 
-    // Listen to global system settings
     const unsub = onSnapshot(doc(db, "system_settings", "global"), (snap) => {
       try {
         if (snap.exists()) {
@@ -40,11 +37,11 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
       } catch (e) {
         console.error("System settings parsing error:", e);
       } finally {
-        setLoading(false); // Universally resolved
+        setLoading(false);
       }
     }, (err) => {
       console.error("System settings snapshot error:", err);
-      setLoading(false); // Universally resolved on error
+      setLoading(false);
     });
 
     return () => {
@@ -53,56 +50,49 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
     };
   }, []);
 
+  // 2. Navigation & Access Control Logic
   useEffect(() => {
     if (loading || authLoading) return;
-
-    // 🚨 DEFINITIVE FIX: Never block the /login route with a guard.
     if (pathname === "/login") return;
 
-    // Route Guard Logic
-    if (!user && pathname !== "/login" && pathname !== "/maintenance") {
+    if (!user && pathname !== "/maintenance") {
       router.push("/login");
       return;
     }
 
-    // SUSPENSION CHECK
     const isSuspended = userProfile?.suspended === true || userProfile?.status === "Suspended";
-    if (user && isSuspended && pathname !== "/login") {
-      // We'll handle the UI in the render block below
-      return;
-    }
+    if (user && isSuspended) return;
 
-    // If maintenance mode is ON and user is a Student
     if (maintenanceMode && effectiveRole === "Student" && pathname !== "/maintenance") {
       router.push("/maintenance");
     }
 
-    // If maintenance mode is OFF but user is on the maintenance page
     if (!maintenanceMode && pathname === "/maintenance") {
       const homePath = effectiveRole === "Student" ? "/dashboard" : "/counselor/dashboard";
       router.push(homePath);
     }
   }, [maintenanceMode, effectiveRole, loading, authLoading, pathname, router, user, userProfile]);
 
-  // 🚨 DEFINITIVE FIX: Never show a loading guard or block the login page!
-  // This allows the login route to render instantly, bypassing all deadlocks.
-  // CRITICAL: This MUST go after all hooks to satisfy React Rules of Hooks (Error #300).
+  // 🚨 RULES OF HOOKS: All hooks must be defined BEFORE any early returns.
+
+  // 3. Early Returns (Post-Hook initialization)
+
+  // Bypass guard for login page or on timeout
   if (pathname === "/login" || isTimeout) {
     return <>{children}</>;
   }
 
-  // Show the proper loader instead of a blank screen/null
+  // Show global loader while initializing
   if (loading || authLoading) {
     return <FullScreenLoader />;
   }
 
-  // Prevent rendering children if unauthenticated on protected routes (prevents flash)
+  // Double-check auth for non-public routes
   if (!user && pathname !== "/login") {
      return <FullScreenLoader />;
   }
 
-
-  // SUSPENSION UI RENDER
+  // Handle User Suspension UI
   const isSuspended = userProfile?.suspended === true || userProfile?.status === "Suspended";
   if (user && isSuspended) {
     return (
@@ -134,4 +124,3 @@ export default function SystemGuard({ children }: { children: React.ReactNode })
 
   return <>{children}</>;
 }
-

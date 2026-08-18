@@ -11,11 +11,13 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  FileText
+  FileText,
+  StickyNote
 } from "lucide-react";
 import { UserProfile } from "@/types";
 import Link from "next/link";
 import SetReminderModal from "./SetReminderModal";
+import QuickNoteModal from "./QuickNoteModal";
 
 interface QuickPortfolioModalProps {
   student: UserProfile;
@@ -24,6 +26,7 @@ interface QuickPortfolioModalProps {
 
 export default function QuickPortfolioModal({ student, onClose }: QuickPortfolioModalProps) {
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
 
   const statusColor = student.readinessStatus === "Green" ? "text-emerald-500" : student.readinessStatus === "Yellow" ? "text-amber-500" : student.readinessStatus === 'Orange' ? 'text-orange-600' : "text-rose-500";
   const statusBg = student.readinessStatus === "Green" ? "bg-emerald-50" : student.readinessStatus === "Yellow" ? "bg-amber-50" : student.readinessStatus === 'Orange' ? 'bg-orange-50' : "bg-rose-50";
@@ -83,16 +86,24 @@ export default function QuickPortfolioModal({ student, onClose }: QuickPortfolio
           </div>
 
           {/* Footer Actions */}
-          <div className="p-8 bg-gray-50/50 dark:bg-[#0F172A]/50 border-t border-gray-50 dark:border-slate-800 flex gap-4">
-             <button
-                onClick={() => setReminderModalOpen(true)}
-                className="flex-1 py-4 bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
-             >
-                <CalendarClock className="w-4 h-4" /> Set Reminder
-             </button>
+          <div className="p-8 bg-gray-50/50 dark:bg-[#0F172A]/50 border-t border-gray-50 dark:border-slate-800 space-y-3">
+             <div className="flex gap-4">
+                <button
+                   onClick={() => setReminderModalOpen(true)}
+                   className="flex-1 py-4 bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                >
+                   <CalendarClock className="w-4 h-4" /> Set Reminder
+                </button>
+                <button
+                   onClick={() => setShowNoteModal(true)}
+                   className="flex-1 py-4 bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                >
+                   <StickyNote className="w-4 h-4" /> Quick Note
+                </button>
+             </div>
              <Link
                 href={`/counselor/students/portfolio?id=${student.uid}`}
-                className="flex-1 py-4 bg-[#1a73e8] text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-[#1557b0] shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                className="block w-full py-4 bg-[#1a73e8] text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-[#1557b0] shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
              >
                 Full Portfolio <ArrowRight className="w-4 h-4" />
              </Link>
@@ -110,6 +121,17 @@ export default function QuickPortfolioModal({ student, onClose }: QuickPortfolio
           }}
           onClose={() => setReminderModalOpen(false)}
           onSuccess={() => alert("Reminder set for student!")}
+        />
+      )}
+
+      {showNoteModal && (
+        <QuickNoteModal
+          student={{
+            uid: student.uid,
+            displayName: student.displayName
+          }}
+          onClose={() => setShowNoteModal(false)}
+          onSuccess={() => alert("Note preserved in timeline.")}
         />
       )}
     </>

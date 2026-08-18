@@ -6,24 +6,30 @@ import { motion } from "framer-motion";
 
 interface PreFlightLobbyProps {
   onStart: (stream: MediaStream) => void;
+  onStreamAcquired?: (stream: MediaStream) => void; // ── Sync with parent for global cleanup ──
   title: string;
   duration: string;
 }
 
-export default function PreFlightLobby({ onStart, title, duration }: PreFlightLobbyProps) {
+export default function PreFlightLobby({ onStart, onStreamAcquired, title, duration }: PreFlightLobbyProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const isStartedRef = useRef(false);
 
   useEffect(() => {
+    let localStream: MediaStream | null = null;
+
     async function getMedia() {
       try {
         const userStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: true
         });
+        localStream = userStream;
         setStream(userStream);
+        if (onStreamAcquired) onStreamAcquired(userStream);
         if (videoRef.current) {
           videoRef.current.srcObject = userStream;
         }
@@ -35,12 +41,20 @@ export default function PreFlightLobby({ onStart, title, duration }: PreFlightLo
     getMedia();
 
     return () => {
-      // Don't stop tracks here yet, we'll pass them to the next phase
+      // ── CRITICAL: Hardware Release ──
+      // If we unmount (navigate away) before clicking 'Begin', we MUST kill the tracks.
+      if (localStream && !isStartedRef.current) {
+        localStream.getTracks().forEach(track => {
+          track.stop();
+          console.log(`[LobbyCleanup] Hardware access revoked: ${track.kind}`);
+        });
+      }
     };
   }, []);
 
   const handleBegin = () => {
     if (stream) {
+      isStartedRef.current = true;
       onStart(stream);
     }
   };

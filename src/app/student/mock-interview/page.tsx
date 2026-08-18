@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import AppShell from "@/components/layout/app-shell";
 import PreFlightLobby from "@/components/student/PreFlightLobby";
 import InterviewRecorder from "@/components/student/InterviewRecorder";
@@ -18,37 +18,62 @@ export default function StudentMockInterviewPage() {
   const { userId, userProfile, user } = useAuth();
   const [step, setStep] = useState<Step>('loading');
   const [questionSet, setQuestionSet] = useState<MockQuestionSet | null>(null);
+  const [availableSets, setAvailableSets] = useState<MockQuestionSet[]>([]);
   const [questions, setQuestions] = useState<MockQuestion[]>([]);
-  const [activeStream, setActiveStream] = useState<MediaStream | null>(null);
+  const activeStreamRef = useRef<MediaStream | null>(null);
   const router = useRouter();
+
+  // ── HARDWARE SECURITY ENGINE ──
+  // Ensures that whenever this page is left (navigation/refresh),
+  // all media hardware is strictly released.
+  useEffect(() => {
+    const releaseHardware = () => {
+      if (activeStreamRef.current) {
+        activeStreamRef.current.getTracks().forEach(track => {
+          track.stop();
+          console.log(`[Security] Force-released hardware: ${track.kind}`);
+        });
+        activeStreamRef.current = null;
+      }
+    };
+
+    window.addEventListener('beforeunload', releaseHardware);
+
+    return () => {
+      releaseHardware();
+      window.removeEventListener('beforeunload', releaseHardware);
+    };
+  }, []);
 
   useEffect(() => {
     if (userId) fetchConfig();
   }, [userId]);
 
-  const fetchConfig = async () => {
+  const fetchConfig = async (targetId?: string) => {
     try {
-      // 1. Fetch smart question set (reusing the logic or keeping it local)
+      // 1. Fetch All Active Question Sets
+      // Logic: Allow students to see global defaults + their assigned set.
+      const setsQuery = query(collection(db, "mock_interview_sets"), where("isArchived", "==", false));
+      const setsSnap = await getDocs(setsQuery);
+      const allSets = setsSnap.docs.map(d => ({ id: d.id, ...d.data() } as MockQuestionSet));
+      setAvailableSets(allSets);
+
+      // 2. Resolve target set (Force selection if targetId provided)
       const userSnap = await getDoc(doc(db, "Users", userId!));
-      const assignedSetId = userSnap.exists() ? userSnap.data()?.assignedMockSetId : null;
+      const profile = userSnap.data();
+      const assignedSetId = targetId || profile?.assignedMockSetId;
 
       let targetSet: MockQuestionSet | null = null;
       if (assignedSetId) {
-        const setSnap = await getDoc(doc(db, "mock_interview_sets", assignedSetId));
-        if (setSnap.exists() && !setSnap.data().isArchived) {
-          targetSet = { id: setSnap.id, ...setSnap.data() } as MockQuestionSet;
-        }
+        targetSet = allSets.find(s => s.id === assignedSetId) || null;
       }
 
       if (!targetSet) {
-        const q = query(collection(db, "mock_interview_sets"), where("isDefault", "==", true), where("isArchived", "==", false), limit(1));
-        const snap = await getDocs(q);
-        if (!snap.empty) targetSet = { id: snap.docs[0].id, ...snap.docs[0].data() } as MockQuestionSet;
+        targetSet = allSets.find(s => s.isDefault) || allSets[0] || null;
       }
 
       if (targetSet) {
         setQuestionSet(targetSet);
-        // Normalize questions to MockQuestion objects
         const normalized = targetSet.questions.map((q, idx) => {
           if (typeof q === 'string') {
             return { id: `q${idx}`, text: q, timeLimit: targetSet!.timePerQuestionSeconds || 60 };
@@ -62,18 +87,22 @@ export default function StudentMockInterviewPage() {
         setQuestions(normalized);
         setStep('lobby');
       } else {
-        setStep('lobby'); // Will show empty state
+        setStep('lobby');
       }
     } catch (err) {
       console.error("Config fetch error", err);
     }
   };
 
-  const handleStartInterview = async (stream: MediaStream) => {
+  const handleStartInterview = (stream: MediaStream) => {
     if (!userId || !questionSet) return;
-    setStep('loading');
-    setActiveStream(stream);
+    activeStreamRef.current = stream; // ── Sync Ref for global hardware control ──
+    initializeAttempt();
+  };
 
+  const initializeAttempt = async () => {
+    if (!questionSet) return;
+    setStep('loading');
     try {
       // STORAGE CLEANUP ENGINE (Retake Logic)
       const attemptId = `${userId}_${questionSet.id}`;
@@ -134,22 +163,59 @@ export default function StudentMockInterviewPage() {
         )}
 
         {step === 'lobby' && (
-          <PreFlightLobby
-            title={questionSet?.title || "Mock Interview"}
-            duration={`${questions.length} Questions`}
-            onStart={handleStartInterview}
-          />
+          <div className="space-y-6">
+            {/* ── INTERVIEW SET SELECTOR ── */}
+            {availableSets.length > 1 && (
+              <div className="max-w-2xl mx-auto flex items-center justify-between px-6 py-4 bg-white dark:bg-[#1E293B] rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm animate-in fade-in duration-500">
+                <div className="flex flex-col">
+                   <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest leading-none mb-1">Assessment Track</span>
+                   <span className="text-xs font-bold dark:text-white uppercase tracking-tighter">Choose assigned question set</span>
+                </div>
+                <select
+                  value={questionSet?.id || ""}
+                  onChange={(e) => fetchConfig(e.target.value)}
+                  className="bg-gray-50 dark:bg-[#0F172A] border-none rounded-xl px-4 py-2 text-xs font-black text-[#1a73e8] focus:ring-2 focus:ring-blue-500 min-w-[220px] dark:text-white outline-none"
+                >
+                  {availableSets.map(s => (
+                    <option key={s.id} value={s.id}>{s.isDefault ? '⭐ ' : ''}{s.title}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <PreFlightLobby
+              title={questionSet?.title || "Mock Interview"}
+              duration={`${questions.length} Questions`}
+              onStart={handleStartInterview}
+              onStreamAcquired={(s) => { activeStreamRef.current = s; }}
+            />
+          </div>
         )}
 
-        {step === 'recording' && activeStream && (
+        {step === 'recording' && activeStreamRef.current && (
           <InterviewRecorder
-            stream={activeStream}
+            stream={activeStreamRef.current}
             questions={questions}
             studentId={userId!}
             studentName={userProfile?.displayName || user?.displayName || "Student"}
             counselorId={userProfile?.assignedCounselorId}
             mockId={questionSet?.id!}
-            onFinish={() => setStep('completed')}
+            onFinish={() => {
+              setStep('completed');
+              // STRICT RELEASE
+              if (activeStreamRef.current) {
+                activeStreamRef.current.getTracks().forEach(t => t.stop());
+                activeStreamRef.current = null;
+              }
+            }}
+            onRetake={() => {
+              setStep('lobby');
+              // STRICT RELEASE
+              if (activeStreamRef.current) {
+                activeStreamRef.current.getTracks().forEach(t => t.stop());
+                activeStreamRef.current = null;
+              }
+            }}
           />
         )}
 

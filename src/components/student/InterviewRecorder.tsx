@@ -26,11 +26,12 @@ interface InterviewRecorderProps {
   counselorId?: string;
   mockId: string;
   onFinish: () => void; // Parent just needs to know we are done
+  onRetake: () => void; // ── NEW: Request a full reset ──
 }
 
 type Step = 'recording' | 'preview' | 'uploading' | 'completed';
 
-export default function InterviewRecorder({ stream, questions, studentId, studentName, counselorId, mockId, onFinish }: InterviewRecorderProps) {
+export default function InterviewRecorder({ stream, questions, studentId, studentName, counselorId, mockId, onFinish, onRetake }: InterviewRecorderProps) {
   const [step, setStep] = useState<Step>('recording');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(questions[0].timeLimit || 60);
@@ -113,6 +114,8 @@ export default function InterviewRecorder({ stream, questions, studentId, studen
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
     } else {
+      // ── CLEANUP: Revoke hardware access as we enter preview mode ──
+      stream.getTracks().forEach(track => track.stop());
       setStep('preview');
     }
   };
@@ -128,7 +131,11 @@ export default function InterviewRecorder({ stream, questions, studentId, studen
 
   const handleStopEarly = () => {
     if (confirm("Stop the interview now and go to preview? Current question will be saved.")) {
-      handleNextQuestion();
+      if (recorderRef.current && recorderRef.current.state === 'recording') {
+        recorderRef.current.stop();
+      }
+      // ── CLEANUP: Revoke hardware access as we enter preview mode ──
+      stream.getTracks().forEach(track => track.stop());
       setStep('preview');
     }
   };
@@ -219,7 +226,7 @@ export default function InterviewRecorder({ stream, questions, studentId, studen
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-10 border-t border-gray-100 dark:border-slate-800">
           <button
-            onClick={() => { if(confirm("Discard these segments and restart?")) setStep('recording'); setCurrentIndex(0); setRecordedChunks([]); }}
+            onClick={() => { if(confirm("Discard these segments and restart?")) onRetake(); }}
             className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 hover:text-gray-900 transition-all"
           >
             <RotateCcw size={16} /> Discard & Retake Entire Interview

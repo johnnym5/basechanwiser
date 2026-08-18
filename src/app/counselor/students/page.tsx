@@ -28,7 +28,13 @@ import {
   ArrowUpDown,
   FileCheck,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft,
+  Activity,
+  FileText,
+  Clock,
+  CalendarPlus,
+  StickyNote
 } from "lucide-react";
 import { collection, doc, setDoc, query, deleteDoc, serverTimestamp, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
@@ -37,7 +43,11 @@ import { withTimeout } from "@/lib/utils/promise-timeout";
 import Link from "next/link";
 import QuickPortfolioModal from "@/components/counselor/QuickPortfolioModal";
 import AssignCounselorModal from "@/components/counselor/AssignCounselorModal";
+import SetReminderModal from "@/components/counselor/SetReminderModal";
+import QuickNoteModal from "@/components/counselor/QuickNoteModal";
 import EmptyState from "@/components/common/EmptyState";
+import StatusDropdown from "@/components/ui/StatusDropdown";
+import { formatDistanceToNow } from "date-fns";
 
 const generateStudentId = () => {
   const randomNum = Math.floor(10000 + Math.random() * 90000);
@@ -72,32 +82,6 @@ const renderPackStatus = (status: string) => {
   }
 };
 
-const renderOverallStatus = (status: string) => {
-  const base = "inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all duration-200";
-
-  const getStyles = () => {
-    switch (status?.toUpperCase()) {
-      case 'RED': return { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20', dot: 'bg-red-500' };
-      case 'AMBER':
-      case 'YELLOW':
-      case 'ORANGE':
-        return { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', dot: 'bg-amber-500' };
-      case 'GREEN': return { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', dot: 'bg-emerald-500' };
-      default: return { bg: 'bg-slate-800/50', text: 'text-slate-400', border: 'border-slate-700', dot: 'bg-slate-500' };
-    }
-  };
-
-  const styles = getStyles();
-  const label = status ? status.toUpperCase() : 'GRAY';
-
-  return (
-    <span className={`${base} ${styles.bg} ${styles.text} ${styles.border}`}>
-      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${styles.dot} shadow-[0_0_8px_rgba(0,0,0,0.5)]`}></span>
-      {label}
-    </span>
-  );
-};
-
 export default function CounselorStudentsPage() {
   const { role, loading: authLoading, userId, userProfile } = useAuth();
   const router = useRouter();
@@ -109,6 +93,11 @@ export default function CounselorStudentsPage() {
   const [counselorsList, setCounselorsList] = useState<UserProfile[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // ── Pagination & Dropdown State ──
+  const [currentPage, setCurrentPage] = useState(1);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const itemsPerPage = 10;
 
   // ── Filter & Sort States ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -150,6 +139,8 @@ export default function CounselorStudentsPage() {
   const [selectedStudent, setSelectedStudent] = useState<UserProfile | null>(null);
   const [selectedQuickStudent, setSelectedQuickStudent] = useState<UserProfile | null>(null);
   const [selectedStudentForCounselor, setSelectedStudentForCounselor] = useState<UserProfile | null>(null);
+  const [selectedStudentForReminder, setSelectedStudentForReminder] = useState<UserProfile | null>(null);
+  const [selectedStudentForNote, setSelectedStudentForNote] = useState<UserProfile | null>(null);
   const [assignedIds, setAssignedIds] = useState<string[]>([]);
   const [isSavingAssignments, setIsSavingAssignments] = useState(false);
 
@@ -269,13 +260,19 @@ export default function CounselorStudentsPage() {
           processed = processed.filter(s => (s.learningProgress || 0) >= 80);
           break;
         case "IN_PROGRESS":
-          processed = processed.filter(s => (s.learningProgress || 0) > 0 && (s.learningProgress || 0) < 100);
+          processed = processed.filter(s =>
+            s.readinessStatus === 'Yellow' ||
+            s.readinessStatus === 'Orange'
+          );
           break;
         case "AT_RISK":
           processed = processed.filter(s => s.readinessStatus === 'Red');
           break;
-        case "READY":
+        case "INTERVIEW_READY":
           processed = processed.filter(s => s.readinessStatus === 'Green');
+          break;
+        case "NOT_STARTED":
+          processed = processed.filter(s => !s.readinessStatus || s.readinessStatus === 'Gray');
           break;
         case "INACTIVE":
           const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
@@ -314,6 +311,15 @@ export default function CounselorStudentsPage() {
     return processed;
   }, [students, interviewPacks, searchQuery, smartFilter, sortBy, counselorFilter]);
 
+  // ── Pagination Calculation ──
+  const totalPages = Math.ceil(displayedStudents.length / itemsPerPage);
+  const visibleStudents = displayedStudents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // ── Parent callback to update local state without refreshing ──
+  const handleLocalStatusUpdate = (studentId: string, newStatus: string) => {
+    setStudents(prev => prev.map(s => s.uid === studentId ? { ...s, readinessStatus: newStatus as any } : s));
+  };
+
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.displayName) return;
@@ -331,7 +337,7 @@ export default function CounselorStudentsPage() {
         suspended: false,
         currentModuleLevel: 1,
         moduleScores: {},
-        readinessStatus: "Gray",
+        readinessStatus: "NOT_STARTED",
         learningProgress: 0,
         createdAt: serverTimestamp(),
       });
@@ -495,9 +501,10 @@ export default function CounselorStudentsPage() {
                   >
                     <option value="ALL">All Scholars</option>
                     <option value="STAR">Star Students (80%+)</option>
-                    <option value="IN_PROGRESS">In-Progress</option>
-                    <option value="READY">Ready (Green)</option>
+                    <option value="INTERVIEW_READY">Interview Ready (Green)</option>
                     <option value="AT_RISK">At-Risk (Red)</option>
+                    <option value="IN_PROGRESS">In-Progress (Amber)</option>
+                    <option value="NOT_STARTED">Not Started (Gray)</option>
                     <option value="INACTIVE">Inactive (7+ Days)</option>
                     <option value="SUBMITTED">Packs Submitted</option>
                   </select>
@@ -541,175 +548,183 @@ export default function CounselorStudentsPage() {
           </div>
         </div>
 
-        {/* Master Data Table */}
-        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-[32px] overflow-hidden border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 uppercase font-black text-[10px] tracking-widest border-b border-gray-100 dark:border-gray-700">
-                <tr>
-                  <th className="p-6">Student Identity</th>
-                  <th className="p-6">Counselor</th>
-                  <th className="p-6">Progress</th>
-                  <th className="p-6">Interview Pack</th>
-                  <th className="p-6">Status</th>
-                  <th className="p-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-700 font-medium text-gray-800 dark:text-gray-200">
-                {dataLoading ? (
-                  <tr><td colSpan={6} className="p-12 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#1a73e8] mb-2" />
-                    <p className="font-black uppercase tracking-widest text-[10px] text-gray-400">Synchronizing Master Data...</p>
-                  </td></tr>
-                ) : fetchError ? (
-                   <tr><td colSpan={6} className="p-12">
-                     <EmptyState
-                       icon={AlertCircle}
-                       title="Unable to load workspace"
-                       description={fetchError}
-                       actionText="Retry Refresh"
-                       onAction={() => window.location.reload()}
-                     />
-                   </td></tr>
-                ) : displayedStudents.length === 0 ? (
-                  <tr><td colSpan={6} className="p-12">
-                    <EmptyState
-                      icon={Search}
-                      title="No Results Found"
-                      description="Try adjusting your filters or reset search to see students."
-                      actionText="Reset All Filters"
-                      onAction={() => { setSearchQuery(""); setSmartFilter("ALL"); setCounselorFilter("ALL"); }}
-                    />
-                  </td></tr>
-                ) : (
-                  displayedStudents.map((student) => {
-                    const packStatus = interviewPacks[student.uid]?.status || "Not Started";
-                    const assignedCounselor = counselorsList.find(c => c.uid === student.assignedCounselorId);
-
-                    return (
-                      <tr
-                        key={student.uid}
-                        className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer"
-                        onClick={() => setSelectedQuickStudent(student)}
-                      >
-                        <td className="p-6">
-                           <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center font-black text-[#1a73e8] text-sm group-hover:scale-110 transition-transform">
-                                {(student.displayName || "S").charAt(0).toUpperCase()}
-                              </div>
-                              <div className="min-w-0">
-                                 <p className="font-black text-sm text-gray-900 dark:text-white truncate">{student.displayName}</p>
-                                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{student.email}</p>
-                              </div>
-                           </div>
-                        </td>
-                        <td className="p-6">
-                           <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-gray-700 dark:text-gray-300 font-bold whitespace-nowrap">
-                                 {assignedCounselor?.displayName || "Unassigned"}
-                              </span>
-                              {isAdmin && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setSelectedStudentForCounselor(student); }}
-                                  className="text-[9px] font-black uppercase text-indigo-400 hover:text-indigo-300 hover:bg-indigo-900/30 px-2 py-1 rounded transition-all"
-                                >
-                                  Assign
-                                </button>
-                              )}
-                           </div>
-                        </td>
-                        <td className="p-6">
-                           <div className="w-24 bg-gray-100 dark:bg-gray-900 rounded-full h-1.5 overflow-hidden">
-                             <div className="h-full bg-blue-500" style={{ width: `${student.learningProgress || 0}%` }} />
-                           </div>
-                           <p className="text-[9px] font-black text-gray-400 mt-1 uppercase">{student.learningProgress || 0}% Complete</p>
-                        </td>
-                        <td className="p-6">
-                           {renderPackStatus(packStatus)}
-                        </td>
-                        <td className="p-6">
-                           {renderOverallStatus(student.readinessStatus || "Gray")}
-                        </td>
-                        <td className="p-6 text-right">
-                           <button onClick={(e) => { e.stopPropagation(); setSelectedQuickStudent(student); }} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 transition-colors"><Eye size={16}/></button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ── Mobile View: Simplified Cards ── */}
-        <div className="md:hidden">
+        {/* Master Student Card Grid */}
+        <div className="space-y-6">
           {dataLoading ? (
-            <div className="p-12 text-center text-gray-500 dark:text-gray-400">
-              <Loader2 className="w-10 h-10 animate-spin mx-auto text-[#1a73e8] mb-2" />
-              <p className="font-black uppercase tracking-widest text-[10px]">Synchronizing Master Data...</p>
+            <div className="p-12 text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#1a73e8] mb-2" />
+              <p className="font-black uppercase tracking-widest text-[10px] text-gray-400">Synchronizing Master Data...</p>
             </div>
-          ) : displayedStudents.length === 0 ? (
-            <div className="p-4">
+          ) : fetchError ? (
+            <div className="p-12">
+              <EmptyState
+                icon={AlertCircle}
+                title="Unable to load workspace"
+                description={fetchError}
+                actionText="Retry Refresh"
+                onAction={() => window.location.reload()}
+              />
+            </div>
+          ) : visibleStudents.length === 0 ? (
+            <div className="p-12">
               <EmptyState
                 icon={Search}
                 title="No Results Found"
                 description="Try adjusting your filters or reset search to see students."
                 actionText="Reset All Filters"
-                onAction={() => {
-                  setSearchQuery("");
-                  setSmartFilter("ALL");
-                  setCounselorFilter("ALL");
-                }}
+                onAction={() => { setSearchQuery(""); setSmartFilter("ALL"); setCounselorFilter("ALL"); }}
               />
             </div>
           ) : (
-            <div className="space-y-4">
-              {displayedStudents.map((student) => {
-                const assignedCounselor = counselorsList.find(c => c.uid === student.assignedCounselorId);
-                return (
-                  <div
-                    key={student.uid}
-                    onClick={() => setSelectedQuickStudent(student)}
-                    className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center font-black text-blue-600 text-xs">
-                          {(student.displayName || "S").charAt(0)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-black text-sm text-gray-900 dark:text-white truncate">{student.displayName}</p>
-                          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">{student.studentId}</p>
-                        </div>
-                      </div>
-                      {renderOverallStatus(student.readinessStatus || "Gray")}
-                    </div>
+            <>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 animate-in fade-in duration-500">
+                {visibleStudents.map((student) => {
+                  const packStatus = interviewPacks[student.uid]?.status || "Not Started";
+                  const assignedCounselor = counselorsList.find(c => c.uid === student.assignedCounselorId);
+                  const lastSeen = student.lastLoginAt
+                    ? formatDistanceToNow(student.lastLoginAt.seconds * 1000) + ' ago'
+                    : 'Never';
 
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-50 dark:border-gray-700">
-                      <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700">
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Counselor</p>
-                        <div className="flex items-center justify-between gap-1">
-                          <p className="text-[10px] font-black dark:text-white truncate">{assignedCounselor?.displayName || "Unassigned"}</p>
-                          {isAdmin && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSelectedStudentForCounselor(student); }}
-                              className="text-indigo-400"
-                            >
-                              <Edit3 size={12} />
-                            </button>
+                  return (
+                    <div
+                      key={student.uid}
+                      className="relative bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 rounded-2xl p-5 hover:border-blue-500/50 transition-all group shadow-sm"
+                    >
+                      {/* Top Row: Identity & Actions */}
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center font-black text-xl border border-blue-100 dark:border-blue-900/30 group-hover:scale-105 transition-transform">
+                            {(student.displayName || "S").charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-base font-black text-gray-900 dark:text-white uppercase tracking-tighter truncate">
+                              {student.displayName}
+                            </h3>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest truncate">{student.email}</p>
+                            <p className="text-xs text-blue-500 font-black uppercase tracking-tighter mt-1">
+                              Counselor: {assignedCounselor?.displayName || 'Unassigned'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Action Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownId(openDropdownId === student.uid ? null : student.uid);
+                            }}
+                            className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-xl hover:bg-gray-100 dark:hover:bg-[#0F172A] transition-all"
+                          >
+                            <MoreVertical className="w-5 h-5" />
+                          </button>
+
+                          {openDropdownId === student.uid && (
+                            <>
+                              <div className="fixed inset-0 z-[40]" onClick={() => setOpenDropdownId(null)} />
+                              <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-[#1E293B] border border-gray-100 dark:border-slate-800 rounded-2xl shadow-2xl z-[50] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                <div className="py-1">
+                                  <button
+                                    onClick={() => { router.push(`/counselor/students/portfolio?id=${student.uid}`); setOpenDropdownId(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center transition-colors"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 mr-3 text-blue-500"/> View Profile
+                                  </button>
+                                  <button
+                                    onClick={() => { setSelectedQuickStudent(student); setOpenDropdownId(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center transition-colors"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 mr-3 text-emerald-500"/> View Pack
+                                  </button>
+                                  <button
+                                    onClick={() => { handleEditStudent(student); setOpenDropdownId(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center transition-colors"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 mr-3 text-amber-500"/> Edit Student
+                                  </button>
+                                  <button
+                                    onClick={() => { setSelectedStudentForCounselor(student); setOpenDropdownId(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center transition-colors"
+                                  >
+                                    <UserPlus className="w-3.5 h-3.5 mr-3 text-indigo-500"/> Assign Counselor
+                                  </button>
+                                  <button
+                                    onClick={() => { setSelectedStudentForReminder(student); setOpenDropdownId(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center transition-colors"
+                                  >
+                                    <CalendarPlus className="w-3.5 h-3.5 mr-3 text-purple-500"/> Set Reminder
+                                  </button>
+                                  <button
+                                    onClick={() => { setSelectedStudentForNote(student); setOpenDropdownId(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center transition-colors"
+                                  >
+                                    <StickyNote className="w-3.5 h-3.5 mr-3 text-amber-500"/> Quick Note
+                                  </button>
+                                  <div className="h-px bg-gray-50 dark:bg-slate-800 my-1"></div>
+                                  <button
+                                    onClick={() => { handleDeleteStudent(student.uid, student.displayName || "Scholar"); setOpenDropdownId(null); }}
+                                    className="w-full text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 mr-3"/> Purge Account
+                                  </button>
+                                </div>
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
-                      <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700">
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Progress</p>
-                        <p className="text-[10px] font-black dark:text-white">{student.learningProgress || 0}%</p>
+
+                      {/* Bottom Row: Pill Metrics */}
+                      <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-50 dark:border-slate-800">
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-gray-50 dark:bg-[#0F172A] text-gray-400 border border-gray-100 dark:border-slate-800">
+                          <Clock className="w-3 h-3 mr-1.5" />
+                          Last Seen: {lastSeen}
+                        </span>
+                        {renderPackStatus(packStatus)}
+
+                        {/* 🚨 THE ONLY STATUS INDICATOR - Dropped redundant pills */}
+                        <div className="ml-auto">
+                           <StatusDropdown
+                             studentId={student.uid}
+                             initialStatus={student.readinessStatus || "NOT_STARTED"}
+                             onStatusChange={handleLocalStatusUpdate}
+                           />
+                        </div>
                       </div>
+
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between mt-10 p-6 bg-white dark:bg-[#1E293B] rounded-3xl border border-gray-100 dark:border-slate-800 gap-4">
+                  <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                    Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, displayedStudents.length)} of {displayedStudents.length} Scholars
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-xl bg-gray-50 dark:bg-[#0F172A] text-gray-500 disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-slate-900 transition-all border border-gray-100 dark:border-slate-800"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="flex items-center px-6 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                       <span className="text-xs font-black text-blue-600 dark:text-blue-400">{currentPage} <span className="text-gray-400 mx-1">/</span> {totalPages}</span>
+                    </div>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-xl bg-gray-50 dark:bg-[#0F172A] text-gray-500 disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-slate-900 transition-all border border-gray-100 dark:border-slate-800"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -725,6 +740,31 @@ export default function CounselorStudentsPage() {
               showToast("Counselor reassigned successfully.", "success");
               // UI will reflect changes due to live listeners or local state sync in a real app
             }}
+          />
+        )}
+
+        {/* Set Reminder Modal */}
+        {selectedStudentForReminder && (
+          <SetReminderModal
+            student={{
+              uid: selectedStudentForReminder.uid,
+              studentId: selectedStudentForReminder.studentId,
+              displayName: selectedStudentForReminder.displayName
+            }}
+            onClose={() => setSelectedStudentForReminder(null)}
+            onSuccess={() => showToast("Reminder scheduled successfully.", "success")}
+          />
+        )}
+
+        {/* Quick Note Modal */}
+        {selectedStudentForNote && (
+          <QuickNoteModal
+            student={{
+              uid: selectedStudentForNote.uid,
+              displayName: selectedStudentForNote.displayName
+            }}
+            onClose={() => setSelectedStudentForNote(null)}
+            onSuccess={() => showToast("Note saved to timeline.", "success")}
           />
         )}
 

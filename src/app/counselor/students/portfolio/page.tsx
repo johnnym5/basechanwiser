@@ -34,14 +34,21 @@ import {
   VideoOff,
   ClipboardList,
   FileQuestion,
-  AlertTriangle
+  AlertTriangle,
+  Clock,
+  CheckCircle,
+  MessageSquare,
+  Unlock,
+  User,
+  Activity
 } from "lucide-react";
-import { doc, getDoc, collection, query, where, getDocs, orderBy, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, orderBy, updateDoc, serverTimestamp, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { UserProfile, InterviewPack, LearningModule } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import EmptyState from "@/components/common/EmptyState";
 import { withTimeout } from "@/lib/utils/promise-timeout";
+import { format, formatDistanceToNow } from "date-fns";
 
 /**
  * StudentPortfolioPage: Deep-dive view of a single scholar.
@@ -49,6 +56,19 @@ import { withTimeout } from "@/lib/utils/promise-timeout";
  * Pattern: Progressive Disclosure UX.
  */
 // ── Status Badge Renderers ──
+
+const getActivityVisuals = (type: string) => {
+  switch (type?.toLowerCase()) {
+    case 'quiz':
+    case 'academy_module': return { icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500/50' };
+    case 'mock':
+    case 'mock_interview': return { icon: Video, color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/50' };
+    case 'message': return { icon: MessageSquare, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500/50' };
+    case 'unlock': return { icon: Unlock, color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/50' };
+    case 'profile': return { icon: User, color: 'text-slate-400', bg: 'bg-slate-500/20', border: 'border-slate-500/50' };
+    default: return { icon: Clock, color: 'text-indigo-400', bg: 'bg-indigo-500/20', border: 'border-indigo-500/50' };
+  }
+};
 
 const renderOverallStatus = (status: string) => {
   const base = "inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all duration-200";
@@ -84,6 +104,7 @@ function PortfolioContent() {
   const [student, setStudent] = useState<UserProfile | null>(null);
   const [attempts, setAttempts] = useState<any[]>([]);
   const [mockAttempts, setMockAttempts] = useState<any[]>([]);
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
   const [interviewPack, setInterviewPack] = useState<InterviewPack | null>(null);
   const [allModules, setAllModules] = useState<LearningModule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,6 +193,18 @@ function PortfolioContent() {
             setInterviewPack(combinedPack as InterviewPack);
             setFormData(combinedPack);
           }
+        }
+
+        // ── FETCH ACTIVITY LOGS ──
+        const logsQ = query(
+          collection(db, "activity_logs"),
+          where("studentId", "==", id),
+          orderBy("createdAt", "desc"),
+          limit(20)
+        );
+        const logsSnap = await withTimeout(getDocs(logsQ), 10000);
+        if (isMounted) {
+          setActivityLogs(logsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
         }
 
         const modulesSnap = await withTimeout(getDocs(collection(db, "learning_modules")), 10000);
@@ -270,7 +303,7 @@ function PortfolioContent() {
          <div className="flex items-center gap-5">
             <div className="w-20 h-20 rounded-[28px] bg-white dark:bg-[#1E293B] shadow-xl border border-gray-100 dark:border-slate-800 flex items-center justify-center text-3xl font-black text-[#1a73e8]">{(student.displayName || "S").charAt(0)}</div>
             <div className="space-y-1">
-               <button onClick={() => router.push("/counselor/students")} className="text-[10px] font-black uppercase text-blue-500 flex items-center gap-1 hover:underline mb-1"><ArrowLeft className="w-3 h-3" /> Back to Cohort</button>
+               <button onClick={() => router.push("/counselor/students")} className="text-[10px] font-black uppercase text-blue-500 flex items-center gap-1 hover:underline mb-1"><ArrowLeft className="w-3 h-3" /> Back to Student Directory</button>
                <h1 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{student.displayName}</h1>
                <div className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                   <span className="text-blue-500 font-black">{student.studentId || "ID-PENDING"}</span>
@@ -295,7 +328,7 @@ function PortfolioContent() {
          {[
             { label: 'Avg Accuracy', val: `${avgScore}%`, icon: Award, c: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10' },
             { label: 'Quiz Missions', val: attempts.length, icon: Target, c: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/10' },
-            { label: 'Academy Depth', val: `${student.learningProgress || 0}%`, icon: TrendingUp, c: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/10' },
+            { label: 'ACTIVITY HISTORY', val: `${student.learningProgress || 0}%`, icon: TrendingUp, c: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/10' },
             { label: 'Pack Status', val: interviewPack?.status || 'Not Started', icon: FileText, c: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/10' },
          ].map((stat, i) => (
             <div key={i} className="bg-white dark:bg-[#1E293B] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm space-y-2 group transition-all hover:shadow-md">
@@ -312,7 +345,7 @@ function PortfolioContent() {
             <Tab label="Student Details" icon={ShieldCheck} active={activeTab === 'dossier'} onClick={() => setActiveTab('dossier')} />
             <Tab label="Mock Interviews" icon={Video} active={activeTab === 'mock'} onClick={() => setActiveTab('mock')} />
             <Tab label="Quiz Audit Trail" icon={HistoryIcon} active={activeTab === 'quiz'} onClick={() => setActiveTab('quiz')} />
-            <Tab label="Curriculum Tracking" icon={BookOpen} active={activeTab === 'engagement'} onClick={() => setActiveTab('engagement')} />
+            <Tab label="Timeline" icon={Activity} active={activeTab === 'engagement'} onClick={() => setActiveTab('engagement')} />
          </div>
 
          <div className="p-8 md:p-12">
@@ -469,6 +502,46 @@ function PortfolioContent() {
                                        {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-300" /> : <ChevronDown className="w-5 h-5 text-gray-300" />}
                                     </div>
                                  </div>
+
+                                 <AnimatePresence>
+                                    {isExpanded && (
+                                       <motion.div
+                                         initial={{ height: 0, opacity: 0 }}
+                                         animate={{ height: "auto", opacity: 1 }}
+                                         exit={{ height: 0, opacity: 0 }}
+                                         className="border-t border-gray-50 dark:border-slate-800 bg-gray-50/30 dark:bg-slate-900/30 p-8 space-y-6"
+                                       >
+                                          <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest border-b border-gray-100 dark:border-slate-800 pb-3">Question Breakdown</h4>
+
+                                          <div className="space-y-4">
+                                            {(a.historyDetails || a.details || []).map((q: any, qIdx: number) => (
+                                              <div key={qIdx} className="bg-white dark:bg-[#1E293B] rounded-2xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm space-y-3">
+                                                <p className="text-sm font-black dark:text-white leading-tight">
+                                                  <span className="text-blue-500 mr-2">Q{qIdx + 1}.</span> {q.questionText}
+                                                </p>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[11px] font-bold">
+                                                  <div className="space-y-1">
+                                                     <p className="text-[9px] uppercase text-gray-400 tracking-widest">Their Answer</p>
+                                                     <p className={`p-3 rounded-xl border ${q.isCorrect ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800 text-emerald-600' : 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-800 text-rose-600'}`}>
+                                                        {q.selectedOption || "Timeout"}
+                                                     </p>
+                                                  </div>
+                                                  {!q.isCorrect && (
+                                                     <div className="space-y-1">
+                                                        <p className="text-[9px] uppercase text-gray-400 tracking-widest">Correct Solution</p>
+                                                        <p className="p-3 rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-300">
+                                                           {q.correctOption}
+                                                        </p>
+                                                     </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                       </motion.div>
+                                    )}
+                                 </AnimatePresence>
                               </div>
                            );
                         })}
@@ -478,57 +551,51 @@ function PortfolioContent() {
             )}
 
             {activeTab === 'engagement' && (
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-10 animate-in fade-in duration-300">
-                  <div className="space-y-8">
-                     <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white">Curriculum Assignments</h3>
-                     <div className="space-y-4">
-                        {allModules.filter(m => (student.assignedPackIds || []).includes(m.id)).length === 0 ? (
-                           <div className="p-10 bg-gray-50 dark:bg-[#0F172A] rounded-[32px] border border-dashed border-gray-200 dark:border-slate-800 text-center">
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No active modules assigned.</p>
-                           </div>
-                        ) : allModules.filter(m => (student.assignedPackIds || []).includes(m.id)).map(m => {
-                           const score = student.moduleScores?.[m.id];
-                           const isPassed = score !== undefined && score >= 80;
+               <div className="space-y-8 animate-in fade-in duration-300">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white flex items-center gap-2">
+                     <HistoryIcon className="text-blue-500" size={18} /> Student Operational Timeline
+                  </h3>
+
+                  {activityLogs && activityLogs.length > 0 ? (
+                     <div className="relative border-l-2 border-slate-800 ml-4 space-y-8 pb-4">
+                        {activityLogs.map((activity, idx) => {
+                           const visual = getActivityVisuals(activity.type);
+                           const Icon = visual.icon;
+
                            return (
-                              <div key={m.id} className="flex items-center justify-between p-6 bg-white dark:bg-[#1E293B] rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm">
-                                 <div className="flex items-center gap-4 overflow-hidden">
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isPassed ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-500 shadow-inner'}`}>
-                                       <CheckCircle2 className="w-6 h-6" />
-                                    </div>
-                                    <div className="truncate">
-                                       <p className="text-xs font-black dark:text-white uppercase tracking-tighter truncate">{m.title}</p>
-                                       <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Track Priority #{m.order || 'N/A'}</p>
-                                    </div>
+                              <div key={activity.id || idx} className="relative pl-8">
+                                 {/* Timeline Node */}
+                                 <div className={`absolute -left-[17px] top-1 w-8 h-8 rounded-full border-2 flex items-center justify-center z-10 ${visual.bg} ${visual.border}`}>
+                                    <Icon className={`w-4 h-4 ${visual.color}`} />
                                  </div>
-                                 {score !== undefined && <span className={`text-xs font-black ${isPassed ? 'text-emerald-500' : 'text-blue-500'}`}>{score}%</span>}
+
+                                 {/* Content */}
+                                 <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-5 hover:bg-slate-800/50 transition-all group">
+                                    <div className="flex justify-between items-start mb-1">
+                                       <h4 className="font-bold text-slate-200 text-sm uppercase tracking-tight">{activity.action || activity.title}</h4>
+                                       <span className="text-[10px] text-slate-500 font-mono bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
+                                          {activity.createdAt?.seconds
+                                             ? format(activity.createdAt.toDate(), 'MMM dd, HH:mm')
+                                             : 'Just now'}
+                                       </span>
+                                    </div>
+                                    <p className="text-xs text-slate-400 leading-relaxed">
+                                       {activity.description || activity.message || `Automated log for ${activity.type?.replace('_', ' ')} event.`}
+                                    </p>
+                                    <p className="text-[10px] text-slate-600 font-black uppercase mt-3 tracking-widest group-hover:text-blue-500 transition-colors">
+                                       Authenticated: {activity.studentName || student.displayName}
+                                    </p>
+                                 </div>
                               </div>
                            );
                         })}
                      </div>
-                  </div>
-
-                  <div className="space-y-8">
-                     <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white">Gamification Index</h3>
-                     <div className="bg-gradient-to-br from-[#1a73e8] to-indigo-700 rounded-[40px] p-10 text-white shadow-2xl space-y-8 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 text-white/5"><Zap size={150} /></div>
-                        <div className="flex items-center gap-4 relative z-10">
-                           <div className="w-14 h-14 rounded-3xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-xl"><Zap className="w-8 h-8 fill-current" /></div>
-                           <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100">Status Rank</p>
-                              <p className="text-3xl font-black tracking-tighter italic">Active Candidate</p>
-                           </div>
-                        </div>
-                        <div className="space-y-5 relative z-10">
-                           <div className="flex justify-between items-end">
-                              <span className="text-[10px] font-black uppercase text-blue-100 tracking-widest">Consistency Streak</span>
-                              <span className="text-2xl font-black">{student.dayStreak || 0} Days</span>
-                           </div>
-                           <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden shadow-inner">
-                              <motion.div className="h-full bg-white rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min(100, (student.dayStreak || 0) * 10)}%` }} transition={{ duration: 1.5, ease: "easeOut" }} />
-                           </div>
-                        </div>
+                  ) : (
+                     <div className="text-center py-20 bg-slate-800/10 rounded-[40px] border border-dashed border-slate-800">
+                        <HistoryIcon size={48} className="mx-auto text-slate-700 mb-4 opacity-20" />
+                        <p className="text-slate-500 text-xs font-black uppercase tracking-widest">No timeline events recorded yet.</p>
                      </div>
-                  </div>
+                  )}
                </div>
             )}
          </div>
