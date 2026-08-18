@@ -131,7 +131,8 @@ export default function ChatDrawer({ isOpen, onClose }: { isOpen: boolean, onClo
   };
 
   const filteredConversations = conversations.filter(c => {
-    const names = Object.values(c.participantNames || {}).map(n => n?.toLowerCase() || "");
+    if (!c.participantNames) return false;
+    const names = Object.values(c.participantNames).map(n => (n as string)?.toLowerCase() || "");
     const matchesSearch = names.some(n => n.includes(searchTerm.toLowerCase()));
 
     if (userProfile?.role === 'Admin' || userProfile?.role === 'Super Admin') {

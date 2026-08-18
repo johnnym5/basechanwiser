@@ -340,8 +340,8 @@ function PortfolioContent() {
                                        <ViewField label="Course" value={interviewPack.courseName} />
                                        <ViewField label="Start Date" value={interviewPack.courseStartDate} />
                                        <ViewField label="CAS Number" value={interviewPack.casNumber} />
-                                       <ViewField label="Tuition Fee" value={interviewPack.tuitionFee || interviewPack.tuitionAmount} />
-                                       <ViewField label="Deposit Paid" value={interviewPack.depositPaid} />
+                                       <ViewField label="Tuition Fee" value={interviewPack.tuitionFee || `£${interviewPack.tuitionAmount?.toLocaleString()}`} />
+                                       <ViewField label="Deposit Paid" value={`£${interviewPack.depositPaid?.toLocaleString()}`} />
                                        <ViewField label="Ranking" value={interviewPack.universityRanking} />
                                     </div>
                                  </div>

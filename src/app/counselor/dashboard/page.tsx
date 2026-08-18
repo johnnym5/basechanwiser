@@ -95,7 +95,7 @@ export default function CounselorDashboard() {
         // ── Process Activity Logs ──
         const logs = logsSnap.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as any))
-          .filter(log => role !== 'Counselor' || studentIds.includes(log.studentId));
+          .filter(log => role !== 'Counselor' || (studentIds && studentIds.includes(log.studentId)));
 
         setLiveActivities(logs);
 
@@ -105,7 +105,7 @@ export default function CounselorDashboard() {
         // 1. Pending Mock Interviews
         mocksSnap.forEach(doc => {
           const data = doc.data() as any;
-          if (role !== 'Counselor' || studentIds.includes(data.studentId)) {
+          if (role !== 'Counselor' || (studentIds && studentIds.includes(data.studentId))) {
             tasks.push({
               id: doc.id,
               type: 'mock',
@@ -120,7 +120,7 @@ export default function CounselorDashboard() {
         // 2. Unverified Dossiers
         packsSnap.forEach(doc => {
           const data = doc.data() as any;
-          if (role !== 'Counselor' || studentIds.includes(data.userId)) {
+          if (role !== 'Counselor' || (studentIds && studentIds.includes(data.userId))) {
             tasks.push({
               id: doc.id,
               type: 'dossier',

@@ -202,38 +202,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // ── Safety Fallback Timeout (5 seconds) ─────────────────────────
+    // If Firebase hangs for more than 5 seconds, force the app to load.
     const fallbackTimer = setTimeout(() => {
       setLoading((prevLoading) => {
         if (prevLoading) {
-          console.warn("[AuthContext] Auth check timed out. Forcing UI render.");
+          console.warn("[AuthContext] Auth resolution timed out. Forcing UI to load.");
           return false;
         }
         return prevLoading;
       });
     }, 5000);
 
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        setUser(currentUser);
-        // CRITICAL FIX: Unlock the UI immediately. Do not wait for Firestore synchronization.
-        setLoading(false);
+        setUser(firebaseUser);
 
-        if (currentUser) {
-          // Sync profile in the background - NON-BLOCKING
-          syncUserToFirestore(currentUser).catch((err) => {
-            console.warn("[AuthContext] Background sync failed:", err);
-          });
-        } else {
+        if (!firebaseUser) {
+          // USER IS LOGGED OUT (e.g., on the /login page)
           setRole(null);
           setUserProfile(null);
+          clearTimeout(fallbackTimer);
+          setLoading(false);
+          return;
         }
+
+        // USER IS LOGGED IN - Sync profile in the background - NON-BLOCKING
+        syncUserToFirestore(firebaseUser).catch((err) => {
+          console.warn("[AuthContext] Background sync failed:", err);
+        });
+
       } catch (err) {
         console.error("[AuthContext Error]: Auth state transition failed:", err);
         setRole(null);
         setUserProfile(null);
-        setLoading(false);
       } finally {
+        // GUARANTEED RESOLUTION
         clearTimeout(fallbackTimer);
+        setLoading(false);
       }
     });
 
