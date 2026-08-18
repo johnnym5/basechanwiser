@@ -22,6 +22,13 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
 
+  // ── Local Safe State Fallback ──
+  const [showFormAnyway, setShowFormAnyway] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShowFormAnyway(true), 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (user && role) {
       if (role === "Super Admin") {
@@ -75,7 +82,7 @@ export default function LoginPage() {
     }
   };
 
-  const isFormDisabled = isSigningIn || loading;
+  const isFormDisabled = isSigningIn || (loading && !showFormAnyway);
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-[#111827] flex flex-col items-center justify-center p-4 font-sans transition-colors duration-300">

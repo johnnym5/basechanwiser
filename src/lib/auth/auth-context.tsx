@@ -201,49 +201,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    // ── Safety Fallback Timeout (5 seconds) ─────────────────────────
-    // If Firebase hangs for more than 5 seconds, force the app to load.
-    const fallbackTimer = setTimeout(() => {
-      setLoading((prevLoading) => {
-        if (prevLoading) {
-          console.warn("[AuthContext] Auth resolution timed out. Forcing UI to load.");
-          return false;
-        }
-        return prevLoading;
-      });
-    }, 5000);
+    // 🚨 10-SECOND EMERGENCY EJECT: SAFE STATE FALLBACK
+    // If absolutely nothing resolves in 10 seconds, force the unauthenticated state.
+    // This fixes persistent "Loading workspace..." loops on flaky networks or layout deadlocks.
+    const emergencySafeStateTimer = setTimeout(() => {
+      console.error("Critical Auth Hang Detected. Forcing Safe State.");
+      setLoading(false);
+    }, 8000);
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("[AuthContext] Auth state changed:", firebaseUser?.uid || "null");
+
       try {
         setUser(firebaseUser);
 
         if (!firebaseUser) {
-          // USER IS LOGGED OUT (e.g., on the /login page)
           setRole(null);
           setUserProfile(null);
-          clearTimeout(fallbackTimer);
-          setLoading(false);
-          return;
+        } else {
+          // Sync profile in the background - TRULY NON-BLOCKING
+          // We do not wait for this to resolve loading=false
+          syncUserToFirestore(firebaseUser).catch((err) => {
+            console.warn("[AuthContext] Background sync failed:", err);
+          });
         }
-
-        // USER IS LOGGED IN - Sync profile in the background - NON-BLOCKING
-        syncUserToFirestore(firebaseUser).catch((err) => {
-          console.warn("[AuthContext] Background sync failed:", err);
-        });
-
       } catch (err) {
-        console.error("[AuthContext Error]: Auth state transition failed:", err);
-        setRole(null);
-        setUserProfile(null);
+        console.error("[AuthContext] Error in onAuthStateChanged:", err);
       } finally {
-        // GUARANTEED RESOLUTION
-        clearTimeout(fallbackTimer);
+        // UNLOCK UI IMMEDIATELY
+        clearTimeout(emergencySafeStateTimer);
         setLoading(false);
       }
     });
 
     return () => {
-      clearTimeout(fallbackTimer);
+      clearTimeout(emergencySafeStateTimer);
       unsubscribe();
     };
   }, []);

@@ -1,3 +1,5 @@
+"use client";
+
 import FullScreenLoader from "@/components/common/FullScreenLoader";
 
 export default function Loading() {
