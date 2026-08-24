@@ -19,6 +19,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { db, storage } from "@/lib/firebase/config";
 import { LibraryResource } from "@/types/resource";
 import { QuestionPack } from "@/types";
+import { DRIVE_CONFIG, getEmbeddableDriveUrl } from "@/lib/constants/drive";
 import {
   FileText,
   Video,
@@ -28,7 +29,9 @@ import {
   ExternalLink,
   Loader2,
   X,
-  UploadCloud
+  UploadCloud,
+  Globe,
+  Link as LinkIcon
 } from "lucide-react";
 
 export default function CounselorLibraryPage() {
@@ -88,10 +91,16 @@ export default function CounselorLibraryPage() {
     try {
       let fileUrl = form.fileUrl || "";
 
+      // 1. Handle File Upload to Firebase (Supplement)
       if (file) {
         const fileRef = ref(storage, `library/${Date.now()}_${file.name}`);
         await uploadBytes(fileRef, file);
         fileUrl = await getDownloadURL(fileRef);
+      }
+
+      // 2. Handle Google Drive Link (Transform if present)
+      if (fileUrl.includes("drive.google.com")) {
+        fileUrl = getEmbeddableDriveUrl(fileUrl);
       }
 
       const payload = {
@@ -157,12 +166,22 @@ export default function CounselorLibraryPage() {
             <h1 className="text-2xl font-black text-gray-900 dark:text-white font-google uppercase">Learning Library</h1>
             <p className="text-xs text-gray-500 font-bold">Manage study materials and link them to assessments.</p>
           </div>
-          <button
-            onClick={() => { setEditId(null); setResourceForm({ fileType: 'pdf' }); setFile(null); setShowModal(true); }}
-            className="px-6 py-3 bg-[#1a73e8] text-white font-black rounded-full text-xs uppercase shadow-lg shadow-blue-500/20 flex items-center gap-2 active:scale-95 transition-all"
-          >
-            <Plus className="w-4 h-4" /> Add Resource
-          </button>
+          <div className="flex items-center gap-3">
+            <a
+              href={DRIVE_CONFIG.FULL_WORKSPACE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-white font-black rounded-full text-xs uppercase tracking-widest shadow-sm hover:scale-105 transition-all flex items-center gap-2"
+            >
+              <Globe className="w-4 h-4 text-blue-500" /> Drive Workspace
+            </a>
+            <button
+              onClick={() => { setEditId(null); setResourceForm({ fileType: 'pdf' }); setFile(null); setShowModal(true); }}
+              className="px-6 py-3 bg-[#1a73e8] text-white font-black rounded-full text-xs uppercase shadow-lg shadow-blue-500/20 flex items-center gap-2 active:scale-95 transition-all"
+            >
+              <Plus className="w-4 h-4" /> Add Resource
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -237,13 +256,27 @@ export default function CounselorLibraryPage() {
                   </div>
 
                   <div className="relative group">
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Upload Material</label>
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Direct File Link / Drive URL</label>
+                    <div className="relative">
+                       <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                       <input
+                         value={form.fileUrl || ""}
+                         onChange={e => setResourceForm({...form, fileUrl: e.target.value})}
+                         placeholder="Paste Drive URL or direct link..."
+                         className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-2xl pl-11 pr-4 py-3 text-sm font-bold focus:ring-2 focus:ring-[#1a73e8]"
+                       />
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-1 italic">Automatically transforms Google Drive links into embedded previews.</p>
+                  </div>
+
+                  <div className="relative group">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">OR: Upload to Storage</label>
                     <div className="border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-3xl p-6 text-center group-hover:border-[#1a73e8] transition-all relative overflow-hidden">
                        <UploadCloud className="w-10 h-10 text-gray-300 mx-auto mb-2" />
                        <p className="text-xs font-bold text-gray-500">{file ? file.name : "Drop file here or click to browse"}</p>
                        <input type="file" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
                     </div>
-                    {editId && !file && <p className="text-[9px] font-bold text-blue-500 mt-1 uppercase">Leave blank to keep existing file</p>}
+                    {editId && !file && !form.fileUrl && <p className="text-[9px] font-bold text-blue-500 mt-1 uppercase">Leave blank to keep existing file</p>}
                   </div>
 
                   <button

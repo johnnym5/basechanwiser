@@ -1,9 +1,35 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // OPEN RULES (FOR DEVELOPMENT AS REQUESTED)
+
+    // Helper function to check Counselor / Admin status
+    function isStaff() {
+      return request.auth != null &&
+        (get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role == 'Counselor' ||
+         get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role == 'Admin' ||
+         get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role == 'Super Admin');
+    }
+
+    // Helper function to verify authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // User profiles - anyone can read their own, staff can read all
+    match /Users/{userId} {
+      allow read: if request.auth.uid == userId || isStaff();
+      allow write: if request.auth.uid == userId || isStaff();
+    }
+
+    // Library Resources & Google Drive Linked Metadata
+    match /library_resources/{resourceId} {
+      allow read: if isAuthenticated();
+      allow write, create, update, delete: if isStaff();
+    }
+
+    // Fallback for other collections (maintain development access for now but restricted to auth)
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if isAuthenticated();
     }
   }
 }

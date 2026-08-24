@@ -9,7 +9,7 @@ import { db } from "@/lib/firebase/config";
 import { useAuth } from "@/lib/auth/auth-context";
 import { UserProfile } from "@/types";
 import { TestQuestionSet } from "@/types/academy";
-import ResourceVaultModal from "@/components/common/ResourceVaultModal";
+import DriveVaultModal from "@/components/library/DriveVaultModal";
 
 export default function LearningModulesPage() {
   const { userId } = useAuth();
@@ -83,7 +83,7 @@ export default function LearningModulesPage() {
           </button>
         </div>
 
-        <ResourceVaultModal isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} />
+        <DriveVaultModal isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} />
 
         {loading ? (
           <div className="flex flex-col items-center justify-center p-20 gap-4">

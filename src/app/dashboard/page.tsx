@@ -12,8 +12,6 @@ import {
   ShieldCheck,
   Zap,
   Sparkles,
-  MessageSquare,
-  HelpCircle,
   ChevronRight,
   Star,
   Info,
@@ -23,7 +21,7 @@ import {
   Trophy,
   FolderOpen
 } from "lucide-react";
-import ResourceVaultModal from "@/components/common/ResourceVaultModal";
+import DriveVaultModal from "@/components/library/DriveVaultModal";
 import ReactConfetti from "react-confetti";
 import { useStudentDashboard } from "@/hooks/useStudentDashboard";
 import { motion } from "framer-motion";
@@ -93,7 +91,7 @@ export default function StudentDashboardPage() {
       return {
         label: "Foundation Complete! Time to fill out your Interview Pack.",
         cta: "Complete Profile ✍️",
-        href: "/interview-pack"
+        href: "/student/interview-pack"
       };
     }
     return {
@@ -336,7 +334,7 @@ export default function StudentDashboardPage() {
            </div>
         </div>
 
-        <ResourceVaultModal isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} />
+        <DriveVaultModal isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} />
       </div>
     </AppShell>
   );
