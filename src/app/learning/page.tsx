@@ -9,7 +9,6 @@ import { db } from "@/lib/firebase/config";
 import { useAuth } from "@/lib/auth/auth-context";
 import { UserProfile } from "@/types";
 import { TestQuestionSet } from "@/types/academy";
-import DriveVaultModal from "@/components/library/DriveVaultModal";
 
 export default function LearningModulesPage() {
   const { userId } = useAuth();
@@ -17,7 +16,6 @@ export default function LearningModulesPage() {
   const [supplementalPacks, setSupplementalPacks] = useState<TestQuestionSet[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isVaultOpen, setIsVaultOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -74,16 +72,7 @@ export default function LearningModulesPage() {
               Mission-critical compliance training and university credibility drills.
             </p>
           </div>
-
-          <button
-            onClick={() => setIsVaultOpen(true)}
-            className="px-6 py-3 bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
-          >
-            <FolderOpen className="w-4 h-4" /> Open Resource Vault
-          </button>
         </div>
-
-        <DriveVaultModal isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} />
 
         {loading ? (
           <div className="flex flex-col items-center justify-center p-20 gap-4">

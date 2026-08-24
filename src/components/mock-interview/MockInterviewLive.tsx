@@ -18,8 +18,7 @@ import {
 import { MockQuestionSet, MockInterviewAttempt, QuestionTimestamp, MockQuestion } from "@/types/mock";
 import { useMediaRecorder } from "@/hooks/useMediaRecorder";
 import LiveCallArena from "./LiveCallArena";
-// Firebase Storage Decommissioned - Logic disabled to prevent 402 errors.
-// TODO: Migrate to Google Drive API for video uploads.
+import { uploadMockVideo } from "@/lib/firebase/storage-utils";
 import {
   Loader2,
   Timer,
@@ -236,10 +235,10 @@ export default function MockInterviewLive() {
    */
   const uploadResults = async () => {
     try {
-      // 1. Firebase Storage Decommissioned - Bypassing binary upload
-      const videoUrl = "storage_decommissioned_link";
+      const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+      const videoUrl = await uploadMockVideo(userId!, videoBlob);
 
-      const attempt: any = {
+      const attempt: MockInterviewAttempt = {
         studentId: userId!,
         studentName: userProfile?.displayName || user?.displayName || "Student",
         answers: questions.map((q, idx) => ({
@@ -254,8 +253,7 @@ export default function MockInterviewLive() {
         status: 'pending_review',
         setId: questionSet?.id || "default",
         askedQuestions: questions.map(q => typeof q === 'string' ? q : q.text),
-        counselorId: userProfile?.assignedCounselorId || "",
-        note: "System Note: Binary storage disabled."
+        counselorId: userProfile?.assignedCounselorId || ""
       };
 
       await addDoc(collection(db, "mock_interview_attempts"), attempt);

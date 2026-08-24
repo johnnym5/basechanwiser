@@ -21,7 +21,6 @@ import {
   Trophy,
   FolderOpen
 } from "lucide-react";
-import DriveVaultModal from "@/components/library/DriveVaultModal";
 import ReactConfetti from "react-confetti";
 import { useStudentDashboard } from "@/hooks/useStudentDashboard";
 import { motion } from "framer-motion";
@@ -46,7 +45,6 @@ export default function StudentDashboardPage() {
   const { user, userId } = useAuth();
   const { data, loading: dataLoading } = useStudentDashboard(userId);
 
-  const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [currentTipIdx, setCurrentTipIdx] = useState(0);
 
@@ -316,25 +314,8 @@ export default function StudentDashboardPage() {
                  </div>
               </div>
 
-              {/* Resource Vault Quick Link */}
-              <button
-                onClick={() => setIsVaultOpen(true)}
-                className="w-full bg-blue-50 dark:bg-blue-900/10 rounded-[32px] p-6 border-2 border-dashed border-blue-200 dark:border-blue-900/30 flex items-center justify-between group hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all shadow-sm"
-              >
-                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#0F172A] shadow-md flex items-center justify-center text-[#1a73e8] group-hover:scale-110 transition-transform"><FolderOpen className="w-6 h-6" /></div>
-                    <div className="text-left">
-                       <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest leading-none mb-1">Resource Vault</p>
-                       <p className="text-xs font-black dark:text-white uppercase tracking-tighter">Guides & Templates</p>
-                    </div>
-                 </div>
-                 <ChevronRight className="w-5 h-5 text-blue-300 group-hover:translate-x-1 transition-transform" />
-              </button>
-
            </div>
         </div>
-
-        <DriveVaultModal isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} />
       </div>
     </AppShell>
   );

@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, serverTimestamp, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { formatDriveEmbedUrl } from '@/lib/utils/drive-helpers';
-import { Link2, ShieldCheck, FolderLock, X, Loader2, Save, Layers } from 'lucide-react';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase/config';
+import { Link2, ShieldCheck, FolderLock, X, Loader2, Save, UploadCloud, FileText } from 'lucide-react';
 import { QuestionPack } from '@/types';
+import { useAuth } from '@/lib/auth/auth-context';
 
 interface UploadResourceModalProps {
   isOpen: boolean;
@@ -15,17 +16,15 @@ interface UploadResourceModalProps {
   onSuccess: () => void;
 }
 
-/**
- * UploadResourceModal: Specialized form for linking Google Drive assets to Quiz Packs.
- * Feature: Auto-transformation of Drive URLs to secure previews.
- */
 export default function UploadResourceModal({ isOpen, onClose, editId, initialData, onSuccess }: UploadResourceModalProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [fileType, setFileType] = useState('pdf');
-  const [rawDriveUrl, setRawDriveUrl] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [linkedPackId, setLinkedPackId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [packs, setPacks] = useState<QuestionPack[]>([]);
 
   useEffect(() => {
@@ -35,14 +34,14 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
         setTitle(initialData.title || '');
         setDescription(initialData.description || '');
         setFileType(initialData.fileType || 'pdf');
-        setRawDriveUrl(initialData.fileUrl || '');
         setLinkedPackId(initialData.linkedPackId || '');
       } else {
         setTitle('');
         setDescription('');
         setFileType('pdf');
-        setRawDriveUrl('');
         setLinkedPackId('');
+        setFile(null);
+        setUploadProgress(0);
       }
     }
   }, [isOpen, editId, initialData]);
@@ -60,24 +59,47 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !rawDriveUrl) {
-      alert('Please provide a title and a valid Drive URL / direct link.');
+    if (!title) {
+      alert('Please provide a title.');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Transform raw Google Drive URL into an embed preview link
-      const embeddableUrl = formatDriveEmbedUrl(rawDriveUrl);
+      let finalFileUrl = initialData?.fileUrl || "";
+
+      if (file) {
+        // 1. Create a reference in the fresh Firebase Storage bucket
+        const fileStorageRef = ref(storage, `library/${Date.now()}_${file.name}`);
+
+        // 2. Upload file binary
+        const uploadTask = uploadBytesResumable(fileStorageRef, file);
+
+        finalFileUrl = await new Promise((resolve, reject) => {
+          uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress(progress);
+            },
+            (error) => reject(error),
+            async () => {
+              const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(downloadUrl);
+            }
+          );
+        });
+      }
 
       const payload = {
         title: title.trim(),
         description: description.trim(),
         fileType,
-        fileUrl: embeddableUrl,
+        fileUrl: finalFileUrl,
         linkedPackId: linkedPackId || null,
         updatedAt: serverTimestamp(),
+        uploadedBy: user?.uid || 'anonymous'
       };
 
       if (editId) {
@@ -92,10 +114,11 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Error saving resource metadata:', error);
+      console.error('Error saving resource:', error);
       alert('Failed to save resource. Check network/permissions.');
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -106,11 +129,11 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
         <div className="flex items-center justify-between border-b border-slate-800 pb-6">
           <div className="flex items-center space-x-3 text-white">
             <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
-              <Layers className="w-6 h-6" />
+              <UploadCloud className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black uppercase tracking-tighter">{editId ? "Update Resource" : "Link Drive Resource"}</h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Asset-to-Pack Mapping</p>
+              <h2 className="text-xl font-black uppercase tracking-tighter">{editId ? "Update Resource" : "Upload to Library"}</h2>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Native Storage Uplink</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-all text-slate-400 hover:text-white">
@@ -152,7 +175,6 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
                 <option value="pdf">PDF Document</option>
                 <option value="video">Video Session</option>
                 <option value="audio">Audio Briefing</option>
-                <option value="doc">Word / Shared Link</option>
               </select>
             </div>
 
@@ -170,23 +192,26 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
             </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Google Drive Share URL *</label>
-            <div className="relative">
-              <Link2 className="w-5 h-5 text-slate-500 absolute left-4 top-4" />
-              <input
-                type="url"
-                value={rawDriveUrl}
-                onChange={(e) => setRawDriveUrl(e.target.value)}
-                placeholder="Paste Drive link (File or Folder)..."
-                className="w-full bg-slate-950 border border-slate-700 text-white rounded-2xl pl-12 pr-4 py-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                required
-              />
+          <div className="relative group">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Select File binary *</label>
+            <div className="border-2 border-dashed border-slate-700 rounded-3xl p-8 text-center group-hover:border-indigo-500 transition-all bg-slate-950/50 relative overflow-hidden">
+               <UploadCloud className="w-10 h-10 text-slate-600 mx-auto mb-2" />
+               <p className="text-xs font-bold text-slate-400">{file ? file.name : "Drop mission asset here or click to browse"}</p>
+               <input
+                 type="file"
+                 onChange={(e) => e.target.files && setFile(e.target.files[0])}
+                 className="absolute inset-0 opacity-0 cursor-pointer"
+                 required={!editId}
+               />
             </div>
-            <p className="text-[10px] text-slate-500 mt-3 flex items-start gap-2 ml-1 leading-relaxed">
-              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
-              <span>Link will be automatically transformed into a secure embedded preview.</span>
-            </p>
+            {uploadProgress > 0 && (
+              <div className="mt-4 h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-indigo-500 transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="pt-4">
@@ -196,9 +221,9 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 rounded-[28px] text-xs uppercase tracking-[0.2em] transition-all shadow-2xl shadow-indigo-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
             >
               {isSubmitting ? (
-                <><Loader2 className="animate-spin" size={18} /> Syncing Vault...</>
+                <><Loader2 className="animate-spin" size={18} /> {uploadProgress > 0 ? `Uploading ${Math.round(uploadProgress)}%` : 'Syncing...'}</>
               ) : (
-                <><Save size={18} /> {editId ? "Update Resource" : "Deploy to Library"}</>
+                <><Save size={18} /> {editId ? "Update Resource" : "Deploy to Storage"}</>
               )}
             </button>
           </div>

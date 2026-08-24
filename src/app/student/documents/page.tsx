@@ -38,8 +38,8 @@ export default function StudentDocuments() {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-white uppercase tracking-tight">My Documents</h1>
         <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
-          Link your required UKVI compliance documents from Google Drive here.
-          Secure in-app previews will be generated automatically.
+          Upload your required UKVI compliance documents here.
+          Your files are encrypted and stored securely in our cloud vault.
         </p>
       </div>
 
@@ -58,10 +58,10 @@ export default function StudentDocuments() {
         />
       </div>
 
-      {/* Displaying already linked documents */}
+      {/* Displaying already uploaded documents */}
       {userProfile?.documents && Object.keys(userProfile.documents).length > 0 && (
         <div className="mt-8 bg-slate-900 border border-slate-800 p-8 rounded-[32px] shadow-sm">
-          <h3 className="text-sm font-black text-white mb-6 uppercase tracking-widest border-b border-slate-800 pb-3">Attached Records</h3>
+          <h3 className="text-sm font-black text-white mb-6 uppercase tracking-widest border-b border-slate-800 pb-3">Uploaded Files</h3>
           <ul className="space-y-4">
             {Object.entries(userProfile.documents).map(([key, url]) => (
               <li key={key} className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-slate-800 group hover:border-indigo-500/30 transition-all">

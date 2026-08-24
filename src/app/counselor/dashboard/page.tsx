@@ -45,7 +45,6 @@ import { db } from "@/lib/firebase/config";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { withTimeout } from "@/lib/utils/promise-timeout";
-import DriveVaultModal from "@/components/library/DriveVaultModal";
 
 interface PriorityTask {
   id: string;
@@ -65,7 +64,6 @@ export default function CounselorDashboard() {
   const [priorityTasks, setPriorityTasks] = useState<PriorityTask[]>([]);
   const [liveActivities, setLiveActivities] = useState<any[]>([]);
   const [scheduledSessions, setScheduledSessions] = useState<any[]>([]);
-  const [isVaultOpen, setIsVaultOpen] = useState(false);
 
   // ── Action Center Filter & Pagination ──
   const [taskFilter, setTaskFilter] = useState<'ALL' | 'mock' | 'dossier'>('ALL');
@@ -471,12 +469,6 @@ export default function CounselorDashboard() {
                    color="amber"
                    onClick={() => router.push('/counselor/students')}
                 />
-                <QuickActionButton
-                   icon={FolderDown}
-                   label="Resource Vault"
-                   color="indigo"
-                   onClick={() => setIsVaultOpen(true)}
-                />
                 <button
                   onClick={() => router.push('/counselor/activity-log')}
                   className="col-span-2 flex items-center justify-center gap-3 p-4 bg-gray-50 dark:bg-slate-900 border-2 border-gray-100 dark:border-slate-800 rounded-3xl transition-all hover:scale-[1.02] active:scale-95 hover:border-indigo-500/50 group"
@@ -662,7 +654,6 @@ export default function CounselorDashboard() {
           </div>
         </div>
       </div>
-      <DriveVaultModal isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} />
     </AppShell>
   );
 }

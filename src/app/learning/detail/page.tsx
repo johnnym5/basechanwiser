@@ -15,7 +15,6 @@ import { logActivityAndNotify } from "@/lib/server/notifications";
 import { showPushNotification } from "@/lib/client/push-notifications";
 
 import { withTimeout } from "@/lib/utils/promise-timeout";
-import { formatDriveEmbedUrl } from "@/lib/utils/drive-helpers";
 
 function ModuleDetailContent() {
   const searchParams = useSearchParams();
@@ -37,15 +36,11 @@ function ModuleDetailContent() {
   const renderAttachment = () => {
     if (!pack || !pack.attachmentUrl) return null;
 
-    // Use transform to ensure Drive links are embeddable
-    const embedUrl = formatDriveEmbedUrl(pack.attachmentUrl);
-
-    // If it's a Drive link (transformed to /preview or /embeddedfolderview), always use iframe
-    if (embedUrl.includes('drive.google.com') || pack.attachmentType === 'pdf' || pack.attachmentType === 'word') {
+    if (pack.attachmentType === 'pdf' || pack.attachmentType === 'word') {
       return (
         <div className="rounded-[32px] overflow-hidden border border-slate-800 shadow-2xl bg-white h-[600px]">
           <iframe
-            src={embedUrl}
+            src={pack.attachmentUrl}
             className="w-full h-full border-none"
             title="Resource Viewer"
             allow="autoplay"
