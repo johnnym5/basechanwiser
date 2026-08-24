@@ -5,16 +5,17 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { PackField, StudentPackData, PackFile } from "@/types/pack";
-import { uploadPackFile } from "@/lib/firebase/storage-utils";
-import { Loader2, FileCheck, Send, Download, Trash2, Eye, ShieldCheck, ChevronRight, HelpCircle } from "lucide-react";
+import { formatDriveEmbedUrl } from "@/lib/utils/drive-helpers";
+import { Loader2, FileCheck, Send, Download, Trash2, Eye, ShieldCheck, ChevronRight, HelpCircle, Link2 } from "lucide-react";
 
 export default function InterviewPackForm() {
   const { userId } = useAuth();
   const [fields, setFields] = useState<PackField[]>([]);
   const [data, setData] = useState<StudentPackData>({});
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [inputUrls, setInputUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (userId) fetchData();
@@ -35,24 +36,36 @@ export default function InterviewPackForm() {
     setLoading(false);
   };
 
-  const handleFileUpload = async (fieldId: string, file: File) => {
-    setUploading(fieldId);
+  const handleLinkUpload = async (fieldId: string) => {
+    const url = inputUrls[fieldId];
+    if (!url || !userId) return;
+
+    setIsProcessing(fieldId);
     try {
-      const result = await uploadPackFile(userId!, fieldId, file);
+      const finalUrl = formatDriveEmbedUrl(url);
       const fileData: PackFile = {
-        ...result,
+        fileUrl: finalUrl,
+        fileName: url.split('/').pop()?.split('?')[0] || "Linked Asset",
         uploadedAt: serverTimestamp()
       };
       const newData = { ...data, [fieldId]: fileData };
       setData(newData);
-      // Auto-save file upload to firestore
+      // Auto-save link to firestore
       await setDoc(doc(db, "Users", userId!, "interview_pack", "data"), newData, { merge: true });
+      setInputUrls({ ...inputUrls, [fieldId]: "" });
     } catch (e) {
       console.error(e);
-      alert("Upload failed.");
+      alert("Linking failed.");
     } finally {
-      setUploading(null);
+      setIsProcessing(null);
     }
+  };
+
+  const handleRemoveLink = async (fieldId: string) => {
+    const newData = { ...data };
+    delete newData[fieldId];
+    setData(newData);
+    await setDoc(doc(db, "Users", userId!, "interview_pack", "data"), newData);
   };
 
   const handleTextChange = (fieldId: string, value: string) => {
@@ -83,20 +96,22 @@ export default function InterviewPackForm() {
               <ShieldCheck size={14} className="text-emerald-500" /> Compliance Verified Storage
             </p>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-blue-600 text-white px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <FileCheck size={16} />}
-            Save Progress
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
-          >
-            Download as PDF
-          </button>
+          <div className="flex items-center gap-3">
+             <button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-blue-600 text-white px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <FileCheck size={16} />}
+                Save Progress
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+              >
+                Download as PDF
+              </button>
+          </div>
         </div>
 
         <div className="p-8 md:p-10 space-y-10">
@@ -125,31 +140,33 @@ export default function InterviewPackForm() {
                                 <a href={(val as PackFile).fileUrl} target="_blank" rel="noreferrer" className="p-2 text-blue-500 hover:bg-white dark:hover:bg-slate-800 rounded-lg">
                                   <Eye size={16} />
                                 </a>
-                                <button className="p-2 text-rose-500 hover:bg-white dark:hover:bg-slate-800 rounded-lg">
+                                <button onClick={() => handleRemoveLink(field.id)} className="p-2 text-rose-500 hover:bg-white dark:hover:bg-slate-800 rounded-lg">
                                   <Trash2 size={16} />
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <div className="relative">
-                              <input
-                                type="file"
-                                onChange={(e) => e.target.files?.[0] && handleFileUpload(field.id, e.target.files[0])}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                disabled={uploading === field.id}
-                              />
-                              <div className={`p-6 border-2 border-dashed rounded-3xl text-center transition-all ${uploading === field.id ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-400' : 'border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-900/50 hover:border-[#1a73e8]'}`}>
-                                {uploading === field.id ? (
-                                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500" />
-                                ) : (
-                                  <>
-                                    <Download className="w-6 h-6 mx-auto mb-2 text-gray-400" />
-                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Select File to Upload</p>
-                                  </>
-                                )}
+                            <div className="flex items-center gap-2">
+                              <div className="relative flex-1">
+                                 <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                 <input
+                                   type="url"
+                                   placeholder="Paste Google Drive URL..."
+                                   value={inputUrls[field.id] || ""}
+                                   onChange={e => setInputUrls({ ...inputUrls, [field.id]: e.target.value })}
+                                   className="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-2xl pl-11 pr-4 py-4 text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                                 />
                               </div>
+                              <button
+                                onClick={() => handleLinkUpload(field.id)}
+                                disabled={!inputUrls[field.id] || isProcessing === field.id}
+                                className="bg-indigo-600 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 transition-all disabled:opacity-30"
+                              >
+                                {isProcessing === field.id ? "..." : "Link"}
+                              </button>
                             </div>
                           )}
+                          <p className="text-[9px] text-slate-500 ml-1 italic">Binary upload decommissioned. Link from Google Drive instead.</p>
                         </div>
                       ) : field.type === 'select' ? (
                         <select
@@ -195,7 +212,7 @@ export default function InterviewPackForm() {
              <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center"><HelpCircle size={20} /></div>
              <div>
                 <p className="text-xs font-black uppercase tracking-widest text-blue-300">Form Status</p>
-                <p className="text-[10px] font-bold text-gray-400">All uploads are secured on our cloud.</p>
+                <p className="text-[10px] font-bold text-gray-400">All data synced to compliance cloud.</p>
              </div>
           </div>
           <button

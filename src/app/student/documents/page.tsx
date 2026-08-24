@@ -36,10 +36,10 @@ export default function StudentDocuments() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-white">My Documents</h1>
-        <p className="text-slate-400">
-          Upload your required UKVI compliance documents here.
-          Only PDF, JPG, and PNG formats are accepted.
+        <h1 className="text-2xl font-bold text-white uppercase tracking-tight">My Documents</h1>
+        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed">
+          Link your required UKVI compliance documents from Google Drive here.
+          Secure in-app previews will be generated automatically.
         </p>
       </div>
 
@@ -58,21 +58,21 @@ export default function StudentDocuments() {
         />
       </div>
 
-      {/* Displaying already uploaded documents */}
+      {/* Displaying already linked documents */}
       {userProfile?.documents && Object.keys(userProfile.documents).length > 0 && (
-        <div className="mt-8 bg-slate-900 border border-slate-800 p-6 rounded-xl">
-          <h3 className="text-lg font-bold text-white mb-4">Uploaded Files</h3>
-          <ul className="space-y-3">
+        <div className="mt-8 bg-slate-900 border border-slate-800 p-8 rounded-[32px] shadow-sm">
+          <h3 className="text-sm font-black text-white mb-6 uppercase tracking-widest border-b border-slate-800 pb-3">Attached Records</h3>
+          <ul className="space-y-4">
             {Object.entries(userProfile.documents).map(([key, url]) => (
-              <li key={key} className="flex justify-between items-center bg-slate-800 p-3 rounded-lg border border-slate-700">
-                <span className="text-slate-300 capitalize font-medium">
+              <li key={key} className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-slate-800 group hover:border-indigo-500/30 transition-all">
+                <span className="text-slate-300 capitalize font-black text-xs uppercase tracking-tight">
                   {key.replace(/_/g, ' ')}
                 </span>
                 <a
-                  href={url}
+                  href={url as string}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-indigo-400 hover:text-indigo-300 text-sm font-bold transition-colors"
+                  className="bg-slate-800 text-indigo-400 hover:bg-indigo-600 hover:text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
                 >
                   View Document
                 </a>

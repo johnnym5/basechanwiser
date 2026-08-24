@@ -5,11 +5,13 @@ import { Timer, Send, ChevronRight, CircleStop, Mic, AlertCircle, Loader2, Rotat
 import { motion, AnimatePresence } from "framer-motion";
 import { MockQuestion, MockInterviewAnswer } from "@/types/mock";
 import { db, storage } from "@/lib/firebase/config";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { logActivityAndNotify } from "@/lib/server/notifications";
 import { showPushNotification } from "@/lib/client/push-notifications";
 import { useRouter } from "next/navigation";
+
+// Firebase Storage Decommissioned - Logic disabled to prevent 402 errors.
+// TODO: Migrate to Google Drive API for video uploads.
 
 interface RecordedChunk {
   questionId: string;
@@ -145,15 +147,9 @@ export default function InterviewRecorder({ stream, questions, studentId, studen
     setStep('uploading');
 
     try {
-      // 1. Upload Blobs to Firebase Storage
-      const uploadPromises = recordedChunks.map(async (chunk, idx) => {
-        const storagePath = `mock_interviews/${studentId}/${mockId}/q_${idx}_${Date.now()}.webm`;
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, chunk.blob);
-        return getDownloadURL(storageRef);
-      });
-
-      const videoUrls = await Promise.all(uploadPromises);
+      // 1. Firebase Storage Decommissioned - Bypassing binary upload
+      // We will only store metadata. Video playback will be disabled until Drive integration.
+      const videoUrls = recordedChunks.map(() => "storage_decommissioned_link");
 
       // 2. Update Firestore Attempt
       const attemptId = `${studentId}_${mockId}`;
@@ -172,7 +168,8 @@ export default function InterviewRecorder({ stream, questions, studentId, studen
         status: 'pending_review',
         submittedAt: serverTimestamp(),
         timeTakenSeconds: totalDuration,
-        counselorId: counselorId || "" // Save counselorId to allow filtering in dashboard
+        counselorId: counselorId || "",
+        note: "System Note: Binary storage disabled. Please conduct live review via screen-share."
       });
 
       // 3. Log Activity & Notify Counselor
@@ -181,13 +178,13 @@ export default function InterviewRecorder({ stream, questions, studentId, studen
         studentName,
         counselorId: counselorId || "",
         type: 'MOCK_INTERVIEW',
-        message: `finalized a Mock Interview session. Review pending.`,
+        message: `finalized a Mock Interview session (Metadata Only). Review pending.`,
         link: `/counselor/mock-interviews/playback?attemptId=${attemptId}`
       });
 
       // ── SYSTEM PUSH NOTIFICATION ──
       await showPushNotification("Mock Interview Submitted", {
-        body: `${studentName} has successfully uploaded their UKVI Mock Interview segments.`,
+        body: `${studentName} has successfully completed their UKVI Mock Interview (Metadata Only).`,
         tag: 'mock-submission'
       });
 
@@ -195,7 +192,7 @@ export default function InterviewRecorder({ stream, questions, studentId, studen
       setTimeout(() => onFinish(), 2000);
     } catch (err) {
       console.error("Submission failed", err);
-      alert("Critical error during upload. Please check your connection.");
+      alert("Failed to sync mission metadata. Check network connection.");
       setStep('preview');
       setIsFinalizing(false);
     }

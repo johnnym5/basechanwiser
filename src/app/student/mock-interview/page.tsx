@@ -5,12 +5,14 @@ import AppShell from "@/components/layout/app-shell";
 import PreFlightLobby from "@/components/student/PreFlightLobby";
 import InterviewRecorder from "@/components/student/InterviewRecorder";
 import { useAuth } from "@/lib/auth/auth-context";
-import { db, storage } from "@/lib/firebase/config";
-import { doc, getDoc, getDocs, collection, query, where, limit, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { deleteObject, ref } from "firebase/storage";
-import { MockQuestionSet, MockQuestion, MockInterviewAttempt, MockInterviewAnswer } from "@/types/mock";
+import { db } from "@/lib/firebase/config";
+import { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { MockQuestionSet, MockQuestion, MockInterviewAttempt } from "@/types/mock";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+// Firebase Storage Decommissioned - Retake cleanup logic disabled.
+// TODO: Implement Google Drive file management for mock sessions.
 
 type Step = 'loading' | 'lobby' | 'recording' | 'uploading' | 'completed';
 
@@ -110,20 +112,7 @@ export default function StudentMockInterviewPage() {
       const attemptSnap = await getDoc(attemptRef);
 
       if (attemptSnap.exists()) {
-        const data = attemptSnap.data() as MockInterviewAttempt;
-        // Delete old video chunks to save space
-        if (data.videoUrls && data.videoUrls.length > 0) {
-          const deletePromises = data.videoUrls.map((url: string) => {
-             try {
-                return deleteObject(ref(storage, url));
-             } catch (e) {
-                console.warn("Delete failed", e);
-                return Promise.resolve();
-             }
-          });
-          await Promise.all(deletePromises);
-        }
-        // Reset doc
+        // Reset doc - Binary cleanup bypassed due to Storage decommissioning
         await updateDoc(attemptRef, {
           videoUrls: [],
           answers: [],

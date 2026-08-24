@@ -1,115 +1,129 @@
 "use client";
 
 import { useState } from 'react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/lib/firebase/config';
 import { useAuth } from '@/lib/auth/auth-context';
-import { FileUp, CheckCircle, AlertCircle } from 'lucide-react';
+import { Link2, CheckCircle, AlertCircle, ShieldCheck } from 'lucide-react';
+import { formatDriveEmbedUrl } from '@/lib/utils/drive-helpers';
 
 interface DocumentUploaderProps {
   documentType: string; // e.g., 'passport', 'transcript', 'cas_letter'
   onUploadSuccess: (url: string, documentType: string) => void;
-  acceptedTypes?: string; // e.g., '.pdf,image/*'
+  acceptedTypes?: string; // Kept for interface compatibility
 }
 
+/**
+ * DocumentLinker (formerly Uploader):
+ * Decommissioned Firebase Storage uploads to prevent billing errors.
+ * Strictly accepts direct links or Google Drive URLs.
+ */
 export default function DocumentUploader({
   documentType,
   onUploadSuccess,
-  acceptedTypes = ".pdf,.jpg,.jpeg,.png"
 }: DocumentUploaderProps) {
   const { user } = useAuth();
-  const [file, setFile] = useState<File | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
+  const [url, setUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setError(null);
-      setSuccess(false);
+  const handleLink = async () => {
+    if (!url || !user) {
+      setError("Please provide a valid URL.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Transform Google Drive links to embeddable previews automatically
+      const finalUrl = formatDriveEmbedUrl(url);
+
+      setSuccess(true);
+      onUploadSuccess(finalUrl, documentType);
+      setUrl('');
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error("Linking failed:", err);
+      setError("Failed to process link.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleUpload = async () => {
-    if (!file || !user) return;
-    setIsUploading(true);
-    setError(null);
-
-    // Create a reference: documents/{userId}/{documentType}_{timestamp}_{filename}
-    const fileRef = ref(storage, `documents/${user.uid}/${documentType}_${Date.now()}_${file.name}`);
-    const uploadTask = uploadBytesResumable(fileRef, file);
-
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-        setProgress(percent);
-      },
-      (err) => {
-        console.error("Upload failed:", err);
-        setError("Failed to upload document. Please try again.");
-        setIsUploading(false);
-      },
-      async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        setSuccess(true);
-        setIsUploading(false);
-        onUploadSuccess(downloadURL, documentType);
-        setFile(null); // Clear selection after success
-      }
-    );
-  };
-
   return (
-    <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-      <div className="flex items-center justify-between mb-4">
-        <h4 className="text-sm font-semibold text-slate-200 capitalize">
-          Upload {documentType.replace(/_/g, ' ')}
+    <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+          Link {documentType.replace(/_/g, ' ')}
         </h4>
-        {success && <CheckCircle className="text-green-500" size={20}/>}
+        {success && (
+          <span className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase animate-in fade-in">
+            <CheckCircle size={14}/> Linked
+          </span>
+        )}
       </div>
 
-      <div className="flex flex-col gap-3">
-        <input
-          type="file"
-          accept={acceptedTypes}
-          onChange={handleFileChange}
-          className="block w-full text-sm text-slate-400
-            file:mr-4 file:py-2 file:px-4
-            file:rounded-lg file:border-0
-            file:text-sm file:font-semibold
-            file:bg-indigo-600/20 file:text-indigo-400
-            hover:file:bg-indigo-600/30 transition-colors"
-        />
+      <div className="flex flex-col gap-4">
+        <div className="relative">
+          <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => { setUrl(e.target.value); setError(null); }}
+            placeholder="Paste Google Drive or Web Link..."
+            className="w-full bg-slate-950 border border-slate-700 text-white rounded-2xl pl-11 pr-4 py-3.5 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+          />
+        </div>
 
         {error && (
-          <p className="text-xs text-red-400 flex items-center gap-1">
+          <p className="text-[10px] font-black text-rose-400 flex items-center gap-1 uppercase tracking-tighter ml-1">
             <AlertCircle size={14}/> {error}
           </p>
         )}
 
-        {isUploading && (
-          <div className="w-full bg-slate-700 rounded-full h-1.5 mt-2">
-            <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }}></div>
-          </div>
-        )}
-
         <button
-          onClick={handleUpload}
+          onClick={handleLink}
           type="button"
-          disabled={!file || isUploading}
-          className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold transition-colors ${
-            !file || isUploading
-              ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700'
+          disabled={!url || isSubmitting}
+          className={`flex items-center justify-center gap-2 py-4 px-6 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+            !url || isSubmitting
+              ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+              : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-900/20 active:scale-95'
           }`}
         >
-          <FileUp size={16}/>
-          {isUploading ? `Uploading... ${progress}%` : 'Upload File'}
+          {isSubmitting ? (
+            <><Loader2 className="animate-spin w-4 h-4" /> Processing...</>
+          ) : (
+            <>Attach Document Link</>
+          )}
         </button>
+
+        <p className="text-[9px] text-slate-500 flex items-start gap-1.5 italic leading-relaxed px-1">
+          <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
+          Drive links are automatically converted to secure in-app previews.
+        </p>
       </div>
     </div>
+  );
+}
+
+function Loader2(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="animate-spin"
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
   );
 }

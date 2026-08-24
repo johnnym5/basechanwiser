@@ -5,7 +5,7 @@ import { usePDF } from "react-to-pdf";
 import { useAuth } from "@/lib/auth/auth-context";
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { uploadPackFile } from "@/lib/firebase/storage-utils";
+import { formatDriveEmbedUrl } from "@/lib/utils/drive-helpers";
 import { PackFile, StudentPackData } from "@/types/pack";
 import AppShell from "@/components/layout/app-shell";
 import {
@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Building2,
+  Link2,
 } from "lucide-react";
 
 // ─── UKVI Study Guide State Shape ─────────────────────────────────────────────
@@ -142,13 +143,17 @@ export default function StudentPortfolioPage() {
     setSaving(false);
   };
 
-  // ── Upload Vault File ────────────────────────────────────────────────────────
-  const handleVaultUpload = async (fieldId: keyof VaultData, file: File) => {
-    if (!userId) return;
+  // ── Attach Vault Link (Replaced Upload) ───────────────────────────────────
+  const handleVaultLink = async (fieldId: keyof VaultData, url: string) => {
+    if (!userId || !url) return;
     setUploading(fieldId);
     try {
-      const result = await uploadPackFile(userId, fieldId, file);
-      const fileData: PackFile = { ...result, uploadedAt: serverTimestamp() };
+      const embedUrl = formatDriveEmbedUrl(url);
+      const fileData: PackFile = {
+        fileUrl: embedUrl,
+        fileName: url.split('/').pop()?.split('?')[0] || "Linked Asset",
+        uploadedAt: serverTimestamp()
+      };
       const newVault = { ...vault, [fieldId]: fileData };
       setVault(newVault);
       await setDoc(doc(db, "Users", userId, "portfolio", "document_vault"), newVault, { merge: true });
@@ -171,7 +176,7 @@ export default function StudentPortfolioPage() {
     return (
       <AppShell>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+          <Loader2 size={40} className="animate-spin text-indigo-500" />
         </div>
       </AppShell>
     );
@@ -235,7 +240,7 @@ export default function StudentPortfolioPage() {
                 : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
             }`}
           >
-            <UploadCloud size={14} />
+            <Link2 size={14} />
             Document Vault
             <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${uploadedCount === VAULT_FIELDS.length ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
               {uploadedCount}/{VAULT_FIELDS.length}
@@ -247,7 +252,7 @@ export default function StudentPortfolioPage() {
         {activeTab === "guide" ? (
           <StudyGuideTab guide={guide} setGuide={setGuide} />
         ) : (
-          <DocumentVaultTab vault={vault} uploading={uploading} onUpload={handleVaultUpload} onRemove={handleVaultRemove} />
+          <DocumentVaultTab vault={vault} uploading={uploading} onLink={handleVaultLink} onRemove={handleVaultRemove} />
         )}
 
         {/* ── HIDDEN PDF TEMPLATE ─────────────────────────────────────────── */}
@@ -459,85 +464,89 @@ function StudyGuideTab({
 function DocumentVaultTab({
   vault,
   uploading,
-  onUpload,
+  onLink,
   onRemove,
 }: {
   vault: VaultData;
   uploading: string | null;
-  onUpload: (fieldId: keyof VaultData, file: File) => void;
+  onLink: (fieldId: keyof VaultData, url: string) => void;
   onRemove: (fieldId: keyof VaultData) => void;
 }) {
+  const [inputUrls, setInputUrls] = useState<Partial<Record<keyof VaultData, string>>>({});
+
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 rounded-3xl p-5">
         <ShieldCheck size={18} className="text-amber-500 mt-0.5 shrink-0" />
-        <div className="text-xs font-bold text-amber-700 dark:text-amber-300 leading-relaxed">
-          All documents are stored securely and encrypted in our cloud vault. Your Counselor will be notified once each document is uploaded and verified.
+        <div className="text-xs font-bold text-amber-700 dark:text-indigo-300 leading-relaxed uppercase tracking-widest">
+          All documents are now linked via secure direct URLs to prevent storage failures. Paste your Google Drive share links below.
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5">
         {VAULT_FIELDS.map((field) => {
           const file = vault[field.id];
-          const isUploading = uploading === field.id;
-          const isUploaded = !!file;
+          const isProcessing = uploading === field.id;
+          const isLinked = !!file;
 
           return (
-            <div key={field.id} className="bg-white dark:bg-slate-800 rounded-[32px] border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6">
+            <div key={field.id} className="bg-white dark:bg-slate-800 rounded-[32px] border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:border-indigo-500/30">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${isUploaded ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-gray-50 dark:bg-slate-700"}`}>
-                    {isUploaded ? (
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${isLinked ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-gray-50 dark:bg-slate-700"}`}>
+                    {isLinked ? (
                       <CheckCircle2 size={20} className="text-emerald-500" />
                     ) : (
-                      <UploadCloud size={20} className="text-slate-400" />
+                      <Link2 size={20} className="text-slate-400" />
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-black text-gray-900 dark:text-white">{field.label}</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">{field.label}</p>
                     <p className="text-[11px] text-gray-400 font-medium mt-0.5">{field.hint}</p>
-                    {isUploaded && file && (
-                      <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1 truncate max-w-xs">
-                        ✓ {(file as PackFile).fileName}
-                      </p>
-                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {isUploaded && file ? (
+                <div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-3">
+                  {isLinked && file ? (
                     <>
+                       <div className="flex-1 bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-700 hidden sm:block">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter truncate max-w-[120px]">{(file as PackFile).fileName}</p>
+                       </div>
                       <a
                         href={(file as PackFile).fileUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1.5 px-4 py-2.5 bg-gray-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-xl font-black text-xs uppercase tracking-widest border border-gray-100 dark:border-slate-600 hover:scale-105 transition-all"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-gray-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-xl font-black text-xs uppercase tracking-widest border border-gray-100 dark:border-slate-600 hover:scale-105 transition-all"
                       >
                         <Eye size={13} /> View
                       </a>
                       <button
                         onClick={() => onRemove(field.id)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-xl font-black text-xs uppercase tracking-widest border border-rose-100 dark:border-rose-900/30 hover:scale-105 transition-all"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-xl font-black text-xs uppercase tracking-widest border border-rose-100 dark:border-rose-900/30 hover:scale-105 transition-all"
                       >
                         <Trash2 size={13} /> Remove
                       </button>
                     </>
                   ) : (
-                    <label className="relative cursor-pointer">
-                      <input
-                        type="file"
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        disabled={isUploading}
-                        onChange={(e) => e.target.files?.[0] && onUpload(field.id, e.target.files[0])}
-                      />
-                      <div className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${isUploading ? "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500" : "bg-indigo-600 text-white hover:bg-indigo-500 hover:scale-105 active:scale-95 shadow-lg shadow-indigo-500/20"}`}>
-                        {isUploading ? (
-                          <><Loader2 size={13} className="animate-spin" /> Uploading...</>
-                        ) : (
-                          <><UploadCloud size={13} /> Upload</>
-                        )}
-                      </div>
-                    </label>
+                    <div className="w-full flex items-center gap-2">
+                       <input
+                         type="url"
+                         placeholder="Paste Drive Link..."
+                         value={inputUrls[field.id] || ""}
+                         onChange={(e) => setInputUrls({...inputUrls, [field.id]: e.target.value})}
+                         className="flex-1 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                       />
+                       <button
+                         disabled={!inputUrls[field.id] || isProcessing}
+                         onClick={() => {
+                            onLink(field.id, inputUrls[field.id]!);
+                            setInputUrls({...inputUrls, [field.id]: ""});
+                         }}
+                         className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-500 transition-all disabled:opacity-30 flex items-center gap-2"
+                       >
+                         {isProcessing ? <Loader2 size={12} className="animate-spin" /> : "Link"}
+                       </button>
+                    </div>
                   )}
                 </div>
               </div>
