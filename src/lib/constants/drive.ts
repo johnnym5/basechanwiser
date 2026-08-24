@@ -5,17 +5,32 @@ export const DRIVE_CONFIG = {
 };
 
 /**
- * Transforms standard Google Drive file links into embeddable preview URLs
+ * Transforms standard Google Drive file or folder links into embeddable preview URLs
  */
-export function getEmbeddableDriveUrl(urlOrId: string): string {
-  if (!urlOrId) return '';
+export function formatDriveEmbedUrl(urlInput: string): string {
+  if (!urlInput || typeof urlInput !== 'string') return '';
 
-  // Extract ID if full URL passed
-  let fileId = urlOrId;
-  const match = urlOrId.match(/\/d\/([a-zA-Z0-9_-]+)/) || urlOrId.match(/id=([a-zA-Z0-9_-]+)/);
-  if (match && match[1]) {
-    fileId = match[1];
+  const trimmed = urlInput.trim();
+
+  // 1. If it's a Google Drive Folder Link
+  const folderMatch = trimmed.match(/\/folders\/([a-zA-Z0-9_-]+)/) || trimmed.match(/id=([a-zA-Z0-9_-]+)/);
+  if (trimmed.includes('drive.google.com') && folderMatch && folderMatch[1] && trimmed.includes('/folders/')) {
+    return `https://drive.google.com/embeddedfolderview?id=${folderMatch[1]}#list`;
   }
 
-  return `https://drive.google.com/file/d/${fileId}/preview`;
+  // 2. If it's a Google Drive File Link (PDF, MP4, Doc)
+  const fileMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/id=([a-zA-Z0-9_-]+)/);
+  if (fileMatch && fileMatch[1]) {
+    return `https://drive.google.com/file/d/${fileMatch[1]}/preview`;
+  }
+
+  // 3. Fallback: Return raw URL if it's an external direct link or already processed
+  return trimmed;
+}
+
+/**
+ * Legacy Helper (Maintaining compatibility)
+ */
+export function getEmbeddableDriveUrl(urlOrId: string): string {
+  return formatDriveEmbedUrl(urlOrId);
 }

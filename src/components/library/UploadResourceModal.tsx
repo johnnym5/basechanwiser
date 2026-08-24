@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, serverTimestamp, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { formatDriveEmbedUrl } from '@/lib/utils/drive-helpers';
-import { Link2, ShieldCheck, FolderLock, X, Loader2, Save } from 'lucide-react';
+import { Link2, ShieldCheck, FolderLock, X, Loader2, Save, Layers } from 'lucide-react';
 import { QuestionPack } from '@/types';
 
 interface UploadResourceModalProps {
@@ -15,6 +15,10 @@ interface UploadResourceModalProps {
   onSuccess: () => void;
 }
 
+/**
+ * UploadResourceModal: Specialized form for linking Google Drive assets to Quiz Packs.
+ * Feature: Auto-transformation of Drive URLs to secure previews.
+ */
 export default function UploadResourceModal({ isOpen, onClose, editId, initialData, onSuccess }: UploadResourceModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -64,7 +68,7 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
     setIsSubmitting(true);
 
     try {
-      // 1. Transform raw Google Drive URL into an embed preview link
+      // Transform raw Google Drive URL into an embed preview link
       const embeddableUrl = formatDriveEmbedUrl(rawDriveUrl);
 
       const payload = {
@@ -76,7 +80,6 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
         updatedAt: serverTimestamp(),
       };
 
-      // 2. Write ONLY to Firestore (Zero Firebase Storage bandwidth used)
       if (editId) {
         await updateDoc(doc(db, 'library_resources', editId), payload);
       } else {
@@ -97,17 +100,17 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
       <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-[40px] p-8 shadow-2xl space-y-6">
 
         <div className="flex items-center justify-between border-b border-slate-800 pb-6">
           <div className="flex items-center space-x-3 text-white">
             <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
-              <FolderLock className="w-6 h-6" />
+              <Layers className="w-6 h-6" />
             </div>
             <div>
               <h2 className="text-xl font-black uppercase tracking-tighter">{editId ? "Update Resource" : "Link Drive Resource"}</h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Central Repository Uplink</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Asset-to-Pack Mapping</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-all text-slate-400 hover:text-white">
@@ -140,49 +143,49 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">File Type</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Resource Type</label>
               <select
                 value={fileType}
                 onChange={(e) => setFileType(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 text-white rounded-2xl px-4 py-3.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
               >
                 <option value="pdf">PDF Document</option>
-                <option value="video">Video (MP4 / Drive)</option>
+                <option value="video">Video Session</option>
                 <option value="audio">Audio Briefing</option>
-                <option value="doc">Word / Direct Link</option>
+                <option value="doc">Word / Shared Link</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Link Assessment Pack</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Target Quiz Pack</label>
               <select
                 required
                 value={linkedPackId}
                 onChange={e => setLinkedPackId(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 text-white rounded-2xl px-4 py-3.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
               >
-                  <option value="">Select a Quiz Pack</option>
+                  <option value="">Select a Mission Pack...</option>
                   {packs.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Direct Google Drive URL / File Link *</label>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Google Drive Share URL *</label>
             <div className="relative">
               <Link2 className="w-5 h-5 text-slate-500 absolute left-4 top-4" />
               <input
                 type="url"
                 value={rawDriveUrl}
                 onChange={(e) => setRawDriveUrl(e.target.value)}
-                placeholder="Paste Drive Share Link..."
+                placeholder="Paste Drive link (File or Folder)..."
                 className="w-full bg-slate-950 border border-slate-700 text-white rounded-2xl pl-12 pr-4 py-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                 required
               />
             </div>
             <p className="text-[10px] text-slate-500 mt-3 flex items-start gap-2 ml-1 leading-relaxed">
               <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
-              <span>Direct Google Drive links automatically convert to secure embedded previews.</span>
+              <span>Link will be automatically transformed into a secure embedded preview.</span>
             </p>
           </div>
 
@@ -193,9 +196,9 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 rounded-[28px] text-xs uppercase tracking-[0.2em] transition-all shadow-2xl shadow-indigo-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
             >
               {isSubmitting ? (
-                <><Loader2 className="animate-spin" size={18} /> Saving to Vault...</>
+                <><Loader2 className="animate-spin" size={18} /> Syncing Vault...</>
               ) : (
-                <><Save size={18} /> {editId ? "Update Resource" : "Publish to Library"}</>
+                <><Save size={18} /> {editId ? "Update Resource" : "Deploy to Library"}</>
               )}
             </button>
           </div>
