@@ -106,24 +106,34 @@ function ViewerContent() {
 
       {/* ── CTA ── */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-40">
-         <button
-           onClick={() => router.push(`/learning/detail?id=${resource.linkedPackId}`)}
-           disabled={!canProceed}
-           className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-[24px] text-sm uppercase tracking-widest shadow-[0_20px_50px_rgba(26,115,232,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
-         >
-            {canProceed ? (
-              <>
-                <CheckCircle2 className="w-5 h-5" />
-                Complete Material & Start Quiz
-                <ChevronRight className="w-5 h-5" />
-              </>
-            ) : (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Reviewing Material...
-              </>
-            )}
-         </button>
+         {resource.linkedPackId ? (
+            <button
+              onClick={() => router.push(`/learning/detail?id=${resource.linkedPackId}`)}
+              disabled={!canProceed}
+              className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-[24px] text-sm uppercase tracking-widest shadow-[0_20px_50px_rgba(26,115,232,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
+            >
+               {canProceed ? (
+                 <>
+                   <CheckCircle2 className="w-5 h-5" />
+                   Complete Material & Start Quiz
+                   <ChevronRight className="w-5 h-5" />
+                 </>
+               ) : (
+                 <>
+                   <Loader2 className="w-5 h-5 animate-spin" />
+                   Reviewing Material...
+                 </>
+               )}
+            </button>
+         ) : (
+            <button
+              onClick={() => router.push('/student/library')}
+              className="w-full py-5 bg-slate-800 text-white font-black rounded-[24px] text-sm uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+            >
+               <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+               Finish Reading & Return
+            </button>
+         )}
       </div>
     </div>
   );

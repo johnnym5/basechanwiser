@@ -64,7 +64,7 @@ export default function StudentLibraryPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800 pb-8">
           <div>
             <h1 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
-              <BookOpen className="w-8 h-8 text-blue-600" /> Academy Library
+              <BookOpen className="w-8 h-8 text-blue-600" /> Resource Library
             </h1>
             <p className="text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">Review study materials before attempting assessments.</p>
           </div>
