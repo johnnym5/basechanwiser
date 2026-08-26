@@ -21,7 +21,9 @@ export interface LibraryResource {
   description: string;
   fileType: 'pdf' | 'video' | 'doc' | 'link';
   fileUrl: string;
-  linkedPackId: string;
+  linkedPackId?: string | null;
+  assignedStudentIds?: string[]; // UIDs of students who can see this
+  isPublic: boolean; // if true, visible to all students
   createdAt: any;
   createdBy: string;
 }

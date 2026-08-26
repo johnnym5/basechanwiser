@@ -2,9 +2,22 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
-import { doc, getDoc } from "firebase/firestore";
-import { MockInterviewAttempt } from "@/types/mock";
-import { Loader2, PlayCircle, Clock, List, Calendar, UserCheck, Video } from "lucide-react";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { MockInterviewAttempt, MockInterviewAnswer } from "@/types/mock";
+import {
+  Loader2,
+  PlayCircle,
+  Clock,
+  List,
+  Calendar,
+  UserCheck,
+  Video,
+  ThumbsUp,
+  ThumbsDown,
+  Save,
+  CheckCircle2,
+  AlertCircle
+} from "lucide-react";
 
 interface MockInterviewPlaybackProps {
   attemptId: string;
@@ -14,6 +27,11 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
   const [attempt, setAttempt] = useState<MockInterviewAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number>(0);
+  const [saving, setSaving] = useState(false);
+
+  // Local edits for feedback & ratings
+  const [localAnswers, setLocalAnswers] = useState<MockInterviewAnswer[]>([]);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -26,13 +44,44 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
       if (snap.exists()) {
         const data = snap.data() as MockInterviewAttempt;
         setAttempt({ id: snap.id, ...data });
-        // Auto-select first chunk if available
+        setLocalAnswers(data.answers || []);
         setActiveQuestionIdx(0);
       }
     } catch (e) {
       console.error("Error fetching attempt for playback:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Update local state for sectional review
+   */
+  const updateSectionReview = (idx: number, updates: Partial<MockInterviewAnswer>) => {
+    const updated = [...localAnswers];
+    updated[idx] = { ...updated[idx], ...updates };
+    setLocalAnswers(updated);
+  };
+
+  /**
+   * Commit all sectional reviews to Firestore
+   */
+  const handleSaveAllReviews = async () => {
+    if (!attempt?.id) return;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, "mock_interview_attempts", attempt.id), {
+        answers: localAnswers,
+        status: 'completed', // Mark as fully reviewed if desired, or keep as is
+        updatedAt: serverTimestamp()
+      });
+      alert("Sectional reviews archived successfully!");
+      fetchAttempt();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to sync reviews.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -133,6 +182,60 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
             {attempt.status.replace('_', ' ')}
           </span>
         </div>
+
+        {/* ── SECTIONAL FEEDBACK PANEL ── */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-sm border border-gray-100 dark:border-slate-700 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+           <div className="flex justify-between items-center">
+              <div className="space-y-1">
+                 <h3 className="text-sm font-black uppercase tracking-widest text-blue-500">Sectional Performance Audit</h3>
+                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Question #{activeQuestionIdx + 1}</p>
+              </div>
+
+              <div className="flex gap-2">
+                 <button
+                   onClick={() => updateSectionReview(activeQuestionIdx, { rating: 'good' })}
+                   className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
+                     localAnswers[activeQuestionIdx]?.rating === 'good'
+                       ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                       : 'bg-transparent border-gray-100 dark:border-slate-700 text-gray-400 hover:border-emerald-500/50'
+                   }`}
+                 >
+                    <ThumbsUp size={16} /> PASS
+                 </button>
+                 <button
+                   onClick={() => updateSectionReview(activeQuestionIdx, { rating: 'bad' })}
+                   className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
+                     localAnswers[activeQuestionIdx]?.rating === 'bad'
+                       ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/30'
+                       : 'bg-transparent border-gray-100 dark:border-slate-700 text-gray-400 hover:border-rose-500/50'
+                   }`}
+                 >
+                    <ThumbsDown size={16} /> FAIL
+                 </button>
+              </div>
+           </div>
+
+           <textarea
+             value={localAnswers[activeQuestionIdx]?.feedback || ""}
+             onChange={(e) => updateSectionReview(activeQuestionIdx, { feedback: e.target.value })}
+             placeholder="Enter specific counselor observations for this answer segment..."
+             className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-[32px] p-6 text-sm font-medium leading-relaxed dark:text-slate-200 focus:ring-2 focus:ring-blue-500 min-h-[120px] transition-all"
+           />
+
+           <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-slate-700">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                 <AlertCircle size={14} className="text-amber-500" /> Changes are stored locally until committed.
+              </p>
+              <button
+                onClick={handleSaveAllReviews}
+                disabled={saving}
+                className="px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                 {saving ? <Loader2 className="animate-spin" /> : <Save size={16} />}
+                 Commit Full Audit
+              </button>
+           </div>
+        </div>
       </div>
 
       {/* Side-by-Side Asked Questions List */}
@@ -151,14 +254,14 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
         <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
           {questionList.map((questionText, idx) => {
             const isActive = activeQuestionIdx === idx;
-            const hasMedia = isChunked ? !!attempt.answers[idx]?.videoUrl : !!attempt.videoUrl;
+            const rating = localAnswers[idx]?.rating;
 
             return (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSelection(idx)}
-                className={`w-full text-left p-6 rounded-3xl transition-all cursor-pointer border group ${
+                className={`w-full text-left p-6 rounded-3xl transition-all cursor-pointer border group relative ${
                   isActive
                     ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500/80 shadow-sm"
                     : "bg-gray-50 dark:bg-[#0F172A] border-gray-100 dark:border-slate-800 hover:bg-slate-800 hover:text-white dark:hover:bg-slate-700/60"
@@ -169,11 +272,15 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
                     Question #{idx + 1}
                   </span>
 
-                  {!isChunked && attempt.questionTimestamps?.[idx] && (
-                    <span className="text-[10px] font-black font-mono px-2.5 py-1 bg-white dark:bg-slate-900 rounded-full border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-300 group-hover:border-blue-400">
-                      ⏱ {formatMMSS(attempt.questionTimestamps[idx].startTime)}
-                    </span>
-                  )}
+                  <div className="flex gap-2">
+                     {rating === 'good' && <ThumbsUp size={14} className="text-emerald-500" />}
+                     {rating === 'bad' && <ThumbsDown size={14} className="text-rose-500" />}
+                     {!isChunked && attempt.questionTimestamps?.[idx] && (
+                        <span className="text-[10px] font-black font-mono px-2.5 py-1 bg-white dark:bg-slate-900 rounded-full border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-300 group-hover:border-blue-400">
+                           ⏱ {formatMMSS(attempt.questionTimestamps[idx].startTime)}
+                        </span>
+                     )}
+                  </div>
                 </div>
 
                 <p className="text-sm font-bold text-gray-800 dark:text-slate-200 leading-snug group-hover:text-white">

@@ -20,6 +20,8 @@ export interface MockInterviewAnswer {
   questionId: string;
   questionText: string;
   videoUrl?: string; // specific URL for this chunk
+  feedback?: string; // Counselor feedback for this specific answer
+  rating?: 'good' | 'average' | 'bad' | null; // Sectional rating
 }
 
 export interface QuestionTimestamp {

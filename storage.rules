@@ -1,12 +1,36 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // Helper: Check if user is staff (Counselor, Admin, Super Admin)
+    function isStaff() {
+      return request.auth != null &&
+        firestore.get(/databases/(default)/documents/Users/$(request.auth.uid)).data.role in ['Counselor', 'Admin', 'Super Admin'];
+    }
+
+    // Standard Rule: Authenticated users can read all
     match /{allPaths=**} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null &&
-        (get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role == 'Counselor' ||
-         get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role == 'Admin' ||
-         get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role == 'Super Admin');
+    }
+
+    // 1. Mock Interviews: Students can upload to their own folder
+    match /mock_interviews/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 2. Student Documents: Students can upload to their own folder
+    match /documents/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 3. Student Packs: Students can upload to their own folder
+    match /student_packs/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Global Fallback for Writes: Staff can write anywhere
+    match /{allPaths=**} {
+      allow write: if isStaff();
     }
   }
 }

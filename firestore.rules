@@ -23,8 +23,11 @@ service cloud.firestore {
 
     // Library Resources & Google Drive Linked Metadata
     match /library_resources/{resourceId} {
-      allow read: if isAuthenticated();
-      allow write, create, update, delete: if isStaff();
+      allow read: if isStaff() ||
+                  (isAuthenticated() &&
+                   (resource.data.isPublic == true ||
+                    (resource.data.assignedStudentIds != null && request.auth.uid in resource.data.assignedStudentIds)));
+      allow write: if isStaff();
     }
 
     // Fallback for other collections (maintain development access for now but restricted to auth)

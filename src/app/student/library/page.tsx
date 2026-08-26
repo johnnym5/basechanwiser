@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import AppShell from "@/components/layout/app-shell";
 import { useAuth } from "@/lib/auth/auth-context";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { LibraryResource } from "@/types/resource";
 import { FileText, Video, Loader2, ArrowRight, BookOpen, ShieldCheck } from "lucide-react";
@@ -11,14 +11,42 @@ import Link from "next/link";
 import EmptyState from "@/components/common/EmptyState";
 
 export default function StudentLibraryPage() {
+  const { userId, role } = useAuth();
   const [resources, setResources] = useState<LibraryResource[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!userId) return;
     const fetchResources = async () => {
       try {
-        const snap = await getDocs(query(collection(db, "library_resources"), orderBy("createdAt", "desc")));
-        setResources(snap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryResource)));
+        const isStaff = role === 'Admin' || role === 'Super Admin' || role === 'Counselor';
+
+        let fetched: LibraryResource[] = [];
+
+        if (isStaff) {
+          // Staff see everything
+          const q = query(collection(db, "library_resources"), orderBy("createdAt", "desc"));
+          const snap = await getDocs(q);
+          fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryResource));
+        } else {
+          // Students see public OR specifically assigned
+          const publicQ = query(collection(db, "library_resources"), where("isPublic", "==", true), orderBy("createdAt", "desc"));
+          const assignedQ = query(collection(db, "library_resources"), where("assignedStudentIds", "array-contains", userId), orderBy("createdAt", "desc"));
+
+          const [publicSnap, assignedSnap] = await Promise.all([getDocs(publicQ), getDocs(assignedQ)]);
+
+          const combined = new Map<string, LibraryResource>();
+          publicSnap.docs.forEach(d => combined.set(d.id, { id: d.id, ...d.data() } as LibraryResource));
+          assignedSnap.docs.forEach(d => combined.set(d.id, { id: d.id, ...d.data() } as LibraryResource));
+
+          fetched = Array.from(combined.values()).sort((a, b) => {
+            const dateA = a.createdAt?.seconds || 0;
+            const dateB = b.createdAt?.seconds || 0;
+            return dateB - dateA;
+          });
+        }
+
+        setResources(fetched);
       } catch (e) {
         console.error(e);
       } finally {
@@ -26,7 +54,7 @@ export default function StudentLibraryPage() {
       }
     };
     fetchResources();
-  }, []);
+  }, [userId, role]);
 
   return (
     <AppShell>

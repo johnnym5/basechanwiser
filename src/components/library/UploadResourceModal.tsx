@@ -23,6 +23,7 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
   const [fileType, setFileType] = useState('pdf');
   const [file, setFile] = useState<File | null>(null);
   const [linkedPackId, setLinkedPackId] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [packs, setPacks] = useState<QuestionPack[]>([]);
@@ -35,11 +36,13 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
         setDescription(initialData.description || '');
         setFileType(initialData.fileType || 'pdf');
         setLinkedPackId(initialData.linkedPackId || '');
+        setIsPublic(initialData.isPublic !== undefined ? initialData.isPublic : true);
       } else {
         setTitle('');
         setDescription('');
         setFileType('pdf');
         setLinkedPackId('');
+        setIsPublic(true);
         setFile(null);
         setUploadProgress(0);
       }
@@ -98,6 +101,7 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
         fileType,
         fileUrl: finalFileUrl,
         linkedPackId: linkedPackId || null,
+        isPublic: isPublic,
         updatedAt: serverTimestamp(),
         uploadedBy: user?.uid || 'anonymous'
       };
@@ -179,17 +183,29 @@ export default function UploadResourceModal({ isOpen, onClose, editId, initialDa
             </div>
 
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Target Quiz Pack</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Target Quiz Pack (Optional)</label>
               <select
-                required
                 value={linkedPackId}
                 onChange={e => setLinkedPackId(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 text-white rounded-2xl px-4 py-3.5 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
               >
-                  <option value="">Select a Mission Pack...</option>
+                  <option value="">No Mission Pack</option>
                   {packs.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
               </select>
             </div>
+          </div>
+
+          <div className="flex items-center space-x-3 p-4 bg-slate-950/50 border border-slate-800 rounded-2xl">
+             <input
+               type="checkbox"
+               id="isPublic"
+               checked={isPublic}
+               onChange={(e) => setIsPublic(e.target.checked)}
+               className="w-5 h-5 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900"
+             />
+             <label htmlFor="isPublic" className="flex-1 text-[10px] font-black uppercase tracking-widest text-slate-400 cursor-pointer">
+                Public Visibility (Accessible to all scholars)
+             </label>
           </div>
 
           <div className="relative group">
