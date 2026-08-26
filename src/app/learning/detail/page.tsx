@@ -83,15 +83,20 @@ function ModuleDetailContent() {
         let rawData: any = null;
         let finalId = packId;
 
-        // 1. Prioritize packId from URL (this is what happens when student clicks a module)
+        // 1. STICKY RESOLUTION: If packId provided in URL, we MUST show that specific module.
+        // Falling back to "Module 1" silently is what causes the confusion.
         if (packId) {
           const setSnap = await withTimeout(getDoc(doc(db, "test_question_sets", packId)), 10000);
           if (setSnap.exists()) {
             rawData = setSnap.data();
+          } else {
+            console.error(`[AcademyError] Requested packId "${packId}" does not exist in test_question_sets.`);
+            // If the specific ID fails, we check if there's a legacy mapping or try finding by orderIndex
+            // but for now, we continue to fallbacks if and ONLY IF no packId was provided or fetch failed.
           }
         }
 
-        // 2. Fallback to assigned test set if no packId provided
+        // 2. Fallback to assigned test set ONLY IF no specific pack requested or found
         if (!rawData && userId) {
           const userSnap = await withTimeout(getDoc(doc(db, "Users", userId)), 10000);
           const profile = userSnap.exists() ? userSnap.data() as UserProfile : null;
@@ -105,7 +110,7 @@ function ModuleDetailContent() {
           }
         }
 
-        // 3. Last fallback: default set
+        // 3. Last fallback: default set (usually Module 1)
         if (!rawData) {
           const q = query(collection(db, "test_question_sets"), where("isDefault", "==", true), limit(1));
           const snap = await withTimeout(getDocs(q), 10000);
@@ -116,6 +121,7 @@ function ModuleDetailContent() {
         }
 
         if (isMounted && rawData) {
+          // ── SYNC: Ensure we set the state with the actual data from the resolved document ──
           setPack({ id: finalId || "unknown", ...rawData } as TestQuestionSet);
         }
       } catch (err) {

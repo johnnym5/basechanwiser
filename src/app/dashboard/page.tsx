@@ -35,8 +35,8 @@ const MOTIVATIONAL_PHRASES = [
 const STAGE_CONTENT = [
   {
     id: 1,
-    title: "The Knowledge Forges",
-    subtitle: "5 Compliance Quiz Modules",
+    title: "RESOURCES",
+    subtitle: "Study Materials & Mission Briefings",
     tooltip: "Why do I need this? UKVI Entry Clearance Officers will test your authentic knowledge of your course, university, and financial rules. These 5 modules contain the mandatory baseline knowledge required to pass your visa interview. You must score 80% on all of them to prove you are ready.",
     cta: "Review Resources",
     reviewCta: "Library Hub",
