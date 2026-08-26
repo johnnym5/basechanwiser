@@ -44,5 +44,11 @@ export interface MockInterviewAttempt {
   setId: string;
   askedQuestions: string[];
   counselorId?: string; // New field for dashboard filtering
+
+  // Review Metadata
+  reviewStatus?: 'ACCEPTED' | 'REJECTED' | null;
+  adminFeedback?: string;
+  reviewedBy?: string;
+  reviewedAt?: any;
 }
 

@@ -64,7 +64,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Leaderboard", href: "/student/leaderboard", icon: Trophy },
     { name: "My History", href: "/student/history", icon: History },
-    { name: "Resources", href: "/learning", icon: BookOpen },
+    { name: "Resources", href: "/student/library", icon: BookOpen },
     { name: "Interview Pack", href: "/student/interview-pack", icon: ShieldCheck },
     { name: "Mock Interview", href: "/student/mock-interview", icon: MessageSquare },
   ];

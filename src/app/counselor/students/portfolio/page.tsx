@@ -7,6 +7,7 @@ import StudentDossierEditor from "@/components/counselor/StudentDossierEditor";
 import AppShell from "@/components/layout/app-shell";
 import { useSearchParams, useRouter } from "next/navigation";
 import SetReminderModal from "@/components/counselor/SetReminderModal";
+import StudentProfileView from "@/components/student/StudentProfileView";
 import {
   ArrowLeft,
   Mail,
@@ -433,36 +434,12 @@ function PortfolioContent() {
                </div>
             )}
 
-            {activeTab === 'mock' && (
-               <div className="space-y-6 animate-in fade-in duration-300">
-                  <div className="flex items-center justify-between mb-6">
-                     <h3 className="text-sm font-black uppercase tracking-widest text-gray-900 dark:text-white">Mock Interview Logs</h3>
-                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Session Vault</span>
-                  </div>
-                  {mockAttempts.length === 0 ? (
-                    <EmptyState
-                        icon={VideoOff}
-                        title="No Mock Interviews Logged"
-                        description="Student has not completed any video interviews yet. You can conduct a live session now."
-                        actionText="Conduct Live Session"
-                        onAction={() => setEvalOpen(true)}
-                    />
-                  ) : (
-                    <div className="space-y-4">
-                        {mockAttempts.map(ma => (
-                           <div key={ma.id} className="p-6 rounded-3xl bg-gray-50 dark:bg-[#0F172A] border border-gray-100 dark:border-slate-800 flex items-center justify-between group hover:border-blue-500/50 transition-all">
-                              <div className="flex items-center gap-4">
-                                 <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center text-blue-500 shadow-sm"><Video size={24} /></div>
-                                 <div>
-                                    <p className="text-sm font-black dark:text-white uppercase tracking-tighter">Recorded Session Archive</p>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Submitted {ma.submittedAt?.toDate ? ma.submittedAt.toDate().toLocaleDateString() : 'Recently'}</p>
-                                 </div>
-                              </div>
-                              <button onClick={() => router.push(`/counselor/mock-interviews/playback?attemptId=${ma.id}`)} className="px-6 py-2 rounded-xl bg-white dark:bg-slate-800 text-xs font-black uppercase border border-gray-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-600 hover:text-white">Playback</button>
-                           </div>
-                        ))}
-                    </div>
-                  )}
+            {activeTab === 'mock' && id && (
+               <div className="animate-in fade-in duration-500">
+                  <StudentProfileView
+                    studentId={id}
+                    hideHeader
+                  />
                </div>
             )}
 
