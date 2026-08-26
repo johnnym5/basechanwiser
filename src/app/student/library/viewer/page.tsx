@@ -105,26 +105,37 @@ function ViewerContent() {
       </div>
 
       {/* ── CTA ── */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-40">
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-40 space-y-3">
          {resource.linkedPackId ? (
-            <button
-              onClick={() => router.push(`/learning/detail?id=${resource.linkedPackId}`)}
-              disabled={!canProceed}
-              className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-[24px] text-sm uppercase tracking-widest shadow-[0_20px_50px_rgba(26,115,232,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
-            >
-               {canProceed ? (
-                 <>
-                   <CheckCircle2 className="w-5 h-5" />
-                   Complete Material & Start Quiz
-                   <ChevronRight className="w-5 h-5" />
-                 </>
-               ) : (
-                 <>
-                   <Loader2 className="w-5 h-5 animate-spin" />
-                   Reviewing Material...
-                 </>
-               )}
-            </button>
+            <>
+              <button
+                onClick={() => router.push(`/learning/detail?id=${resource.linkedPackId}`)}
+                disabled={!canProceed}
+                className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-[24px] text-sm uppercase tracking-widest shadow-[0_20px_50px_rgba(26,115,232,0.3)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:hover:scale-100"
+              >
+                {canProceed ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    Complete Material & Start Quiz
+                    <ChevronRight className="w-5 h-5" />
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Reviewing Material...
+                  </>
+                )}
+              </button>
+
+              {!canProceed && (
+                <button
+                  onClick={() => router.push(`/learning/detail?id=${resource.linkedPackId}`)}
+                  className="w-full py-3 bg-white/10 backdrop-blur-md text-white/60 hover:text-white font-black rounded-xl text-[10px] uppercase tracking-widest transition-all"
+                >
+                  Skip Study & Go to Quiz
+                </button>
+              )}
+            </>
          ) : (
             <button
               onClick={() => router.push('/student/library')}

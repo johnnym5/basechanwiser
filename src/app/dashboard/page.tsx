@@ -38,9 +38,9 @@ const STAGE_CONTENT = [
     title: "The Knowledge Forges",
     subtitle: "5 Compliance Quiz Modules",
     tooltip: "Why do I need this? UKVI Entry Clearance Officers will test your authentic knowledge of your course, university, and financial rules. These 5 modules contain the mandatory baseline knowledge required to pass your visa interview. You must score 80% on all of them to prove you are ready.",
-    cta: "Start Training",
-    reviewCta: "Review Modules",
-    href: "/learning",
+    cta: "Review Resources",
+    reviewCta: "Library Hub",
+    href: "/student/library",
     icon: BookOpen
   },
   {

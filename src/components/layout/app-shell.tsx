@@ -63,8 +63,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const studentLinks = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Leaderboard", href: "/student/leaderboard", icon: Trophy },
-    { name: "My History", href: "/student/history", icon: History },
     { name: "Resources", href: "/student/library", icon: BookOpen },
     { name: "Feedback Hub", href: "/student/feedback", icon: MessageSquare },
     { name: "Interview Pack", href: "/student/interview-pack", icon: ShieldCheck },
@@ -211,6 +209,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
+            {isStudent && (
+              <>
+                <Link
+                  href="/student/leaderboard"
+                  className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all relative"
+                  title="Leaderboard"
+                >
+                  <Trophy size={20} />
+                </Link>
+                <Link
+                  href="/student/history"
+                  className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all relative"
+                  title="My History"
+                >
+                  <History size={20} />
+                </Link>
+              </>
+            )}
+
             {/* Global Chat Trigger */}
             <button
               onClick={() => setIsChatDrawerOpen(true)}

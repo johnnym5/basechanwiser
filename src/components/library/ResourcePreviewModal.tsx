@@ -40,13 +40,19 @@ export default function ResourcePreviewModal({ resource, onClose }: { resource: 
 
         {/* Action Footer */}
         {resource.linkedPackId && (
-          <div className="p-4 bg-slate-900 border-t border-slate-800 shrink-0 flex justify-center">
+          <div className="p-6 bg-slate-900 border-t border-slate-800 shrink-0 flex flex-col items-center gap-3">
             <button
               onClick={handleProceed}
-              className="flex items-center px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-600/20 hover:scale-105"
+              className="flex items-center px-10 py-5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-indigo-600/20 hover:scale-105 active:scale-95"
             >
               <Target className="w-5 h-5 mr-3" />
               I have finished reading. Start Assessment
+            </button>
+            <button
+              onClick={handleProceed}
+              className="text-[10px] font-black uppercase text-slate-500 hover:text-white transition-all tracking-widest"
+            >
+               Skip to Questions
             </button>
           </div>
         )}

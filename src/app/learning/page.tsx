@@ -3,17 +3,19 @@
 import React, { useEffect, useState } from "react";
 import AppShell from "@/components/layout/app-shell";
 import Link from "next/link";
-import { BookOpen, CheckCircle2, Play, Lock, Sparkles, FolderOpen, Award, HelpCircle, Zap, ChevronLeft } from "lucide-react";
+import { BookOpen, CheckCircle2, Play, Lock, Sparkles, FolderOpen, Award, HelpCircle, Zap, ChevronLeft, ArrowRight } from "lucide-react";
 import { collection, getDocs, doc, getDoc, query, orderBy, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { useAuth } from "@/lib/auth/auth-context";
 import { UserProfile } from "@/types";
 import { TestQuestionSet } from "@/types/academy";
+import { LibraryResource } from "@/types/resource";
 
 export default function LearningModulesPage() {
   const { userId } = useAuth();
   const [coreModules, setCoreModules] = useState<TestQuestionSet[]>([]);
   const [supplementalPacks, setSupplementalPacks] = useState<TestQuestionSet[]>([]);
+  const [resources, setResources] = useState<LibraryResource[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,20 +23,23 @@ export default function LearningModulesPage() {
     async function fetchData() {
       if (!userId) return;
       try {
-        // 1. Fetch User Profile for score tracking and level progression
+        // 1. Fetch User Profile
         const userSnap = await getDoc(doc(db, "Users", userId));
         if (userSnap.exists()) {
           setUserProfile({ uid: userSnap.id, ...userSnap.data() } as UserProfile);
         }
 
-        // 2. Fetch Consolidated Academy Track (test_question_sets)
-        // We fetch all non-archived sets
+        // 2. Fetch Academy Track
         const setsQuery = query(collection(db, "test_question_sets"), where("isArchived", "==", false));
         const setsSnap = await getDocs(setsQuery);
         const allSets = setsSnap.docs.map(d => ({ id: d.id, ...d.data() } as TestQuestionSet));
 
-        // 3. STRICT CATEGORY SPLITTING
-        // Core Track: Linear progression (Module 1 -> 5)
+        // 3. Fetch Library Resources to link with modules
+        const resSnap = await getDocs(collection(db, "library_resources"));
+        const allResources = resSnap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryResource));
+        setResources(allResources);
+
+        // 4. Split and Sort
         const core = allSets
           .filter(s => s.category === 'core')
           .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
@@ -142,19 +147,40 @@ export default function LearningModulesPage() {
                           </div>
                         </div>
 
-                        <div className="pt-8">
+                        <div className="pt-8 space-y-3">
                           {isLocked ? (
                             <div className="w-full py-4 bg-gray-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border border-dashed border-gray-200">
                                <Lock className="w-3.5 h-3.5" /> Unlock Module {mod.orderIndex! - 1} First
                             </div>
                           ) : (
-                            <Link
-                              href={`/learning/detail?packId=${mod.id}`}
-                              className="w-full py-4 bg-[#1a73e8] text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all"
-                            >
-                              <Play className="w-4 h-4 fill-current" />
-                              {isPassed ? "Review Drills" : score !== undefined ? "Retake Attempt" : "Initialize Mission"}
-                            </Link>
+                            <>
+                              {/* Primary CTA: Study First */}
+                              {resources.find(r => r.linkedPackId === mod.id) ? (
+                                <Link
+                                  href={`/student/library/viewer?id=${resources.find(r => r.linkedPackId === mod.id)?.id}`}
+                                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
+                                >
+                                  <BookOpen className="w-4 h-4" />
+                                  Study Material
+                                </Link>
+                              ) : (
+                                <Link
+                                  href={`/learning/detail?packId=${mod.id}`}
+                                  className="w-full py-4 bg-[#1a73e8] text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all"
+                                >
+                                  <Play className="w-4 h-4 fill-current" />
+                                  Initialize Mission
+                                </Link>
+                              )}
+
+                              {/* Secondary: Skip to Questions */}
+                              <Link
+                                href={`/learning/detail?packId=${mod.id}`}
+                                className="w-full py-3 bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-slate-400 rounded-xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest hover:text-[#1a73e8] transition-all border border-gray-100 dark:border-slate-800"
+                              >
+                                 Skip to Assessment <ArrowRight className="w-3 h-3" />
+                              </Link>
+                            </>
                           )}
                         </div>
                       </div>
@@ -207,13 +233,30 @@ export default function LearningModulesPage() {
                             </div>
                          </div>
 
-                         <div className="pt-8">
+                         <div className="pt-8 space-y-3">
+                            {resources.find(r => r.linkedPackId === pack.id) ? (
+                              <Link
+                                href={`/student/library/viewer?id=${resources.find(r => r.linkedPackId === pack.id)?.id}`}
+                                className="w-full py-4 bg-indigo-600 text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
+                              >
+                                 <BookOpen className="w-4 h-4" />
+                                 Study Material
+                              </Link>
+                            ) : (
+                              <Link
+                                href={`/learning/detail?packId=${pack.id}`}
+                                className="w-full py-4 bg-indigo-600 text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
+                              >
+                                 <Play className="w-4 h-4 fill-current" />
+                                 {isPassed ? "Retake for Score" : "Launch Drill"}
+                              </Link>
+                            )}
+
                             <Link
                               href={`/learning/detail?packId=${pack.id}`}
-                              className="w-full py-4 bg-indigo-600 text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
+                              className="w-full py-3 bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-slate-400 rounded-xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest hover:text-indigo-500 transition-all border border-gray-100 dark:border-slate-800"
                             >
-                               <Play className="w-4 h-4 fill-current" />
-                               {isPassed ? "Retake for Score" : "Launch Drill"}
+                               Skip to Questions <ArrowRight className="w-3 h-3" />
                             </Link>
                          </div>
                        </div>

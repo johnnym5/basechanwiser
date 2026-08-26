@@ -80,24 +80,43 @@ function ModuleDetailContent() {
     async function fetchData() {
       setLoading(true);
       try {
-        const userSnap = await withTimeout(getDoc(doc(db, "Users", userId!)), 10000);
-        const profile = userSnap.exists() ? userSnap.data() as UserProfile : null;
-
         let rawData: any = null;
+        let finalId = packId;
 
-        if (profile?.assignedTestSetId) {
-          const setSnap = await withTimeout(getDoc(doc(db, "test_question_sets", profile.assignedTestSetId)), 10000);
-          if (setSnap.exists()) rawData = setSnap.data();
+        // 1. Prioritize packId from URL (this is what happens when student clicks a module)
+        if (packId) {
+          const setSnap = await withTimeout(getDoc(doc(db, "test_question_sets", packId)), 10000);
+          if (setSnap.exists()) {
+            rawData = setSnap.data();
+          }
         }
 
+        // 2. Fallback to assigned test set if no packId provided
+        if (!rawData && userId) {
+          const userSnap = await withTimeout(getDoc(doc(db, "Users", userId)), 10000);
+          const profile = userSnap.exists() ? userSnap.data() as UserProfile : null;
+
+          if (profile?.assignedTestSetId) {
+            const setSnap = await withTimeout(getDoc(doc(db, "test_question_sets", profile.assignedTestSetId)), 10000);
+            if (setSnap.exists()) {
+              rawData = setSnap.data();
+              finalId = profile.assignedTestSetId;
+            }
+          }
+        }
+
+        // 3. Last fallback: default set
         if (!rawData) {
           const q = query(collection(db, "test_question_sets"), where("isDefault", "==", true), limit(1));
           const snap = await withTimeout(getDocs(q), 10000);
-          if (!snap.empty) rawData = snap.docs[0].data();
+          if (!snap.empty) {
+            rawData = snap.docs[0].data();
+            finalId = snap.docs[0].id;
+          }
         }
 
         if (isMounted && rawData) {
-          setPack({ id: rawData.id || packId, ...rawData } as TestQuestionSet);
+          setPack({ id: finalId || "unknown", ...rawData } as TestQuestionSet);
         }
       } catch (err) {
         console.warn("Fetch error in Detail page:", err);
