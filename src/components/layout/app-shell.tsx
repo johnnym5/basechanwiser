@@ -32,6 +32,7 @@ import {
   ShieldAlert,
   User as UserIcon,
   MessageSquare,
+  Video,
 } from "lucide-react";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -65,8 +66,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     { name: "Leaderboard", href: "/student/leaderboard", icon: Trophy },
     { name: "My History", href: "/student/history", icon: History },
     { name: "Resources", href: "/student/library", icon: BookOpen },
+    { name: "Feedback Hub", href: "/student/feedback", icon: MessageSquare },
     { name: "Interview Pack", href: "/student/interview-pack", icon: ShieldCheck },
-    { name: "Mock Interview", href: "/student/mock-interview", icon: MessageSquare },
+    { name: "Mock Interview", href: "/student/mock-interview", icon: Video },
   ];
 
   const counselorLinks = [

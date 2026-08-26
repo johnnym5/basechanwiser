@@ -18,10 +18,11 @@ import {
 import {
   ArrowLeft, User, ShieldCheck, ShieldAlert, Clock,
   FileText, MessageSquare, Send, CheckCircle2, XCircle,
-  Loader2, Video, PlayCircle, ChevronRight
+  Loader2, Video, PlayCircle, ChevronRight, Star
 } from 'lucide-react';
 import { UserProfile } from '@/types';
 import { MockInterviewAttempt, MockInterviewAnswer } from '@/types/mock';
+import MockSegmentReviewModal from '@/components/counselor/MockSegmentReviewModal';
 
 interface StudentProfileViewProps {
   studentId: string;
@@ -42,6 +43,10 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
   const [adminFeedback, setAdminFeedback] = useState('');
   const [newQuestionText, setNewQuestionText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Segment Review States
+  const [segmentReviewOpen, setSegmentReviewOpen] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<{ answer: MockInterviewAnswer, index: number, mockId: string } | null>(null);
 
   const isAdmin = userProfile?.role === 'Admin' || userProfile?.role === 'Super Admin' || userProfile?.role === 'Counselor';
 
@@ -271,14 +276,29 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
                         <div className="pl-11 border-l border-slate-800 space-y-3">
                            {answer.feedback && (
                              <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
-                                <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest mb-1">Sectional Feedback</p>
+                                <div className="flex items-center justify-between mb-1">
+                                   <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Sectional Feedback</p>
+                                   {answer.stars && (
+                                     <div className="flex gap-0.5">
+                                        {[...Array(5)].map((_, i) => (
+                                          <Star key={i} size={8} fill={answer.stars! > i ? 'currentColor' : 'none'} className={answer.stars! > i ? 'text-yellow-400' : 'text-slate-700'} />
+                                        ))}
+                                     </div>
+                                   )}
+                                </div>
                                 <p className="text-emerald-200/80 italic text-xs">{answer.feedback}</p>
                              </div>
                            )}
                            {answer.videoUrl && (
-                             <a href={answer.videoUrl} target="_blank" className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-blue-500 hover:text-white transition-all">
+                             <button
+                               onClick={() => {
+                                 setReviewTarget({ answer, index: idx, mockId: selectedMock.id! });
+                                 setSegmentReviewOpen(true);
+                               }}
+                               className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-blue-500 hover:text-white transition-all"
+                             >
                                 <PlayCircle size={14} /> Play Answer Segment
-                             </a>
+                             </button>
                            )}
                         </div>
                       </div>
@@ -398,6 +418,23 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
 
         </div>
       </div>
+      {/* 5. Sectional Review Modal */}
+      {reviewTarget && (
+        <MockSegmentReviewModal
+          isOpen={segmentReviewOpen}
+          onClose={() => {
+            setSegmentReviewOpen(false);
+            setReviewTarget(null);
+          }}
+          mockId={reviewTarget.mockId}
+          answerIndex={reviewTarget.index}
+          answer={reviewTarget.answer}
+          onSuccess={() => {
+            // Data will refresh via onSnapshot listener on the parent
+          }}
+        />
+      )}
+
     </div>
   );
 }
