@@ -8,22 +8,21 @@ import {
   BookOpen,
   CheckCircle2,
   Lock,
-  ArrowRight,
   ShieldCheck,
-  Zap,
   Sparkles,
-  ChevronRight,
   Star,
-  Info,
-  History,
-  XCircle,
   Flame,
   Trophy,
-  FolderOpen
+  HelpCircle,
+  Video,
+  X,
+  ChevronRight,
+  ArrowRight
 } from "lucide-react";
 import ReactConfetti from "react-confetti";
 import { useStudentDashboard } from "@/hooks/useStudentDashboard";
-import { motion } from "framer-motion";
+import { useStudentPipeline } from "@/hooks/useStudentPipeline";
+import { motion, AnimatePresence } from "framer-motion";
 
 const MOTIVATIONAL_PHRASES = [
   "You're 1 step closer to your UK university journey! 🇬🇧",
@@ -33,36 +32,64 @@ const MOTIVATIONAL_PHRASES = [
   "Mastering UKVI rules today makes the interview easy tomorrow! 📚"
 ];
 
-const UKVI_TIPS = [
-  "💡 Pro Tip: UKVI officers love it when you name specific university facilities like Bloomberg terminals or specialized labs!",
-  "💡 Pro Tip: Always know your RQF level. For a Master's, it's level 7.",
-  "💡 Pro Tip: Be ready to explain the 28-day rule for your maintenance funds clearly.",
-  "💡 Pro Tip: Research your university's Vice-Chancellor. It shows you've done your homework!",
-  "💡 Pro Tip: Have a clear career plan for when you return to your home country."
+const STAGE_CONTENT = [
+  {
+    id: 1,
+    title: "The Knowledge Forges",
+    subtitle: "5 Compliance Quiz Modules",
+    tooltip: "Why do I need this? UKVI Entry Clearance Officers will test your authentic knowledge of your course, university, and financial rules. These 5 modules contain the mandatory baseline knowledge required to pass your visa interview. You must score 80% on all of them to prove you are ready.",
+    cta: "Start Training",
+    reviewCta: "Review Modules",
+    href: "/learning",
+    icon: BookOpen
+  },
+  {
+    id: 2,
+    title: "The Defense Portfolio",
+    subtitle: "Your Personalized Interview Pack",
+    tooltip: "Why do I need this? Your Defense Portfolio is your personalized cheat sheet. It forces you to write down your exact tuition fees, sponsor details, and career goals so you don't freeze or give inconsistent answers during the real Home Office interview.",
+    cta: "Build Interview Pack",
+    reviewCta: "Edit Portfolio",
+    href: "/student/interview-pack",
+    icon: ShieldCheck
+  },
+  {
+    id: 3,
+    title: "The Live Simulation",
+    subtitle: "High-Stress AI Mock Interview",
+    tooltip: "Why do I need this? Knowing the answers is only half the battle; delivering them confidently under pressure is the rest. The AI (and your Counselor) will simulate a real, high-stress UKVI interview to test your spoken English, body language, and response time.",
+    cta: "Initialize Mock Interview",
+    reviewCta: "Review Feedback",
+    href: "/student/mock-interview",
+    icon: Video
+  },
+  {
+    id: 4,
+    title: "Clearance & Counselor Review",
+    subtitle: "Final Validation for CAS Issuance",
+    tooltip: "What happens now? Your Senior Counselor is reviewing your simulation. If you pass, you will be cleared for CAS issuance. If red flags are detected, you will receive feedback and must retry the simulation.",
+    cta: "Awaiting Clearance",
+    reviewCta: "Check Status",
+    href: "/student/mock-interview", // Where they see feedback
+    icon: Star
+  }
 ];
 
 export default function StudentDashboardPage() {
   const { user, userId } = useAuth();
-  const { data, loading: dataLoading } = useStudentDashboard(userId);
+  const { data: stats, loading: statsLoading } = useStudentDashboard(userId);
+  const { currentStage, stages, loading: pipelineLoading, stats: pipelineStats } = useStudentPipeline(userId);
 
   const [showConfetti, setShowConfetti] = useState(false);
-  const [currentTipIdx, setCurrentTipIdx] = useState(0);
+  const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
 
   useEffect(() => {
-    // Check if we should show confetti from a recent pass
     const lastScore = sessionStorage.getItem("last_quiz_score");
     if (lastScore && parseInt(lastScore) >= 80) {
       setShowConfetti(true);
       sessionStorage.removeItem("last_quiz_score");
       setTimeout(() => setShowConfetti(false), 5000);
     }
-  }, []);
-
-  useEffect(() => {
-    const tipInterval = setInterval(() => {
-      setCurrentTipIdx(prev => (prev + 1) % UKVI_TIPS.length);
-    }, 8000);
-    return () => clearInterval(tipInterval);
   }, []);
 
   const greeting = useMemo(() => {
@@ -77,37 +104,7 @@ export default function StudentDashboardPage() {
     return MOTIVATIONAL_PHRASES[Math.floor(Math.random() * MOTIVATIONAL_PHRASES.length)];
   }, []);
 
-  const nextAction = useMemo(() => {
-    if (data.passedModulesCount < 5) {
-      return {
-        label: `Next Task: Start Module ${data.nextModuleOrder}`,
-        cta: "Resume Journey 🚀",
-        href: `/learning/detail?packId=${data.nextModuleId}`
-      };
-    }
-    if (!data.interviewPackSubmitted) {
-      return {
-        label: "Foundation Complete! Time to fill out your Interview Pack.",
-        cta: "Complete Profile ✍️",
-        href: "/student/interview-pack"
-      };
-    }
-    return {
-      label: "All steps complete! Awaiting Counselor evaluation.",
-      cta: "Review Materials 📚",
-      href: "/learning"
-    };
-  }, [data]);
-
-  const rank = useMemo(() => {
-    if (data.readiness >= 90) return "Global Ambassador";
-    if (data.interviewPackSubmitted) return "Interview Ready";
-    if (data.passedModulesCount >= 5) return "Compliance Cadet";
-    if (data.passedModulesCount > 0) return "Active Scholar";
-    return "Beginner";
-  }, [data]);
-
-  if (dataLoading) {
+  if (statsLoading || pipelineLoading) {
     return (
       <AppShell>
         <div className="flex flex-col items-center justify-center p-20 gap-4">
@@ -120,203 +117,211 @@ export default function StudentDashboardPage() {
 
   return (
     <AppShell>
-      {showConfetti && <ReactConfetti width={window.innerWidth} height={window.innerHeight} recycle={false} />}
+      {showConfetti && <ReactConfetti width={window?.innerWidth} height={window?.innerHeight} recycle={false} />}
 
-      <div className="space-y-8 pb-20">
+      <div className="max-w-4xl mx-auto space-y-12 pb-20">
 
-        {/* ── Gamified Header ─────────────────────────────────────── */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8 animate-in fade-in slide-in-from-top-4 duration-700">
+        {/* ── Minimalist Gamified Header ────────────────────────── */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-700">
            <div className="space-y-1 text-center md:text-left">
               <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tighter font-google">{greeting}</h1>
               <p className="text-sm font-bold text-gray-500 dark:text-blue-400 italic">"{motivationalQuote}"</p>
-
-              <div className="flex items-center justify-center md:justify-start gap-4 mt-4">
-                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 dark:bg-orange-900/20 text-orange-600 border border-orange-100 dark:border-orange-800">
-                    <Flame className="w-4 h-4 fill-current" />
-                    <span className="text-[10px] font-black uppercase">
-                       {data.streak} Day Streak
-                    </span>
-                 </div>
-                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 border border-purple-100 dark:border-purple-800">
-                    <Trophy className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase">
-                       {data.points.toLocaleString()} PTS
-                    </span>
-                 </div>
-                 <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 border border-blue-100 dark:border-blue-800">
-                    <Star className="w-4 h-4" />
-                    <span className="text-[10px] font-black uppercase">{rank}</span>
-                 </div>
-              </div>
            </div>
 
-           <div className="relative group cursor-default">
-              <div className="absolute -inset-2 bg-blue-500/20 blur-xl rounded-full group-hover:bg-blue-500/30 transition-all duration-500" />
-              <div className="relative flex items-center gap-6 bg-white dark:bg-[#1E293B] p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-xl">
-
-                {/* Circular Progress Ring UI */}
-                <div className="relative w-24 h-24 flex items-center justify-center">
-                  <svg className="w-24 h-24 transform -rotate-90">
-                    <circle
-                      cx="48" cy="48" r="40"
-                      stroke="currentColor" strokeWidth="8" fill="transparent"
-                      className="text-gray-100 dark:text-slate-800"
-                    />
-                    <motion.circle
-                      cx="48" cy="48" r="40"
-                      stroke="#1a73e8" strokeWidth="8" fill="transparent"
-                      strokeDasharray={2 * Math.PI * 40}
-                      initial={{ strokeDashoffset: 2 * Math.PI * 40 }}
-                      animate={{ strokeDashoffset: 2 * Math.PI * 40 * (1 - data.readiness / 100) }}
-                      strokeLinecap="round"
-                      transition={{ duration: 1.5, ease: "easeOut" }}
-                    />
-                  </svg>
-                  <span className="absolute text-xl font-black text-gray-900 dark:text-white">{data.readiness}%</span>
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Readiness</p>
-                  <p className="text-base font-black dark:text-white">{data.passedModulesCount} of 5 Passed</p>
-                  <div className="flex gap-1">
-                     {[...Array(5)].map((_, i) => (
-                        <div key={i} className={`w-2.5 h-1.5 rounded-full ${i < data.passedModulesCount ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-slate-800'}`} />
-                     ))}
-                  </div>
-                </div>
+           <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 border border-orange-100 dark:border-orange-800 shadow-sm">
+                 <Flame className="w-4 h-4 fill-current" />
+                 <span className="text-xs font-black">{stats.streak} DAYS</span>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 border border-purple-100 dark:border-purple-800 shadow-sm">
+                 <Trophy className="w-4 h-4" />
+                 <span className="text-xs font-black">{stats.points.toLocaleString()} PTS</span>
               </div>
            </div>
         </div>
 
-        {/* ── Priority Task Hero Banner ────────────────────────── */}
-        <div className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-800 p-10 text-white shadow-2xl animate-in fade-up duration-700">
-           <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-80 h-80 bg-white/10 blur-[100px] rounded-full" />
-           <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/4 w-60 h-60 bg-blue-400/20 blur-[80px] rounded-full" />
+        {/* ── Strict Linear Pipeline (Roadmap) ──────────────────── */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between px-2">
+             <h2 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">UKVI Compliance Pipeline</h2>
+             <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-gray-500">STAGE {currentStage} / 4</span>
+                <div className="w-32 h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                   <motion.div
+                     initial={{ width: 0 }}
+                     animate={{ width: `${(currentStage / 4) * 100}%` }}
+                     className="h-full bg-blue-600"
+                   />
+                </div>
+             </div>
+          </div>
 
-           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-              <div className="space-y-3 flex-1 text-center md:text-left">
-                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black uppercase tracking-widest">
-                    <Zap className="w-3 h-3 fill-current" /> Priority Task
-                 </div>
-                 <h2 className="text-2xl md:text-3xl font-black tracking-tighter leading-tight max-w-lg">{nextAction.label}</h2>
-              </div>
-              <Link
-                href={nextAction.href}
-                className="group shrink-0 px-10 py-5 bg-white text-[#1a73e8] font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-blue-900/50 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 animate-pulse-scale"
-              >
-                 {nextAction.cta}
-              </Link>
-           </div>
-        </div>
+          <div className="space-y-4">
+            {STAGE_CONTENT.map((stage, idx) => {
+              const pipelineStage = stages[idx];
+              const isLocked = !pipelineStage.isUnlocked;
+              const isCurrent = pipelineStage.status === 'current';
+              const isCompleted = pipelineStage.isCompleted;
+              const Icon = stage.icon;
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              return (
+                <div
+                  key={stage.id}
+                  className={`relative group transition-all duration-500 ${isLocked ? 'opacity-50 pointer-events-none' : ''}`}
+                >
+                  <div className={`
+                    relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6 p-8 rounded-[32px] border-2 transition-all
+                    ${isCurrent ? 'bg-white dark:bg-[#1E293B] border-blue-500 shadow-2xl shadow-blue-500/10 ring-2 ring-blue-500/20' :
+                      isCompleted ? 'bg-white dark:bg-[#1E293B] border-emerald-100 dark:border-emerald-900/30' :
+                      'bg-gray-50/50 dark:bg-slate-900/50 border-gray-100 dark:border-slate-800'}
+                  `}>
 
-           {/* ── Learning Path Roadmap ─────── */}
-           <div className="xl:col-span-2 bg-white dark:bg-[#1E293B] rounded-[40px] p-10 border border-gray-100 dark:border-slate-800 shadow-sm space-y-8">
-              <div className="flex items-center justify-between">
-                 <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
-                    <BookOpen className="w-6 h-6 text-blue-500" /> Learning Path
-                 </h3>
-                 <Link href="/learning" className="text-[10px] font-black uppercase text-blue-500 hover:underline flex items-center gap-1">Full Hub <ChevronRight className="w-3 h-3" /></Link>
-              </div>
+                    <div className="flex items-center gap-6 w-full sm:w-auto">
+                       <div className={`
+                          w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border-2
+                          ${isCompleted ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 text-emerald-600' :
+                            isCurrent ? 'bg-blue-600 border-blue-400 text-white shadow-xl shadow-blue-500/30' :
+                            'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400'}
+                       `}>
+                          {isCompleted ? <CheckCircle2 className="w-8 h-8" /> :
+                           isLocked ? <Lock className="w-6 h-6" /> :
+                           <Icon className="w-8 h-8" />}
+                       </div>
 
-              <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8 py-4">
-                 <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-50 dark:bg-slate-800 -translate-y-1/2 hidden sm:block" />
-
-                 {[1, 2, 3, 4, 5].map((order) => {
-                    const isCompleted = order <= data.passedModulesCount;
-                    const isUnlocked = order === data.passedModulesCount + 1;
-                    const isLocked = order > data.passedModulesCount + 1;
-
-                    return (
-                       <div key={order} className="relative z-10 flex-1 w-full sm:w-auto">
-                          <Link
-                            href={isLocked ? "#" : `/learning/detail?packId=module_${order}`}
-                            className={`flex flex-col items-center gap-3 transition-all ${isLocked ? 'cursor-not-allowed opacity-50' : 'hover:scale-110'}`}
-                          >
-                             <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center border-4 shadow-xl transition-all
-                                ${isCompleted ? 'bg-emerald-500 border-emerald-200 text-white shadow-emerald-500/20' :
-                                  isUnlocked ? 'bg-[#1a73e8] border-blue-200 text-white shadow-blue-500/40 animate-pulse' :
-                                  'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 shadow-none'}`}
+                       <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                             <h3 className={`text-xl font-black tracking-tighter ${isLocked ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                                {stage.title}
+                             </h3>
+                             <button
+                               onClick={() => setActiveTooltip(stage.id)}
+                               className="text-gray-400 hover:text-blue-500 transition-colors"
                              >
-                                {isCompleted ? <CheckCircle2 className="w-8 h-8" /> :
-                                 isLocked ? <Lock className="w-6 h-6" /> :
-                                 <Sparkles className="w-8 h-8 fill-current" />}
-                             </div>
-                             <div className="text-center space-y-1 px-2">
-                                <p className={`text-[10px] font-black uppercase tracking-tighter ${isLocked ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>Module {order}</p>
-                             </div>
-                          </Link>
+                                <HelpCircle size={18} />
+                             </button>
+                          </div>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{stage.subtitle}</p>
                        </div>
-                    );
-                 })}
-              </div>
+                    </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-                 <div className="p-6 rounded-3xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 flex items-start gap-4 group">
-                    <Star className="w-6 h-6 text-blue-500 shrink-0 mt-1" />
-                    <div>
-                       <p className="text-xs font-black uppercase text-blue-900 dark:text-blue-300">Milestone reached</p>
-                       <p className="text-xs font-medium text-blue-700 dark:text-blue-400 leading-relaxed">
-                         Complete all 5 modules to unlock your Final Interview Pack and Mock session.
-                       </p>
+                    <div className="w-full sm:w-auto">
+                       {isLocked ? (
+                         <div className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-100 dark:bg-slate-800 text-gray-400 text-[10px] font-black uppercase tracking-widest">
+                            <Lock size={14} /> Stage Locked
+                         </div>
+                       ) : (
+                         <Link
+                           href={stage.href}
+                           className={`
+                             group/btn px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3
+                             ${isCompleted ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' :
+                               isCurrent ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-600/20' :
+                               'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50'}
+                           `}
+                         >
+                            {isCompleted ? stage.reviewCta : stage.cta}
+                            <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+                         </Link>
+                       )}
                     </div>
-                 </div>
-                 <div className="p-6 rounded-3xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 flex items-start gap-4">
-                    <Info className="w-6 h-6 text-amber-500 shrink-0 mt-1" />
-                    <div>
-                       <p className="text-xs font-black uppercase text-amber-900 dark:text-amber-300">Strategy Tip</p>
-                       <p className="text-xs font-medium text-amber-700 dark:text-amber-400 leading-relaxed">
-                         The faster you answer questions, the more points you earn. Speed reflects interview confidence!
-                       </p>
-                    </div>
+                  </div>
+
+                  {/* Connecting Line (except for last) */}
+                  {idx < STAGE_CONTENT.length - 1 && (
+                    <div className="absolute left-[2.5rem] bottom-[-1.5rem] w-1 h-6 bg-gray-100 dark:bg-slate-800 z-0 hidden sm:block" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Mission Critical Stats ────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+           <div className="bg-white dark:bg-[#1E293B] p-8 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Readiness Score</p>
+              <div className="flex items-center justify-between">
+                 <div className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">{stats.readiness}%</div>
+                 <div className="w-16 h-16 relative">
+                    <svg className="w-full h-full transform -rotate-90">
+                       <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100 dark:text-slate-800" />
+                       <motion.circle
+                         cx="32" cy="32" r="28" stroke="#1a73e8" strokeWidth="6" fill="transparent"
+                         strokeDasharray={2 * Math.PI * 28}
+                         initial={{ strokeDashoffset: 2 * Math.PI * 28 }}
+                         animate={{ strokeDashoffset: 2 * Math.PI * 28 * (1 - stats.readiness / 100) }}
+                         strokeLinecap="round"
+                         transition={{ duration: 1.5 }}
+                       />
+                    </svg>
                  </div>
               </div>
            </div>
 
-           {/* ── Recent Activity Sidebar ─────────────────────────────── */}
-           <div className="space-y-8">
-
-              {/* Real-time Activity List */}
-              <div className="bg-white dark:bg-[#1E293B] rounded-[40px] p-8 border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
-                 <h3 className="text-sm font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                    <History className="w-4 h-4" /> Mission History
-                 </h3>
-                 <div className="space-y-4">
-                    {data.recentActivity.length === 0 ? (
-                       <p className="text-[10px] font-bold text-gray-400 text-center py-4">No recent attempts logged.</p>
-                    ) : data.recentActivity.map(a => (
-                       <div key={a.id} className="flex items-center justify-between gap-4 border-b border-gray-50 dark:border-slate-800 pb-4 last:border-0 last:pb-0">
-                          <div className="flex items-center gap-3 overflow-hidden">
-                             <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${a.passed ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>
-                                {a.passed ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                             </div>
-                             <div className="truncate">
-                                <p className="text-[11px] font-black dark:text-white truncate">{a.packTitle || "Quiz Drill"}</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase">{a.scorePercentage || 0}% Accuracy</p>
-                             </div>
-                          </div>
-                          <span className="text-[10px] font-black text-[#1a73e8]">+{a.gamifiedScore?.toLocaleString()}</span>
-                       </div>
+           <div className="bg-white dark:bg-[#1E293B] p-8 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Current Module</p>
+              <div className="flex items-center justify-between">
+                 <div className="text-xl font-black text-gray-900 dark:text-white tracking-tighter">
+                    {stats.passedModulesCount < 5 ? `Module ${stats.passedModulesCount + 1}` : 'Modules Complete'}
+                 </div>
+                 <div className="flex gap-1">
+                    {[1,2,3,4,5].map(i => (
+                       <div key={i} className={`w-3 h-3 rounded-full ${i <= stats.passedModulesCount ? 'bg-emerald-500' : 'bg-gray-100 dark:bg-slate-800'}`} />
                     ))}
                  </div>
-                 <Link href="/student/history" className="block text-center text-[10px] font-black uppercase text-[#1a73e8] hover:underline pt-2">View Full Audit Log</Link>
               </div>
-
-              {/* Dynamic Tip Carousel */}
-              <div className="bg-gradient-to-br from-[#0F172A] to-[#1e293b] rounded-[40px] p-8 text-white shadow-xl relative overflow-hidden h-48 flex flex-col justify-center border border-slate-700/50">
-                 <div className="absolute top-4 right-6 text-blue-500/10"><Info size={80} /></div>
-                 <div className="relative z-10 space-y-3 animate-in fade-in slide-in-from-right duration-1000" key={currentTipIdx}>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                       <ShieldCheck className="w-3 h-3" /> UKVI Credibility Insight
-                    </p>
-                    <p className="text-sm font-bold leading-relaxed">{UKVI_TIPS[currentTipIdx]}</p>
-                 </div>
-              </div>
-
            </div>
         </div>
+
       </div>
+
+      {/* ── Contextual Help Modal (Glassmorphism) ─────────────── */}
+      <AnimatePresence>
+        {activeTooltip && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+             <motion.div
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => setActiveTooltip(null)}
+               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+             />
+             <motion.div
+               initial={{ opacity: 0, scale: 0.9, y: 20 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.9, y: 20 }}
+               className="relative w-full max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-8 rounded-[40px] border border-white/20 shadow-2xl space-y-6"
+             >
+                <button
+                  onClick={() => setActiveTooltip(null)}
+                  className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                   <X size={20} />
+                </button>
+
+                <div className="space-y-4">
+                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 text-[10px] font-black uppercase tracking-widest">
+                      <HelpCircle size={14} /> Mission Intelligence
+                   </div>
+                   <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">
+                      {STAGE_CONTENT.find(s => s.id === activeTooltip)?.title}
+                   </h3>
+                   <p className="text-sm font-bold text-gray-600 dark:text-slate-300 leading-relaxed italic">
+                      {STAGE_CONTENT.find(s => s.id === activeTooltip)?.tooltip}
+                   </p>
+                </div>
+
+                <button
+                  onClick={() => setActiveTooltip(null)}
+                  className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl"
+                >
+                   Understood
+                </button>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </AppShell>
   );
 }

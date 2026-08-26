@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import AppShell from "@/components/layout/app-shell";
 import Link from "next/link";
-import { BookOpen, CheckCircle2, Play, Lock, Sparkles, FolderOpen, Award, HelpCircle, Zap } from "lucide-react";
+import { BookOpen, CheckCircle2, Play, Lock, Sparkles, FolderOpen, Award, HelpCircle, Zap, ChevronLeft } from "lucide-react";
 import { collection, getDocs, doc, getDoc, query, orderBy, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -64,13 +64,18 @@ export default function LearningModulesPage() {
 
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
-              <BookOpen className="w-8 h-8 text-blue-600" /> Learning Resources
-            </h1>
-            <p className="text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">
-              Mission-critical compliance documents and university credibility guides.
-            </p>
+          <div className="space-y-4">
+            <Link href="/dashboard" className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-blue-600 hover:text-blue-700 transition-colors">
+               <ChevronLeft size={16} /> Back to Dashboard
+            </Link>
+            <div>
+              <h1 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
+                <BookOpen className="w-8 h-8 text-blue-600" /> Learning Resources
+              </h1>
+              <p className="text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">
+                Mission-critical compliance documents and university credibility guides.
+              </p>
+            </div>
           </div>
         </div>
 

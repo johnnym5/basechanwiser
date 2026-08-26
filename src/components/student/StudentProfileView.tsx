@@ -12,17 +12,20 @@ import {
   onSnapshot,
   updateDoc,
   addDoc,
+  deleteDoc,
   serverTimestamp,
   orderBy
 } from 'firebase/firestore';
 import {
   ArrowLeft, User, ShieldCheck, ShieldAlert, Clock,
   FileText, MessageSquare, Send, CheckCircle2, XCircle,
-  Loader2, Video, PlayCircle, ChevronRight, Star
+  Loader2, Video, PlayCircle, ChevronRight, Star, Trash2,
+  HelpCircle, Plus
 } from 'lucide-react';
-import { UserProfile } from '@/types';
+import { UserProfile, InterviewPack } from '@/types';
 import { MockInterviewAttempt, MockInterviewAnswer } from '@/types/mock';
 import MockSegmentReviewModal from '@/components/counselor/MockSegmentReviewModal';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface StudentProfileViewProps {
   studentId: string;
@@ -37,8 +40,10 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
   const [student, setStudent] = useState<UserProfile | null>(null);
   const [mocks, setMocks] = useState<MockInterviewAttempt[]>([]);
   const [customQuestions, setCustomQuestions] = useState<any[]>([]);
+  const [interviewPack, setInterviewPack] = useState<InterviewPack | null>(null);
 
   // Interaction States
+  const [activeTab, setActiveTab] = useState<'details' | 'mocks'>('mocks');
   const [selectedMock, setSelectedMock] = useState<MockInterviewAttempt | null>(null);
   const [adminFeedback, setAdminFeedback] = useState('');
   const [newQuestionText, setNewQuestionText] = useState('');
@@ -98,6 +103,16 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
       console.warn("Custom questions listener failed (might not exist yet):", err);
     });
 
+    // 4. Fetch Interview Pack Details
+    const fetchInterviewPack = async () => {
+       const packRef = doc(db, 'Interview_Packs', studentId);
+       const packSnap = await getDoc(packRef);
+       if (packSnap.exists()) {
+         setInterviewPack(packSnap.data() as InterviewPack);
+       }
+    };
+    fetchInterviewPack();
+
     return () => {
       unsubscribeMocks();
       unsubscribeQuestions();
@@ -126,6 +141,24 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
     }
   };
 
+  // Handle Mock Deletion (Staff Only)
+  const handleDeleteMock = async (mockId: string) => {
+    if (!isAdmin) return;
+    if (!confirm("Are you sure you want to PERMANENTLY delete this mock interview? This action cannot be undone.")) return;
+
+    setIsSubmitting(true);
+    try {
+      await deleteDoc(doc(db, "mock_interview_attempts", mockId));
+      if (selectedMock?.id === mockId) setSelectedMock(null);
+      alert("Mock interview deleted.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Handle Adding a Custom Question
   const handleAddCustomQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,6 +179,19 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
       alert("Failed to add question.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Handle Deleting a Custom Question
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!isAdmin) return;
+    if (!confirm("Remove this custom question?")) return;
+
+    try {
+      await deleteDoc(doc(db, 'Users', studentId, 'custom_questions', questionId));
+    } catch (error) {
+      console.error("Error deleting question:", error);
+      alert("Failed to remove question.");
     }
   };
 
@@ -205,219 +251,310 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      {/* ── INTERNAL NAVIGATION TABS ── */}
+      <div className="flex items-center gap-2 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 w-fit">
+         <button
+           onClick={() => setActiveTab('mocks')}
+           className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'mocks' ? 'bg-white dark:bg-slate-800 text-indigo-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+         >
+            <Video size={14} /> Mock Sessions
+         </button>
+         <button
+           onClick={() => setActiveTab('details')}
+           className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'details' ? 'bg-white dark:bg-slate-800 text-indigo-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+         >
+            <FileText size={14} /> Student Details
+         </button>
+      </div>
 
-        {/* 2. Left Column: Submissions List */}
-        <div className="lg:col-span-1 space-y-4">
-          <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Submission History</h2>
+      <AnimatePresence mode="wait">
+        {activeTab === 'mocks' ? (
+          <motion.div
+            key="mocks"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start"
+          >
+            {/* Left Column: Submissions List */}
+            <div className="lg:col-span-1 space-y-4">
+              <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Submission History</h2>
 
-          {mocks.length === 0 ? (
-            <div className="text-sm font-bold text-slate-600 bg-slate-900/30 p-8 rounded-[32px] border border-dashed border-slate-800 text-center">
-              No mock interviews detected.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {mocks.map(mock => {
-                const mReviewStatus = mock.reviewStatus;
-                return (
-                  <button
-                    key={mock.id}
-                    onClick={() => {
-                      setSelectedMock(mock);
-                      setAdminFeedback(mock.adminFeedback || '');
-                    }}
-                    className={`w-full text-left p-5 rounded-[28px] border transition-all ${selectedMock?.id === mock.id ? 'bg-indigo-600/10 border-indigo-500/50 ring-4 ring-indigo-500/5' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-white font-black text-xs uppercase tracking-tighter truncate pr-2">{mock.setId || 'Assessment Session'}</h3>
-                      <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase border ${
-                        mReviewStatus === 'ACCEPTED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                        mReviewStatus === 'REJECTED' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                        'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                      }`}>
-                        {mReviewStatus || (mock.status === 'pending_review' ? 'PENDING' : mock.status.toUpperCase())}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
-                      <span>{mock.submittedAt ? new Date(mock.submittedAt.toDate()).toLocaleDateString() : 'Active Session'}</span>
-                      <ChevronRight className="w-3 h-3" />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* 3. Right Column: Detailed View & Evaluation Form */}
-        <div className="lg:col-span-2 space-y-6">
-          {selectedMock ? (
-            <div className="bg-slate-900 rounded-[40px] border border-slate-800 p-8 shadow-xl space-y-8">
-
-              {/* Transcript/Submission Area */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                   <h2 className="text-xl font-black text-white uppercase tracking-tighter">Session Transmission Audit</h2>
-                   <div className="flex gap-2">
-                      {selectedMock.videoUrl && (
-                        <a href={selectedMock.videoUrl} target="_blank" className="p-2 bg-slate-800 rounded-xl text-indigo-400 hover:text-white transition-all"><Video size={18} /></a>
-                      )}
-                   </div>
+              {mocks.length === 0 ? (
+                <div className="text-sm font-bold text-slate-600 bg-slate-900/30 p-8 rounded-[32px] border border-dashed border-slate-800 text-center">
+                  No mock interviews detected.
                 </div>
-
-                <div className="bg-slate-950 rounded-[32px] p-8 border border-slate-800 text-sm text-slate-300 max-h-[400px] overflow-y-auto space-y-6 scrollbar-hide">
-                  {selectedMock.answers && selectedMock.answers.length > 0 ? (
-                    selectedMock.answers.map((answer, idx) => (
-                      <div key={idx} className="space-y-2 group">
-                        <div className="flex items-center gap-3">
-                           <span className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[10px] font-black text-indigo-500">Q{idx + 1}</span>
-                           <p className="font-black text-white uppercase tracking-tighter text-xs">{answer.questionText}</p>
-                        </div>
-                        <div className="pl-11 border-l border-slate-800 space-y-3">
-                           {answer.feedback && (
-                             <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
-                                <div className="flex items-center justify-between mb-1">
-                                   <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Sectional Feedback</p>
-                                   {answer.stars && (
-                                     <div className="flex gap-0.5">
-                                        {[...Array(5)].map((_, i) => (
-                                          <Star key={i} size={8} fill={answer.stars! > i ? 'currentColor' : 'none'} className={answer.stars! > i ? 'text-yellow-400' : 'text-slate-700'} />
-                                        ))}
-                                     </div>
-                                   )}
-                                </div>
-                                <p className="text-emerald-200/80 italic text-xs">{answer.feedback}</p>
-                             </div>
-                           )}
-                           {answer.videoUrl && (
-                             <button
-                               onClick={() => {
-                                 setReviewTarget({ answer, index: idx, mockId: selectedMock.id! });
-                                 setSegmentReviewOpen(true);
-                               }}
-                               className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-blue-500 hover:text-white transition-all"
-                             >
-                                <PlayCircle size={14} /> Play Answer Segment
-                             </button>
-                           )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-10 opacity-30 text-center">
-                       <FileText size={40} className="mb-4" />
-                       <p className="text-xs font-black uppercase tracking-widest">No segmented data found in this transmission.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Evaluation Area */}
-              <div className="space-y-6 pt-8 border-t border-slate-800">
-                <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] flex items-center">
-                  <MessageSquare className="w-4 h-4 mr-3 text-indigo-500" />
-                  {isAdmin ? 'Operational Evaluation Notes' : 'Counselor Feedback & Guidance'}
-                </h3>
-
-                {isAdmin ? (
-                  <div className="space-y-4">
-                    <textarea
-                      value={adminFeedback}
-                      onChange={(e) => setAdminFeedback(e.target.value)}
-                      placeholder="Write your overall review, feedback, or required corrections here..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-[32px] p-8 text-sm font-medium leading-relaxed text-white focus:ring-2 focus:ring-indigo-500 outline-none h-40 transition-all"
-                    />
-                    <div className="flex gap-4">
+              ) : (
+                <div className="space-y-3">
+                  {mocks.map(mock => {
+                    const mReviewStatus = mock.reviewStatus;
+                    return (
                       <button
-                        onClick={() => handleReviewMock(selectedMock.id!, 'ACCEPTED')}
-                        disabled={isSubmitting}
-                        className="flex-1 flex items-center justify-center py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[24px] font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-50 active:scale-95"
+                        key={mock.id}
+                        onClick={() => {
+                          setSelectedMock(mock);
+                          setAdminFeedback(mock.adminFeedback || '');
+                        }}
+                        className={`w-full text-left p-5 rounded-[28px] border transition-all ${selectedMock?.id === mock.id ? 'bg-indigo-600/10 border-indigo-500/50 ring-4 ring-indigo-500/5' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
                       >
-                        <CheckCircle2 className="w-4 h-4 mr-2" /> Accept Submission
-                      </button>
-                      <button
-                        onClick={() => handleReviewMock(selectedMock.id!, 'REJECTED')}
-                        disabled={isSubmitting}
-                        className="flex-1 flex items-center justify-center py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-[24px] font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-rose-500/20 disabled:opacity-50 active:scale-95"
-                      >
-                        <XCircle className="w-4 h-4 mr-2" /> Reject Submission
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`p-8 rounded-[32px] border-2 ${selectedMock.reviewStatus === 'ACCEPTED' ? 'bg-emerald-900/10 border-emerald-500/30 text-emerald-200' : selectedMock.reviewStatus === 'REJECTED' ? 'bg-rose-900/10 border-rose-500/30 text-rose-200' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
-                     {selectedMock.adminFeedback ? (
-                       <p className="whitespace-pre-wrap text-sm font-medium leading-relaxed">{selectedMock.adminFeedback}</p>
-                     ) : (
-                       <div className="flex items-center gap-3 italic opacity-60">
-                          <Clock size={16} />
-                          <p className="text-xs font-bold uppercase tracking-widest">Awaiting Counselor Assessment...</p>
-                       </div>
-                     )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="h-full min-h-[500px] flex flex-col items-center justify-center bg-slate-900/30 border border-slate-800/50 rounded-[40px] border-dashed space-y-4">
-              <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-600"><PlayCircle size={32} /></div>
-              <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Select a transmission from the history to begin audit.</p>
-            </div>
-          )}
-
-          {/* 4. Custom Question Assignment (Staff Only) */}
-          {isAdmin && (
-            <div className="bg-slate-900 rounded-[40px] border border-slate-800 p-8 shadow-xl space-y-6">
-              <div className="space-y-1">
-                 <h3 className="text-sm font-black text-white uppercase tracking-tighter flex items-center">
-                   Assign Custom Compliance Question
-                 </h3>
-                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Directly injected into scholar's assessment queue</p>
-              </div>
-
-              <form onSubmit={handleAddCustomQuestion} className="flex gap-4">
-                <input
-                  type="text"
-                  value={newQuestionText}
-                  onChange={(e) => setNewQuestionText(e.target.value)}
-                  placeholder="e.g., Please explain your studies justification in detail..."
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-sm font-medium text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                />
-                <button
-                  type="submit"
-                  disabled={!newQuestionText.trim() || isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-indigo-500/20"
-                >
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                  Assign
-                </button>
-              </form>
-
-              {/* List of Custom Questions */}
-              {customQuestions.length > 0 && (
-                <div className="pt-6 border-t border-slate-800 space-y-4">
-                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Queue Audit ({customQuestions.length})</p>
-                   <div className="grid grid-cols-1 gap-2">
-                      {customQuestions.map(q => (
-                        <div key={q.id} className="p-4 bg-slate-950 border border-slate-800 rounded-2xl flex justify-between items-center group hover:border-indigo-500/30 transition-all">
-                           <p className="text-xs text-slate-300 font-bold leading-none">{q.text}</p>
-                           <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase border ${
-                             q.status === 'answered'
-                               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                               : 'bg-slate-800 text-slate-500 border-slate-700'
-                           }`}>
-                              {q.status}
-                           </span>
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-white font-black text-xs uppercase tracking-tighter truncate pr-2">{mock.setId || 'Assessment Session'}</h3>
+                          <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase border ${
+                            mReviewStatus === 'ACCEPTED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                            mReviewStatus === 'REJECTED' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          }`}>
+                            {mReviewStatus || (mock.status === 'pending_review' ? 'PENDING' : mock.status.toUpperCase())}
+                          </span>
                         </div>
-                      ))}
-                   </div>
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                          <span>{mock.submittedAt ? new Date(mock.submittedAt.toDate()).toLocaleDateString() : 'Active Session'}</span>
+                          <ChevronRight className="w-3 h-3" />
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          )}
 
-        </div>
-      </div>
+            {/* Right Column: Detailed View & Evaluation Form */}
+            <div className="lg:col-span-2 space-y-6">
+              {selectedMock ? (
+                <div className="bg-slate-900 rounded-[40px] border border-slate-800 p-8 shadow-xl space-y-8">
+
+                  {/* Transcript/Submission Area */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                       <h2 className="text-xl font-black text-white uppercase tracking-tighter">Session Transmission Audit</h2>
+                       <div className="flex gap-2">
+                          {selectedMock.videoUrl && (
+                            <a href={selectedMock.videoUrl} target="_blank" className="p-2 bg-slate-800 rounded-xl text-indigo-400 hover:text-white transition-all"><Video size={18} /></a>
+                          )}
+                       </div>
+                    </div>
+
+                    <div className="bg-slate-950 rounded-[32px] p-8 border border-slate-800 text-sm text-slate-300 max-h-[400px] overflow-y-auto space-y-6 scrollbar-hide">
+                      {selectedMock.answers && selectedMock.answers.length > 0 ? (
+                        selectedMock.answers.map((answer, idx) => (
+                          <div key={idx} className="space-y-2 group">
+                            <div className="flex items-center gap-3">
+                               <span className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[10px] font-black text-indigo-500">Q{idx + 1}</span>
+                               <p className="font-black text-white uppercase tracking-tighter text-xs">{answer.questionText}</p>
+                            </div>
+                            <div className="pl-11 border-l border-slate-800 space-y-3">
+                               {answer.feedback && (
+                                 <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
+                                    <div className="flex items-center justify-between mb-1">
+                                       <p className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Sectional Feedback</p>
+                                       {answer.stars && (
+                                         <div className="flex gap-0.5">
+                                            {[...Array(5)].map((_, i) => (
+                                              <Star key={i} size={8} fill={answer.stars! > i ? 'currentColor' : 'none'} className={answer.stars! > i ? 'text-yellow-400' : 'text-slate-700'} />
+                                            ))}
+                                         </div>
+                                       )}
+                                    </div>
+                                    <p className="text-emerald-200/80 italic text-xs">{answer.feedback}</p>
+                                 </div>
+                               )}
+                               {answer.videoUrl && (
+                                 <button
+                                   onClick={() => {
+                                     setReviewTarget({ answer, index: idx, mockId: selectedMock.id! });
+                                     setSegmentReviewOpen(true);
+                                   }}
+                                   className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-blue-500 hover:text-white transition-all"
+                                 >
+                                    <PlayCircle size={14} /> Play Answer Segment
+                                 </button>
+                               )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-10 opacity-30 text-center">
+                           <FileText size={40} className="mb-4" />
+                           <p className="text-xs font-black uppercase tracking-widest">No segmented data found in this transmission.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-6 pt-8 border-t border-slate-800">
+                    <div className="flex items-center justify-between">
+                       <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] flex items-center">
+                         <MessageSquare className="w-4 h-4 mr-3 text-indigo-500" />
+                         {isAdmin ? 'Operational Evaluation Notes' : 'Counselor Feedback & Guidance'}
+                       </h3>
+
+                       {isAdmin && (
+                         <button
+                           onClick={() => handleDeleteMock(selectedMock.id!)}
+                           disabled={isSubmitting}
+                           className="p-2 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-xl hover:bg-rose-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                           title="Delete Mock Attempt"
+                         >
+                            <Trash2 size={16} />
+                         </button>
+                       )}
+                    </div>
+
+                    {isAdmin ? (
+                      <div className="space-y-4">
+                        <textarea
+                          value={adminFeedback}
+                          onChange={(e) => setAdminFeedback(e.target.value)}
+                          placeholder="Write your overall review, feedback, or required corrections here..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-[32px] p-8 text-sm font-medium leading-relaxed text-white focus:ring-2 focus:ring-indigo-500 outline-none h-40 transition-all"
+                        />
+                        <div className="flex gap-4">
+                          <button
+                            onClick={() => handleReviewMock(selectedMock.id!, 'ACCEPTED')}
+                            disabled={isSubmitting}
+                            className="flex-1 flex items-center justify-center py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[24px] font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-50 active:scale-95"
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" /> Accept Submission
+                          </button>
+                          <button
+                            onClick={() => handleReviewMock(selectedMock.id!, 'REJECTED')}
+                            disabled={isSubmitting}
+                            className="flex-1 flex items-center justify-center py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-[24px] font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-rose-500/20 disabled:opacity-50 active:scale-95"
+                          >
+                            <XCircle className="w-4 h-4 mr-2" /> Reject Submission
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`p-8 rounded-[32px] border-2 ${selectedMock.reviewStatus === 'ACCEPTED' ? 'bg-emerald-900/10 border-emerald-500/30 text-emerald-200' : selectedMock.reviewStatus === 'REJECTED' ? 'bg-rose-900/10 border-rose-500/30 text-rose-200' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
+                         {selectedMock.adminFeedback ? (
+                           <p className="whitespace-pre-wrap text-sm font-medium leading-relaxed">{selectedMock.adminFeedback}</p>
+                         ) : (
+                           <div className="flex items-center gap-3 italic opacity-60">
+                              <Clock size={16} />
+                              <p className="text-xs font-bold uppercase tracking-widest">Awaiting Counselor Assessment...</p>
+                           </div>
+                         )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full min-h-[500px] flex flex-col items-center justify-center bg-slate-900/30 border border-slate-800/50 rounded-[40px] border-dashed space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-600"><PlayCircle size={32} /></div>
+                  <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Select a transmission from the history to begin audit.</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="details"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-12"
+          >
+             {/* Academic & Admission Justification */}
+             <div className="bg-slate-900 p-10 rounded-[40px] border border-slate-800 shadow-xl space-y-8">
+                <div className="flex items-center gap-3 border-l-4 border-indigo-500 pl-6">
+                   <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Academic & Admission Justification</h2>
+                </div>
+
+                {interviewPack ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                     <div className="space-y-6">
+                        <ViewField label="University Name" value={interviewPack.universityName} />
+                        <ViewField label="Course Name" value={interviewPack.courseName} />
+                        <ViewField label="CAS Number" value={interviewPack.casNumber} />
+                        <ViewField label="Tuition Fee" value={interviewPack.tuitionFee} />
+                     </div>
+                     <div className="space-y-6">
+                        <ViewField label="Career Plans" value={interviewPack.careerPlans} />
+                        <ViewField label="Return Intent" value={interviewPack.intentToReturn} />
+                        <ViewField label="Sponsor" value={interviewPack.sponsorName} />
+                        <ViewField label="Documents" value={interviewPack.docsVerified ? 'VERIFIED' : 'PENDING'} />
+                     </div>
+                  </div>
+                ) : (
+                  <div className="p-10 text-center opacity-30">
+                     <FileText size={48} className="mx-auto mb-4" />
+                     <p className="text-sm font-bold uppercase tracking-widest">Interview Pack Not Initialized</p>
+                  </div>
+                )}
+             </div>
+
+             {/* CUSTOM QUESTIONS BUILDER */}
+             <div className="bg-slate-900 p-10 rounded-[40px] border border-slate-800 shadow-xl space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-black text-white uppercase tracking-tighter flex items-center border-l-4 border-emerald-500 pl-6">
+                    <HelpCircle className="w-6 h-6 mr-3 text-emerald-500" /> Custom Interview Pack
+                  </h3>
+                  <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20 uppercase tracking-widest">
+                    {customQuestions.length} Active Questions
+                  </span>
+                </div>
+
+                <p className="text-sm font-medium text-slate-400 max-w-3xl leading-relaxed">
+                  Add specific, tailored questions to this student's preparation pack. The AI Mock Interviewer will prioritize asking these questions during their next session to test specific weaknesses or study gaps.
+                </p>
+
+                <div className="space-y-4">
+                  {customQuestions.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-800 rounded-[32px] bg-slate-950/50">
+                      <HelpCircle size={40} className="text-slate-800 mb-4" />
+                      <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">No custom questions assigned yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                      {customQuestions.map((q, idx) => (
+                        <div key={q.id} className="flex items-start justify-between bg-slate-950 border border-slate-800 p-6 rounded-3xl group hover:border-indigo-500/50 transition-all">
+                          <div className="flex items-start">
+                            <span className="text-indigo-500 font-black mr-6 text-lg leading-none mt-1">{idx + 1}.</span>
+                            <p className="text-slate-200 font-bold text-base">{q.text}</p>
+                          </div>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDeleteQuestion(q.id)}
+                              className="text-slate-600 hover:text-rose-500 p-3 rounded-2xl hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100"
+                              title="Remove Question"
+                            >
+                              <Trash2 size={20} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {isAdmin && (
+                  <form onSubmit={handleAddCustomQuestion} className="flex gap-4 pt-4">
+                    <div className="relative flex-1">
+                       <MessageSquare className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                       <input
+                        type="text"
+                        value={newQuestionText}
+                        onChange={(e) => setNewQuestionText(e.target.value)}
+                        placeholder="Type a custom question (e.g., Explain your 4-year study gap)..."
+                        className="w-full bg-slate-950 border border-slate-800 rounded-3xl pl-14 pr-6 py-5 text-sm font-bold text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-inner"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={!newQuestionText.trim() || isSubmitting}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-10 rounded-[28px] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-900/20 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isSubmitting ? <Loader2 className="animate-spin" /> : <Plus className="w-5 h-5" />}
+                      Add to Pack
+                    </button>
+                  </form>
+                )}
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 5. Sectional Review Modal */}
       {reviewTarget && (
         <MockSegmentReviewModal
@@ -438,3 +575,15 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
     </div>
   );
 }
+
+function ViewField({ label, value }: { label: string, value: any }) {
+  return (
+    <div className="space-y-1">
+       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{label}</p>
+       <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm font-bold text-slate-200 shadow-inner truncate">
+          {value || 'Not Provided'}
+       </div>
+    </div>
+  );
+}
+

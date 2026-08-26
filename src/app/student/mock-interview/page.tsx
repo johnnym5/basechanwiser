@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import AppShell from "@/components/layout/app-shell";
 import PreFlightLobby from "@/components/student/PreFlightLobby";
 import InterviewRecorder from "@/components/student/InterviewRecorder";
@@ -8,7 +9,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { MockQuestionSet, MockQuestion, MockInterviewAttempt } from "@/types/mock";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // Firebase Storage Decommissioned - Retake cleanup logic disabled.
@@ -144,6 +145,11 @@ export default function StudentMockInterviewPage() {
   return (
     <AppShell>
       <div className="py-8">
+        <div className="max-w-2xl mx-auto mb-6">
+           <Link href="/dashboard" className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-blue-600 hover:text-blue-700 transition-colors">
+              <ChevronLeft size={16} /> Back to Dashboard
+           </Link>
+        </div>
         {step === 'loading' && (
           <div className="flex flex-col items-center justify-center p-20 gap-4">
              <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />

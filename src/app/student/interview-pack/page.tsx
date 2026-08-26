@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { usePDF } from "react-to-pdf";
 import { useAuth } from "@/lib/auth/auth-context";
 import { db, storage } from "@/lib/firebase/config";
@@ -23,6 +24,7 @@ import {
   Target,
   CheckCircle2,
   AlertCircle,
+  ChevronLeft,
 } from "lucide-react";
 
 // ─── UKVI Study Guide State Shape ─────────────────────────────────────────────
@@ -147,6 +149,9 @@ export default function StudentInterviewPackPage() {
   return (
     <AppShell>
       <div className="max-w-5xl mx-auto space-y-8 pb-32">
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-700 transition-colors ml-1">
+           <ChevronLeft size={16} /> Back to Dashboard
+        </Link>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 border-l-4 border-indigo-500 pl-6 py-2">
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3 uppercase">

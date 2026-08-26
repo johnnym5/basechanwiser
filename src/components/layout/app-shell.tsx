@@ -129,51 +129,55 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const isStudent = effectiveRole === "Student";
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#F8F9FA] dark:bg-[#0F172A] text-gray-900 dark:text-slate-200 font-sans transition-colors duration-300">
 
       {/* Desktop Sidebar — lg+ (Fixed width, border right) */}
-      <aside className="hidden lg:flex flex-col bg-white dark:bg-[#1E293B] border-r border-gray-200 dark:border-slate-800 w-20 hover:w-64 transition-all duration-300 ease-in-out group/sidebar z-30 shrink-0 overflow-hidden">
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-transparent group-hover/sidebar:border-gray-100 dark:group-hover/sidebar:border-slate-800 transition-colors">
-          <Image src="/logo.png" alt="BN" width={32} height={32} className="rounded-lg shrink-0" />
-          <span className="font-extrabold text-gray-900 dark:text-white text-lg tracking-tight font-google opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-            BASECHANWISER
-          </span>
-        </div>
+      {!isStudent && (
+        <aside className="hidden lg:flex flex-col bg-white dark:bg-[#1E293B] border-r border-gray-200 dark:border-slate-800 w-20 hover:w-64 transition-all duration-300 ease-in-out group/sidebar z-30 shrink-0 overflow-hidden">
+          <div className="flex items-center gap-3 px-6 py-6 border-b border-transparent group-hover/sidebar:border-gray-100 dark:group-hover/sidebar:border-slate-800 transition-colors">
+            <Image src="/logo.png" alt="BN" width={32} height={32} className="rounded-lg shrink-0" />
+            <span className="font-extrabold text-gray-900 dark:text-white text-lg tracking-tight font-google opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+              BASECHANWISER
+            </span>
+          </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-4 overflow-y-auto overflow-x-hidden">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href || pathname.startsWith(link.href.split("?")[0]);
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.name}
-                href={link.href}
-                title={link.name}
-                className={`flex items-center gap-4 px-3 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${isActive
-                    ? "bg-blue-50 dark:bg-blue-500/10 text-[#1a73e8] dark:text-blue-500"
-                    : "text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-              >
-                <Icon size={24} className={`shrink-0 ${isActive ? "text-[#1a73e8] dark:text-blue-500" : "text-gray-400 dark:text-slate-500"}`} />
-                <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 truncate">{link.name}</span>
-                {isActive && <ChevronRight size={18} className="ml-auto opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 text-[#1a73e8] dark:text-blue-500" />}
-              </Link>
-            );
-          })}
-        </nav>
+          <nav className="flex-1 px-4 py-6 space-y-4 overflow-y-auto overflow-x-hidden">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href || pathname.startsWith(link.href.split("?")[0]);
+              const Icon = link.icon;
+              return (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  title={link.name}
+                  className={`flex items-center gap-4 px-3 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${isActive
+                      ? "bg-blue-50 dark:bg-blue-500/10 text-[#1a73e8] dark:text-blue-500"
+                      : "text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                >
+                  <Icon size={24} className={`shrink-0 ${isActive ? "text-[#1a73e8] dark:text-blue-500" : "text-gray-400 dark:text-slate-500"}`} />
+                  <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 truncate">{link.name}</span>
+                  {isActive && <ChevronRight size={18} className="ml-auto opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 text-[#1a73e8] dark:text-blue-500" />}
+                </Link>
+              );
+            })}
+          </nav>
 
-        <div className="px-4 py-6 border-t border-gray-100 dark:border-slate-800">
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-4 px-3 py-3 rounded-xl text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all w-full overflow-hidden"
-            title="Sign Out"
-          >
-            <LogOut className="w-6 h-6 shrink-0" />
-            <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200">Sign Out</span>
-          </button>
-        </div>
-      </aside>
+          <div className="px-4 py-6 border-t border-gray-100 dark:border-slate-800">
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-4 px-3 py-3 rounded-xl text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all w-full overflow-hidden"
+              title="Sign Out"
+            >
+              <LogOut className="w-6 h-6 shrink-0" />
+              <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200">Sign Out</span>
+            </button>
+          </div>
+        </aside>
+      )}
 
       {/* Main Content Area (Right side) */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
@@ -181,12 +185,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Top Header */}
         <header className="h-16 bg-white dark:bg-[#1E293B] border-b border-gray-200 dark:border-slate-800 shrink-0 z-20 px-4 sm:px-6 flex items-center justify-between shadow-sm transition-colors duration-300">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setMobileDrawerOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <Menu size={24} />
-            </button>
+            {!isStudent ? (
+              <button
+                onClick={() => setMobileDrawerOpen(true)}
+                className="lg:hidden p-2 rounded-xl text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <Menu size={24} />
+              </button>
+            ) : (
+              <div className="flex items-center gap-2.5">
+                <Image src="/logo.png" alt="BN" width={32} height={32} className="rounded-lg" />
+                <span className="font-extrabold text-gray-900 dark:text-white text-base hidden sm:inline tracking-tight font-google">BASECHANWISER</span>
+              </div>
+            )}
 
             {/* Breadcrumb or Search placeholder */}
             <div className="hidden sm:flex items-center relative w-64">
@@ -326,7 +337,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* ── Mobile Slide-over Drawer — lg:hidden ─────────────── */}
-      {mobileDrawerOpen && (
+      {!isStudent && mobileDrawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileDrawerOpen(false)} />
           <div className="relative w-72 max-w-[85vw] bg-white dark:bg-[#1E293B] h-full flex flex-col shadow-2xl z-50 animate-slide-right overflow-hidden">

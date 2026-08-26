@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/lib/auth/auth-context";
+import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase/config";
 import { doc, getDoc, updateDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { MockInterviewAttempt, MockInterviewAnswer } from "@/types/mock";
