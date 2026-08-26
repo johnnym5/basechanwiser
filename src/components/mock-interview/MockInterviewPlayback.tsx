@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase/config";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { MockInterviewAttempt, MockInterviewAnswer } from "@/types/mock";
 import {
   Loader2,
@@ -16,7 +16,8 @@ import {
   ThumbsDown,
   Save,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from "lucide-react";
 
 interface MockInterviewPlaybackProps {
@@ -24,15 +25,19 @@ interface MockInterviewPlaybackProps {
 }
 
 export default function MockInterviewPlayback({ attemptId }: MockInterviewPlaybackProps) {
+  const { userProfile } = useAuth();
   const [attempt, setAttempt] = useState<MockInterviewAttempt | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeQuestionIdx, setActiveQuestionIdx] = useState<number>(0);
   const [saving, setSaving] = useState(false);
+  const router = useRouter();
 
   // Local edits for feedback & ratings
   const [localAnswers, setLocalAnswers] = useState<MockInterviewAnswer[]>([]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const isAdmin = userProfile?.role === 'Admin' || userProfile?.role === 'Super Admin' || userProfile?.role === 'Counselor';
 
   useEffect(() => {
     if (attemptId) fetchAttempt();
@@ -80,6 +85,23 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
     } catch (e) {
       console.error(e);
       alert("Failed to sync reviews.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteMock = async () => {
+    if (!attempt?.id || !isAdmin) return;
+    if (!confirm("Are you sure you want to PERMANENTLY delete this mock interview? This action cannot be undone.")) return;
+
+    setSaving(true);
+    try {
+      await deleteDoc(doc(db, "mock_interview_attempts", attempt.id));
+      alert("Mock interview deleted successfully.");
+      router.back();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to delete mock interview.");
     } finally {
       setSaving(false);
     }
@@ -174,68 +196,83 @@ export default function MockInterviewPlayback({ attemptId }: MockInterviewPlayba
             </div>
           </div>
 
-          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-            attempt.status === 'completed'
-              ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400'
-              : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400'
-          }`}>
-            {attempt.status.replace('_', ' ')}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+              attempt.status === 'completed'
+                ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400'
+                : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400'
+            }`}>
+              {attempt.status.replace('_', ' ')}
+            </span>
+
+            {isAdmin && (
+              <button
+                onClick={handleDeleteMock}
+                disabled={saving}
+                className="p-2.5 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-xl hover:bg-rose-600 hover:text-white transition-all border border-rose-100 dark:border-rose-900/30 active:scale-95 disabled:opacity-50"
+                title="Delete Mock Attempt"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── SECTIONAL FEEDBACK PANEL ── */}
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-sm border border-gray-100 dark:border-slate-700 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-           <div className="flex justify-between items-center">
-              <div className="space-y-1">
-                 <h3 className="text-sm font-black uppercase tracking-widest text-blue-500">Sectional Performance Audit</h3>
-                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Question #{activeQuestionIdx + 1}</p>
-              </div>
+        {isAdmin && (
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-sm border border-gray-100 dark:border-slate-700 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex justify-between items-center">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-blue-500">Sectional Performance Audit</h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Question #{activeQuestionIdx + 1}</p>
+                </div>
 
-              <div className="flex gap-2">
-                 <button
-                   onClick={() => updateSectionReview(activeQuestionIdx, { rating: 'good' })}
-                   className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
-                     localAnswers[activeQuestionIdx]?.rating === 'good'
-                       ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                       : 'bg-transparent border-gray-100 dark:border-slate-700 text-gray-400 hover:border-emerald-500/50'
-                   }`}
-                 >
-                    <ThumbsUp size={16} /> PASS
-                 </button>
-                 <button
-                   onClick={() => updateSectionReview(activeQuestionIdx, { rating: 'bad' })}
-                   className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
-                     localAnswers[activeQuestionIdx]?.rating === 'bad'
-                       ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/30'
-                       : 'bg-transparent border-gray-100 dark:border-slate-700 text-gray-400 hover:border-rose-500/50'
-                   }`}
-                 >
-                    <ThumbsDown size={16} /> FAIL
-                 </button>
-              </div>
-           </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => updateSectionReview(activeQuestionIdx, { rating: 'good' })}
+                    className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
+                      localAnswers[activeQuestionIdx]?.rating === 'good'
+                        ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                        : 'bg-transparent border-gray-100 dark:border-slate-700 text-gray-400 hover:border-emerald-500/50'
+                    }`}
+                  >
+                      <ThumbsUp size={16} /> PASS
+                  </button>
+                  <button
+                    onClick={() => updateSectionReview(activeQuestionIdx, { rating: 'bad' })}
+                    className={`p-3 rounded-2xl border-2 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
+                      localAnswers[activeQuestionIdx]?.rating === 'bad'
+                        ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/30'
+                        : 'bg-transparent border-gray-100 dark:border-slate-700 text-gray-400 hover:border-rose-500/50'
+                    }`}
+                  >
+                      <ThumbsDown size={16} /> FAIL
+                  </button>
+                </div>
+            </div>
 
-           <textarea
-             value={localAnswers[activeQuestionIdx]?.feedback || ""}
-             onChange={(e) => updateSectionReview(activeQuestionIdx, { feedback: e.target.value })}
-             placeholder="Enter specific counselor observations for this answer segment..."
-             className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-[32px] p-6 text-sm font-medium leading-relaxed dark:text-slate-200 focus:ring-2 focus:ring-blue-500 min-h-[120px] transition-all"
-           />
+            <textarea
+              value={localAnswers[activeQuestionIdx]?.feedback || ""}
+              onChange={(e) => updateSectionReview(activeQuestionIdx, { feedback: e.target.value })}
+              placeholder="Enter specific counselor observations for this answer segment..."
+              className="w-full bg-gray-50 dark:bg-[#0F172A] border-none rounded-[32px] p-6 text-sm font-medium leading-relaxed dark:text-slate-200 focus:ring-2 focus:ring-blue-500 min-h-[120px] transition-all"
+            />
 
-           <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-slate-700">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                 <AlertCircle size={14} className="text-amber-500" /> Changes are stored locally until committed.
-              </p>
-              <button
-                onClick={handleSaveAllReviews}
-                disabled={saving}
-                className="px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
-              >
-                 {saving ? <Loader2 className="animate-spin" /> : <Save size={16} />}
-                 Commit Full Audit
-              </button>
-           </div>
-        </div>
+            <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-slate-700">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <AlertCircle size={14} className="text-amber-500" /> Changes are stored locally until committed.
+                </p>
+                <button
+                  onClick={handleSaveAllReviews}
+                  disabled={saving}
+                  className="px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="animate-spin" /> : <Save size={16} />}
+                  Commit Full Audit
+                </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Side-by-Side Asked Questions List */}
