@@ -35,7 +35,7 @@ interface QuizExecutionProps {
  */
 export default function QuizExecution({ testSet, onFinish }: QuizExecutionProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(testSet.timePerQuestionSeconds);
+  const [timeLeft, setTimeLeft] = useState(15); // Forced to 15s as per requirements
   const [showHint, setShowHint] = useState(false);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
   const [isAnswering, setIsAnswering] = useState(false);
@@ -90,7 +90,7 @@ export default function QuizExecution({ testSet, onFinish }: QuizExecutionProps)
         setTimeLeft((prev) => {
           if (prev <= 1) {
             handleAnswerSelect(null); // Auto-advance on 0
-            return testSet.timePerQuestionSeconds;
+            return 15; // Reset to 15s
           }
           if (prev <= 5) setShowHint(true);
           return prev - 1;
@@ -100,7 +100,7 @@ export default function QuizExecution({ testSet, onFinish }: QuizExecutionProps)
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isAnswering, isFinalizing, currentQuestionIndex, preparedQuestions, testSet.timePerQuestionSeconds]);
+  }, [isAnswering, isFinalizing, currentQuestionIndex, preparedQuestions]); // Removed testSet dependency for fixed timer
 
   const handleAnswerSelect = (index: number | null) => {
     if (isAnswering || isFinalizing) return;
@@ -108,7 +108,7 @@ export default function QuizExecution({ testSet, onFinish }: QuizExecutionProps)
     setSelectedOptionIndex(index);
 
     const currentQ = preparedQuestions[currentQuestionIndex];
-    const timeSpent = testSet.timePerQuestionSeconds - timeLeft;
+    const timeSpent = 15 - timeLeft; // Using 15s base
     setTotalTimeSpent(prev => prev + timeSpent);
 
     const isCorrect = index === currentQ.correctAnswerIndex;
@@ -128,7 +128,7 @@ export default function QuizExecution({ testSet, onFinish }: QuizExecutionProps)
     setTimeout(() => {
       if (currentQuestionIndex < preparedQuestions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
-        setTimeLeft(testSet.timePerQuestionSeconds);
+        setTimeLeft(15); // Reset to 15s
         setShowHint(false);
         setSelectedOptionIndex(null);
         setIsAnswering(false);

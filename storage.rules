@@ -2,10 +2,20 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Helper: Check if user is staff (Counselor, Admin, Super Admin)
+    // 🛡️ REBUST STAFF CHECK (Dependent on Firestore)
     function isStaff() {
       return request.auth != null &&
-        firestore.get(/databases/(default)/documents/Users/$(request.auth.uid)).data.role in ['Counselor', 'Admin', 'Super Admin'];
+        (firestore.get(/databases/(default)/documents/Users/$(request.auth.uid)).data.role == 'Counselor' ||
+         firestore.get(/databases/(default)/documents/Users/$(request.auth.uid)).data.role == 'Admin' ||
+         firestore.get(/databases/(default)/documents/Users/$(request.auth.uid)).data.role == 'Super Admin');
+    }
+
+    // 🛡️ EMERGENCY ADMIN BYPASS (Email based - Resilient to Billing/Firestore Lock)
+    function isSystemRoot() {
+      return request.auth != null && (
+        request.auth.token.email == 'jegbase@gmail.com' ||
+        request.auth.token.email == 'ithub@basechaninternational.com'
+      );
     }
 
     // Standard Rule: Authenticated users can read all
@@ -13,24 +23,34 @@ service firebase.storage {
       allow read: if request.auth != null;
     }
 
-    // 1. Mock Interviews: Students can upload to their own folder
+    // 1. Library Assets: Only Counselors/Admins
+    match /library/{allPaths=**} {
+      allow write: if isSystemRoot() || isStaff();
+    }
+
+    // 2. Branding Assets
+    match /branding/{allPaths=**} {
+      allow write: if isSystemRoot() || isStaff();
+    }
+
+    // 3. Mock Interviews: Student Ownership + Staff Override
     match /mock_interviews/{userId}/{allPaths=**} {
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if (request.auth != null && request.auth.uid == userId) || isSystemRoot() || isStaff();
     }
 
-    // 2. Student Documents: Students can upload to their own folder
+    // 4. Student Documents: Student Ownership + Staff Override
     match /documents/{userId}/{allPaths=**} {
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if (request.auth != null && request.auth.uid == userId) || isSystemRoot() || isStaff();
     }
 
-    // 3. Student Packs: Students can upload to their own folder
+    // 5. Student Packs: Student Ownership + Staff Override
     match /student_packs/{userId}/{allPaths=**} {
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if (request.auth != null && request.auth.uid == userId) || isSystemRoot() || isStaff();
     }
 
-    // Global Fallback for Writes: Staff can write anywhere
+    // Global Fallback for Writes
     match /{allPaths=**} {
-      allow write: if isStaff();
+      allow write: if isSystemRoot() || isStaff();
     }
   }
 }

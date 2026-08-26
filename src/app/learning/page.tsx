@@ -66,10 +66,10 @@ export default function LearningModulesPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
-              <BookOpen className="w-8 h-8 text-blue-600" /> Academy Library
+              <BookOpen className="w-8 h-8 text-blue-600" /> Learning Resources
             </h1>
             <p className="text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">
-              Mission-critical compliance training and university credibility drills.
+              Mission-critical compliance documents and university credibility guides.
             </p>
           </div>
         </div>

@@ -25,8 +25,8 @@ function ModuleDetailContent() {
   const [pack, setPack] = useState<TestQuestionSet | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Journey Phase
-  const [phase, setPhase] = useState<'overview' | 'learning' | 'quiz'>('overview');
+  // Journey Phase - Start with 'learning' (resources) as per requirements
+  const [phase, setPhase] = useState<'overview' | 'learning' | 'quiz'>('learning');
 
   // Stats for results screen
   const [correctCount, setCorrectCount] = useState(0);
@@ -236,24 +236,22 @@ function ModuleDetailContent() {
              <div className="space-y-2">
                 <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Test Arena</h2>
                 <p className="text-sm text-gray-500 font-bold max-w-sm mx-auto leading-relaxed uppercase tracking-widest">
-                   Each question has a strict {pack.timePerQuestionSeconds}s timer. Be fast, be accurate.
+                   Each question has a strict 15s timer. Be fast, be accurate.
                 </p>
              </div>
 
              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                {(pack.learningContent || (pack.learningResources && pack.learningResources.length > 0)) && (
-                  <button
-                    onClick={() => setPhase('learning')}
-                    className="px-12 py-5 bg-indigo-600 text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
-                  >
-                    Mission Briefing <BookOpen className="w-5 h-5" />
-                  </button>
-                )}
+                <button
+                  onClick={() => setPhase('learning')}
+                  className="px-12 py-5 bg-indigo-600 text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
+                >
+                  Review Resources <BookOpen className="w-5 h-5" />
+                </button>
                 <button
                   onClick={() => setPhase('quiz')}
                   className="px-12 py-5 bg-blue-600 text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
                 >
-                    Begin Challenge <ArrowRight className="w-5 h-5" />
+                    Take Assessments <ArrowRight className="w-5 h-5" />
                 </button>
              </div>
           </div>
@@ -285,7 +283,7 @@ function ModuleDetailContent() {
                  onClick={() => setPhase('quiz')}
                  className="w-full py-5 bg-[#1a73e8] text-white font-black rounded-full text-sm uppercase tracking-widest shadow-2xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
                 >
-                   I have reviewed the material. Start 10-Second Drills <ArrowRight className="w-5 h-5" />
+                   Finish Review & Start 15-Second Drills <ArrowRight className="w-5 h-5" />
                 </button>
              </div>
           </div>
