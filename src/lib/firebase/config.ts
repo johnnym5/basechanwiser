@@ -9,7 +9,7 @@ const FALLBACK_CONFIG = {
   authDomain: "basechanwiser.firebaseapp.com",
   databaseURL: "https://basechanwiser-default-rtdb.firebaseio.com",
   projectId: "basechanwiser",
-  storageBucket: "basechan.firebasestorage.app",
+  storageBucket: "basechanwiser.firebasestorage.app",
   messagingSenderId: "617583251187",
   appId: "1:617583251187:web:ec4000cd77c5fb5322f186",
   measurementId: "G-00TQ0389WL",
