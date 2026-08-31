@@ -52,8 +52,8 @@ export function useStudentDashboard(userId: string | null | undefined) {
         const quizSnap = await withTimeout(getDocs(quizQ), 10000);
         const attempts = quizSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        const passedModuleIds = new Set(attempts.filter((a: any) => a.passed).map((a: any) => a.packId));
-        const passedCount = Math.min(passedModuleIds.size, 5); // Max 5 modules
+        const passedModuleIds = new Set(attempts.filter((a: any) => a.passed || (a.scorePercentage >= 80)).map((a: any) => a.packId || a.setId));
+        const passedCount = passedModuleIds.size;
 
         // 2. Fetch Interview Pack Status with 10s timeout
         const packRef = doc(db, "Interview_Packs", userId);

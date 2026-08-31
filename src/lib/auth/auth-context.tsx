@@ -62,7 +62,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
-  const [simulatedRole, setSimulatedRole] = useState<AppRole | null>(null);
+  const [simulatedRole, setSimulatedRoleState] = useState<AppRole | null>(null);
+
+  // ── PERSISTENCE: Simulated Role ──
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("bw_simulated_role");
+      if (saved) setSimulatedRoleState(saved as AppRole);
+    }
+  }, []);
+
+  const setSimulatedRole = (newRole: AppRole | null) => {
+    setSimulatedRoleState(newRole);
+    if (typeof window !== "undefined") {
+      if (newRole) sessionStorage.setItem("bw_simulated_role", newRole);
+      else sessionStorage.removeItem("bw_simulated_role");
+    }
+  };
 
   const effectiveRole = (role === "Super Admin" || role === "Admin") && simulatedRole
     ? simulatedRole
@@ -303,6 +319,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       localStorage.removeItem("bw_guest_email");
       localStorage.removeItem("bw_guest_name");
+      sessionStorage.removeItem("bw_simulated_role");
       await firebaseSignOut(auth);
       setUser(null);
       setRole(null);

@@ -4,7 +4,8 @@ import React from "react";
 import AppShell from "@/components/layout/app-shell";
 import StudentProfileView from "@/components/student/StudentProfileView";
 import { useAuth } from "@/lib/auth/auth-context";
-import { Loader2, MessageSquare } from "lucide-react";
+import { Loader2, MessageSquare, ChevronLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function StudentFeedbackHubPage() {
   const { userId, loading } = useAuth();
@@ -33,13 +34,18 @@ export default function StudentFeedbackHubPage() {
   return (
     <AppShell>
       <div className="space-y-8">
-        <div className="flex items-center gap-3 border-b border-slate-800 pb-6">
-           <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400">
-              <MessageSquare size={28} />
-           </div>
-           <div>
-              <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Feedback Hub</h1>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Review counselor evaluations and mission status</p>
+        <div className="space-y-4">
+           <Link href="/dashboard" className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-700 transition-colors">
+              <ChevronLeft size={16} /> Back to Dashboard
+           </Link>
+           <div className="flex items-center gap-3 border-b border-slate-800 pb-6">
+              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400">
+                 <MessageSquare size={28} />
+              </div>
+              <div>
+                 <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Feedback Hub</h1>
+                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Review counselor evaluations and mission status</p>
+              </div>
            </div>
         </div>
 

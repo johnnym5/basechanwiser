@@ -46,18 +46,30 @@ export function useStudentPipeline(userId: string | null | undefined) {
 
     const fetchPipeline = async () => {
       try {
-        // 1. Fetch Quiz Attempts
+        // 1. Fetch Core Modules to know the total count and IDs
+        const coreSnap = await withTimeout(getDocs(query(
+          collection(db, "test_question_sets"),
+          where("category", "==", "core"),
+          where("isArchived", "==", false)
+        )), 10000);
+        const coreIds = coreSnap.docs.map(d => d.id);
+        const totalCoreCount = coreIds.length || 5;
+
+        // 2. Fetch Quiz Attempts
         const quizQ = query(collection(db, "quiz_attempts"), where("userId", "==", userId));
         const quizSnap = await withTimeout(getDocs(quizQ), 10000);
-        const passedModules = new Set<string>();
+        const passedCoreModules = new Set<string>();
+
         quizSnap.docs.forEach(d => {
           const attempt = d.data();
-          if (attempt.passed || (attempt.scorePercentage >= 80)) {
-            passedModules.add(attempt.packId);
+          const packId = attempt.packId || attempt.setId;
+          if ((attempt.passed || (attempt.scorePercentage >= 80)) && coreIds.includes(packId)) {
+            passedCoreModules.add(packId);
           }
         });
 
-        const isStage1Complete = passedModules.size >= 5;
+        // Stage 1 is complete if user passed ALL existing core modules (or at least 5 as safety)
+        const isStage1Complete = passedCoreModules.size >= totalCoreCount;
 
         // 2. Fetch Interview Pack Status
         const packRef = doc(db, "Interview_Packs", userId);
@@ -128,7 +140,7 @@ export function useStudentPipeline(userId: string | null | undefined) {
           stages,
           loading: false,
           stats: {
-            passedModules: Array.from(passedModules),
+            passedModules: Array.from(passedCoreModules),
             packStatus,
             mockStatus
           }

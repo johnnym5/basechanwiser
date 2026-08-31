@@ -15,10 +15,12 @@ import {
   Trophy,
   Calendar,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  ChevronLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import EmptyState from "@/components/common/EmptyState";
+import Link from "next/link";
 
 import { AskedQuestion } from "@/types/academy";
 
@@ -93,11 +95,16 @@ export default function ActivityHistoryPage() {
     <AppShell>
       <div className="max-w-4xl mx-auto space-y-10 pb-20">
 
-        <div className="space-y-1">
-           <h1 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
-              <History className="w-8 h-8 text-blue-500" /> Mission Log
-           </h1>
-           <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">Review your past performance and analyze weak points.</p>
+        <div className="space-y-4">
+           <Link href="/dashboard" className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-700 transition-colors">
+              <ChevronLeft size={16} /> Back to Dashboard
+           </Link>
+           <div className="space-y-1">
+              <h1 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
+                 <History className="w-8 h-8 text-blue-500" /> Mission Log
+              </h1>
+              <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">Review your past performance and analyze weak points.</p>
+           </div>
         </div>
 
         {loading ? (

@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import AppShell from "@/components/layout/app-shell";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
-import { BookOpen, CheckCircle2, ArrowLeft, RotateCcw, Sparkles, Award, Timer, Trophy, ArrowRight, Loader2, Zap } from "lucide-react";
+import { BookOpen, CheckCircle2, ArrowLeft, RotateCcw, Sparkles, Award, Timer, Trophy, ArrowRight, Loader2, Zap, Lock } from "lucide-react";
 import { doc, getDoc, collection, getDocs, serverTimestamp, updateDoc, addDoc, query, where, limit, orderBy, deleteDoc } from "firebase/firestore";
 import QuizExecution from "@/components/learning/QuizExecution";
 import { AskedQuestion, TestQuestionSet } from "@/types/academy";
@@ -24,6 +24,7 @@ function ModuleDetailContent() {
 
   const [pack, setPack] = useState<TestQuestionSet | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lockError, setLockError] = useState<string | null>(null);
 
   // Journey Phase - Start with 'learning' (resources) as per requirements
   const [phase, setPhase] = useState<'overview' | 'learning' | 'quiz'>('learning');
@@ -79,28 +80,45 @@ function ModuleDetailContent() {
 
     async function fetchData() {
       setLoading(true);
+      setLockError(null);
       try {
+        // 0. Fetch Core Modules & Scores for Sequential Locking
+        const [coreSnap, attemptsSnap] = await Promise.all([
+          getDocs(query(collection(db, 'test_question_sets'), where('category', '==', 'core'), where('isArchived', '==', false))),
+          getDocs(query(collection(db, 'quiz_attempts'), where('userId', '==', userId)))
+        ]);
+
+        const coreModules = coreSnap.docs
+          .map(d => ({ id: d.id, ...d.data() } as TestQuestionSet))
+          .sort((a, b) => {
+            const aNum = a.orderIndex !== undefined ? a.orderIndex : parseInt(a.title?.match(/\d+/)?.[0] || "999");
+            const bNum = b.orderIndex !== undefined ? b.orderIndex : parseInt(b.title?.match(/\d+/)?.[0] || "999");
+            return aNum - bNum;
+          });
+
+        const bestScores: Record<string, number> = {};
+        attemptsSnap.docs.forEach(d => {
+          const attempt = d.data();
+          const pId = attempt.packId || attempt.setId;
+          const score = attempt.scorePercentage || 0;
+          if (!bestScores[pId] || score > bestScores[pId]) bestScores[pId] = score;
+        });
+
         let rawData: any = null;
         let finalId = packId;
 
-        // 1. STICKY RESOLUTION: If packId provided in URL, we MUST show that specific module.
-        // Falling back to "Module 1" silently is what causes the confusion.
+        // 1. Resolve target pack
         if (packId) {
           const setSnap = await withTimeout(getDoc(doc(db, "test_question_sets", packId)), 10000);
           if (setSnap.exists()) {
             rawData = setSnap.data();
-          } else {
-            console.error(`[AcademyError] Requested packId "${packId}" does not exist in test_question_sets.`);
-            // If the specific ID fails, we check if there's a legacy mapping or try finding by orderIndex
-            // but for now, we continue to fallbacks if and ONLY IF no packId was provided or fetch failed.
           }
         }
 
-        // 2. Fallback to assigned test set ONLY IF no specific pack requested or found
+        // 2. Fallbacks
         if (!rawData && userId) {
           const userSnap = await withTimeout(getDoc(doc(db, "Users", userId)), 10000);
           const profile = userSnap.exists() ? userSnap.data() as UserProfile : null;
-
           if (profile?.assignedTestSetId) {
             const setSnap = await withTimeout(getDoc(doc(db, "test_question_sets", profile.assignedTestSetId)), 10000);
             if (setSnap.exists()) {
@@ -110,7 +128,6 @@ function ModuleDetailContent() {
           }
         }
 
-        // 3. Last fallback: default set (usually Module 1)
         if (!rawData) {
           const q = query(collection(db, "test_question_sets"), where("isDefault", "==", true), limit(1));
           const snap = await withTimeout(getDocs(q), 10000);
@@ -121,7 +138,20 @@ function ModuleDetailContent() {
         }
 
         if (isMounted && rawData) {
-          // ── SYNC: Ensure we set the state with the actual data from the resolved document ──
+          // ── SEQUENTIAL LOCKING SECURITY CHECK ──
+          if (rawData.category === 'core') {
+            const modIndex = coreModules.findIndex(m => m.id === finalId);
+            if (modIndex > 0) {
+              const prevMod = coreModules[modIndex - 1];
+              const prevScore = bestScores[prevMod.id] || 0;
+              if (prevScore < 80) {
+                setLockError(`Authorization Revoked: You must pass ${prevMod.title} with at least 80% before accessing this module.`);
+                setLoading(false);
+                return;
+              }
+            }
+          }
+
           setPack({ id: finalId || "unknown", ...rawData } as TestQuestionSet);
         }
       } catch (err) {
@@ -226,11 +256,41 @@ function ModuleDetailContent() {
     }
   };
 
-  if (loading || !pack) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-20 gap-4">
         <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
         <p className="text-sm font-black uppercase text-gray-500 tracking-widest text-center">Entering Arena...</p>
+      </div>
+    );
+  }
+
+  if (lockError) {
+    return (
+      <div className="max-w-2xl mx-auto py-20 text-center space-y-8 animate-in zoom-in duration-500">
+         <div className="w-24 h-24 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto border-4 border-rose-100">
+            <Lock size={48} className="text-rose-500" />
+         </div>
+         <div className="space-y-4">
+            <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none italic">Access Denied</h2>
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-xs leading-relaxed max-w-sm mx-auto">
+               {lockError}
+            </p>
+         </div>
+         <button
+           onClick={() => router.push('/learning')}
+           className="px-10 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:scale-105 active:scale-95"
+         >
+            Return to Learning Hub
+         </button>
+      </div>
+    );
+  }
+
+  if (!pack) {
+    return (
+      <div className="p-20 text-center">
+         <p className="text-gray-500 font-bold">Module not found or authorization failed.</p>
       </div>
     );
   }

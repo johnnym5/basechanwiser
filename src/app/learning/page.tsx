@@ -19,30 +19,50 @@ export default function LearningModulesPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [scores, setScores] = useState<Record<string, number>>({});
+
   useEffect(() => {
     async function fetchData() {
       if (!userId) return;
       try {
-        // 1. Fetch User Profile
-        const userSnap = await getDoc(doc(db, "Users", userId));
+        // 1. Fetch User Profile & Quiz Attempts
+        const [userSnap, quizSnap, setsSnap, resSnap] = await Promise.all([
+          getDoc(doc(db, "Users", userId)),
+          getDocs(query(collection(db, "quiz_attempts"), where("userId", "==", userId))),
+          getDocs(query(collection(db, "test_question_sets"), where("isArchived", "==", false))),
+          getDocs(collection(db, "library_resources"))
+        ]);
+
         if (userSnap.exists()) {
           setUserProfile({ uid: userSnap.id, ...userSnap.data() } as UserProfile);
         }
 
-        // 2. Fetch Academy Track
-        const setsQuery = query(collection(db, "test_question_sets"), where("isArchived", "==", false));
-        const setsSnap = await getDocs(setsQuery);
+        // Aggregate scores from attempts
+        const tempScores: Record<string, number> = {};
+        quizSnap.docs.forEach(d => {
+          const attempt = d.data();
+          const packId = attempt.packId || attempt.setId;
+          const score = attempt.scorePercentage || 0;
+          if (!tempScores[packId] || score > tempScores[packId]) {
+            tempScores[packId] = score;
+          }
+        });
+        setScores(tempScores);
+
         const allSets = setsSnap.docs.map(d => ({ id: d.id, ...d.data() } as TestQuestionSet));
 
-        // 3. Fetch Library Resources to link with modules
-        const resSnap = await getDocs(collection(db, "library_resources"));
+        // 3. Fetch Library Resources
         const allResources = resSnap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryResource));
         setResources(allResources);
 
-        // 4. Split and Sort
+        // 4. Split and Sort (Explicitly Ascending)
         const core = allSets
           .filter(s => s.category === 'core')
-          .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+          .sort((a, b) => {
+            const aNum = a.orderIndex !== undefined ? a.orderIndex : parseInt(a.title?.match(/\d+/)?.[0] || "999");
+            const bNum = b.orderIndex !== undefined ? b.orderIndex : parseInt(b.title?.match(/\d+/)?.[0] || "999");
+            return aNum - bNum;
+          });
 
         // Supplemental Track: Open drills
         const supplemental = allSets
@@ -100,89 +120,125 @@ export default function LearningModulesPage() {
                   <div className="h-px bg-gray-100 dark:bg-slate-800 flex-1" />
                </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {coreModules.map((mod) => {
-                    const isLocked = (mod.orderIndex || 0) > currentLevel;
-                    const score = moduleScores[mod.id];
-                    const isPassed = score !== undefined && score >= 80;
+               <div className="flex flex-col gap-6 max-w-5xl mx-auto">
+                 {coreModules.map((mod, idx) => {
+                    const score = scores[mod.id] || 0;
+                    const isPassed = score >= 80;
+
+                    // Sequential Locking: Unlock if first module OR previous module is passed
+                    const prevMod = idx > 0 ? coreModules[idx - 1] : null;
+                    const isUnlocked = idx === 0 || (scores[prevMod?.id || ""] >= 80);
+                    const isLocked = !isUnlocked;
+
+                    // Priority 1: Direct ID link. Priority 2: Title keyword match (e.g. "Module 2")
+                    const linkedResource = resources.find(r =>
+                      r.linkedPackId === mod.id ||
+                      (mod.title && r.title && r.title.toLowerCase().includes(`module ${mod.orderIndex}`))
+                    );
 
                     return (
                       <div
                         key={mod.id}
-                        className={`bg-white dark:bg-slate-800 rounded-[32px] p-8 border-2 transition-all flex flex-col justify-between h-full group ${
-                          isLocked
-                            ? "opacity-50 grayscale border-gray-100 dark:border-slate-900"
-                            : "border-gray-50 dark:border-slate-700 hover:border-blue-500/50 shadow-sm hover:shadow-xl"
+                        className={`relative group transition-all duration-500 ${
+                          isLocked ? "opacity-40 grayscale" : ""
                         }`}
                       >
-                        <div className="space-y-5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600">Module {mod.orderIndex}</span>
+                        <div className={`
+                          relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 p-8 md:p-10 rounded-[32px] border-2 transition-all duration-500
+                          ${isUnlocked && !isPassed
+                            ? "bg-white dark:bg-slate-900/40 backdrop-blur-md border-blue-500/30 shadow-2xl shadow-blue-500/5 ring-1 ring-blue-500/20"
+                            : isPassed
+                              ? "bg-slate-50/50 dark:bg-slate-900/20 border-emerald-100 dark:border-emerald-900/30"
+                              : "bg-white/30 dark:bg-slate-900/10 border-slate-100 dark:border-slate-800"}
+                        `}>
+
+                          <div className="flex items-center gap-8 w-full md:w-auto">
+                            {/* Visual Indicator */}
+                            <div className={`
+                              w-20 h-20 rounded-[24px] flex items-center justify-center shrink-0 border-2 transition-all duration-500
+                              ${isPassed
+                                ? "bg-white dark:bg-slate-800 border-emerald-200 text-emerald-600 shadow-lg shadow-emerald-500/5"
+                                : !isLocked
+                                  ? "bg-blue-600 border-blue-400 text-white shadow-2xl shadow-blue-600/30 scale-105"
+                                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-300"}
+                            `}>
+                               {isLocked ? <Lock strokeWidth={1.5} className="w-8 h-8" /> :
+                                isPassed ? <CheckCircle2 strokeWidth={1.5} className="w-10 h-10" /> :
+                                <BookOpen strokeWidth={1.5} className="w-10 h-10" />}
+                            </div>
+
+                            <div className="space-y-2">
+                               <div className="flex items-center gap-3">
+                                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">
+                                    {mod.orderIndex !== undefined ? `Module ${mod.orderIndex}` : mod.title}
+                                  </span>
+                                  {isPassed && (
+                                    <div className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-full border border-emerald-100 dark:border-emerald-800 text-[9px] font-black uppercase">
+                                      {score}% Proficiency
+                                    </div>
+                                  )}
+                               </div>
+                               <h3 className={`text-2xl font-black tracking-tighter ${isLocked ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>
+                                  {mod.title}
+                               </h3>
+                               <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed line-clamp-2 max-w-lg">
+                                  {mod.summary || "UKVI Credibility Fundamentals & Institutional Strategic Assessment."}
+                               </p>
+
+                               <div className="flex items-center gap-6 pt-2">
+                                  <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                     <HelpCircle className="w-4 h-4 text-blue-500" /> 10 Assessment Drills
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                     <Award className="w-4 h-4 text-amber-500" /> {mod.passScore || 80}% Proficiency Target
+                                  </div>
+                               </div>
+                            </div>
+                          </div>
+
+                          <div className="w-full md:w-auto flex flex-col gap-3 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800 min-w-[200px]">
                             {isLocked ? (
-                              <Lock className="w-4 h-4 text-gray-300" />
-                            ) : isPassed ? (
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">{score}%</span>
+                              <div className="w-full py-4 bg-gray-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border border-dashed border-gray-200">
+                                 <Lock className="w-4 h-4" /> Authorization Pending
                               </div>
                             ) : (
-                              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                            )}
-                          </div>
+                              <>
+                                {linkedResource ? (
+                                  <Link
+                                    href={`/student/library/viewer?id=${linkedResource.id}`}
+                                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all"
+                                  >
+                                    <BookOpen className="w-4 h-4" />
+                                    Study Materials
+                                  </Link>
+                                ) : (
+                                  <Link
+                                    href={`/learning/detail?packId=${mod.id}`}
+                                    className="w-full py-4 bg-[#1a73e8] text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-600/20 hover:scale-105 active:scale-95 transition-all"
+                                  >
+                                    <Play className="w-4 h-4 fill-current" />
+                                    Launch Mission
+                                  </Link>
+                                )}
 
-                          <div className="space-y-2">
-                             <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-tight">{mod.title}</h3>
-                             <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed line-clamp-3">
-                                {mod.summary || "UKVI Credibility Fundamentals."}
-                             </p>
-                          </div>
-
-                          <div className="flex items-center gap-4">
-                             <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                <HelpCircle className="w-3.5 h-3.5 text-blue-500" /> 10 Drills
-                             </div>
-                             <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                <Award className="w-3.5 h-3.5 text-amber-500" /> {mod.passScore || 80}% Target
-                             </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-8 space-y-3">
-                          {isLocked ? (
-                            <div className="w-full py-4 bg-gray-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest border border-dashed border-gray-200">
-                               <Lock className="w-3.5 h-3.5" /> Unlock Module {mod.orderIndex! - 1} First
-                            </div>
-                          ) : (
-                            <>
-                              {/* Primary CTA: Study First */}
-                              {resources.find(r => r.linkedPackId === mod.id) ? (
-                                <Link
-                                  href={`/student/library/viewer?id=${resources.find(r => r.linkedPackId === mod.id)?.id}`}
-                                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
-                                >
-                                  <BookOpen className="w-4 h-4" />
-                                  Study Material
-                                </Link>
-                              ) : (
                                 <Link
                                   href={`/learning/detail?packId=${mod.id}`}
-                                  className="w-full py-4 bg-[#1a73e8] text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all"
+                                  className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all border
+                                    ${isPassed
+                                      ? "bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100"
+                                      : "bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-slate-400 border-gray-100 dark:border-slate-800 hover:text-blue-600"}`}
                                 >
-                                  <Play className="w-4 h-4 fill-current" />
-                                  Initialize Mission
+                                   {isPassed ? "Retake Assessment" : "Skip to Quiz"} <ArrowRight className="w-3 h-3" />
                                 </Link>
-                              )}
-
-                              {/* Secondary: Skip to Questions */}
-                              <Link
-                                href={`/learning/detail?packId=${mod.id}`}
-                                className="w-full py-3 bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-slate-400 rounded-xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest hover:text-[#1a73e8] transition-all border border-gray-100 dark:border-slate-800"
-                              >
-                                 Skip to Assessment <ArrowRight className="w-3 h-3" />
-                              </Link>
-                            </>
-                          )}
+                              </>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Connecting Line */}
+                        {idx < coreModules.length - 1 && (
+                          <div className="absolute left-[3.5rem] bottom-[-1.5rem] w-[2px] h-6 bg-slate-100 dark:bg-slate-800 z-0 hidden md:block" />
+                        )}
                       </div>
                     );
                  })}
@@ -198,45 +254,42 @@ export default function LearningModulesPage() {
                     <div className="h-px bg-gray-100 dark:bg-slate-800 flex-1" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="flex flex-col gap-6 max-w-5xl mx-auto">
                   {supplementalPacks.map((pack) => {
-                     const score = moduleScores[pack.id];
-                     const isPassed = score !== undefined && score >= (pack.passScore || 80);
+                     const score = scores[pack.id] || 0;
+                     const isPassed = score >= (pack.passScore || 80);
+                     const linkedResource = resources.find(r => r.linkedPackId === pack.id);
 
                      return (
                        <div
                          key={pack.id}
-                         className="bg-white dark:bg-slate-800 rounded-[32px] p-8 border-2 border-gray-50 dark:border-slate-700 shadow-sm hover:shadow-xl hover:border-indigo-500/50 transition-all flex flex-col justify-between h-full"
+                         className="bg-white dark:bg-slate-900/40 backdrop-blur-md rounded-[32px] p-8 md:p-10 border-2 border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-indigo-500/50 transition-all flex flex-col md:flex-row items-center justify-between gap-8 group"
                        >
-                         <div className="space-y-5">
-                            <div className="flex items-center justify-between">
-                               <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Open Drill</span>
-                               {isPassed && (
-                                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
-                                   <CheckCircle2 className="w-3.5 h-3.5" />
-                                   <span className="text-[10px] font-black uppercase tracking-widest">{score}%</span>
-                                 </div>
-                               )}
+                         <div className="flex items-center gap-8 w-full md:w-auto">
+                            <div className={`w-20 h-20 rounded-[24px] flex items-center justify-center shrink-0 border-2 ${isPassed ? 'bg-white dark:bg-slate-800 border-emerald-200 text-emerald-600' : 'bg-indigo-50 dark:bg-slate-800 border-indigo-100 dark:border-slate-700 text-indigo-500'}`}>
+                               <Zap strokeWidth={1.5} className="w-10 h-10" />
                             </div>
 
                             <div className="space-y-2">
-                               <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-tight">{pack.title}</h3>
-                               <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed line-clamp-3">
-                                  {pack.description || "Additional UKVI credibility drill."}
-                               </p>
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                               <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                  <Zap className="w-3.5 h-3.5 text-amber-500" /> 10 Questions
+                               <div className="flex items-center gap-3">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Open Drill</span>
+                                  {isPassed && (
+                                    <div className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-full border border-emerald-100 dark:border-emerald-800 text-[9px] font-black uppercase">
+                                      {score}% Accuracy
+                                    </div>
+                                  )}
                                </div>
+                               <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-tight">{pack.title}</h3>
+                               <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed line-clamp-2 max-w-lg">
+                                  {pack.description || "Additional UKVI credibility drill for institutional alignment."}
+                               </p>
                             </div>
                          </div>
 
-                         <div className="pt-8 space-y-3">
-                            {resources.find(r => r.linkedPackId === pack.id) ? (
+                         <div className="w-full md:w-auto flex flex-col gap-3 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800 min-w-[200px]">
+                            {linkedResource ? (
                               <Link
-                                href={`/student/library/viewer?id=${resources.find(r => r.linkedPackId === pack.id)?.id}`}
+                                href={`/student/library/viewer?id=${linkedResource.id}`}
                                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
                               >
                                  <BookOpen className="w-4 h-4" />

@@ -309,13 +309,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       <div className="p-2 border-b border-gray-100 dark:border-slate-700">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-2">Simulate View</p>
                         <button
-                          onClick={() => { setSimulatedRole('Counselor'); setProfileDropdownOpen(false); }}
+                          onClick={() => { setSimulatedRole('Counselor'); setProfileDropdownOpen(false); window.location.reload(); }}
                           className={`w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${simulatedRole === 'Counselor' ? 'text-[#1a73e8] bg-blue-50 dark:bg-blue-900/20' : 'text-gray-700 dark:text-gray-300'}`}
                         >
                           <Eye size={16}/> Counselor View
                         </button>
                         <button
-                          onClick={() => { setSimulatedRole('Student'); setProfileDropdownOpen(false); }}
+                          onClick={() => { setSimulatedRole('Student'); setProfileDropdownOpen(false); window.location.reload(); }}
                           className={`w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${simulatedRole === 'Student' ? 'text-[#1a73e8] bg-blue-50 dark:bg-blue-900/20' : 'text-gray-700 dark:text-gray-300'}`}
                         >
                           <UserIcon size={16}/> Student View
@@ -323,7 +323,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
                         {simulatedRole && (
                           <button
-                            onClick={() => { setSimulatedRole(null); setProfileDropdownOpen(false); }}
+                            onClick={() => { setSimulatedRole(null); setProfileDropdownOpen(false); window.location.reload(); }}
                             className="w-full text-left flex items-center gap-3 px-3 py-2 mt-1 text-xs font-black rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500 transition-colors"
                           >
                             <ShieldAlert size={16}/> Exit Simulation

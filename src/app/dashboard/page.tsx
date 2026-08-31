@@ -9,68 +9,67 @@ import {
   CheckCircle2,
   Lock,
   ShieldCheck,
-  Sparkles,
   Star,
-  Flame,
-  Trophy,
   HelpCircle,
   Video,
   X,
-  ChevronRight,
-  ArrowRight
+  ArrowRight,
+  Activity,
+  FileText,
+  Check,
+  ChevronRight
 } from "lucide-react";
-import ReactConfetti from "react-confetti";
 import { useStudentDashboard } from "@/hooks/useStudentDashboard";
 import { useStudentPipeline } from "@/hooks/useStudentPipeline";
 import { motion, AnimatePresence } from "framer-motion";
 
-const MOTIVATIONAL_PHRASES = [
-  "You're 1 step closer to your UK university journey! 🇬🇧",
-  "Let's crush today's compliance drill! 🚀",
-  "Consistency is the key to a successful CAS application! 💎",
-  "Keep going! Your future self will thank you. ✨",
-  "Mastering UKVI rules today makes the interview easy tomorrow! 📚"
+const STRATEGIC_BRIEFINGS = [
+  "Current trajectory aligns with target CAS issuance parameters.",
+  "Operational compliance baseline established. Maintaining consistency.",
+  "Strategic engagement is the primary driver of successful clearance.",
+  "Internal readiness indicates a high probability of certification.",
+  "UKVI regulatory alignment remains the priority for this session."
 ];
 
 const STAGE_CONTENT = [
   {
     id: 1,
-    title: "RESOURCES",
-    subtitle: "Study Materials & Mission Briefings",
-    tooltip: "Why do I need this? UKVI Entry Clearance Officers will test your authentic knowledge of your course, university, and financial rules. These 5 modules contain the mandatory baseline knowledge required to pass your visa interview. You must score 80% on all of them to prove you are ready.",
-    cta: "Review Resources",
-    reviewCta: "Library Hub",
+    title: "Knowledge Repository",
+    subtitle: "Critical Compliance Documentation",
+    tooltip: "Executive Briefing: UKVI Entry Clearance Officers evaluate candidate authenticity regarding institutional selection and financial viability. These modules establish the mandatory baseline required for regulatory compliance. A minimum assessment score of 80% is required for progression.",
+    cta: "Access Repository",
+    reviewCta: "Review Modules",
     href: "/student/library",
     icon: BookOpen
   },
   {
     id: 2,
-    title: "The Defense Portfolio",
-    subtitle: "Your Personalized Interview Pack",
-    tooltip: "Why do I need this? Your Defense Portfolio is your personalized cheat sheet. It forces you to write down your exact tuition fees, sponsor details, and career goals so you don't freeze or give inconsistent answers during the real Home Office interview.",
-    cta: "Build Interview Pack",
-    reviewCta: "Edit Portfolio",
+    title: "Strategic Dossier",
+    subtitle: "Candidate Credibility Portfolio",
+    tooltip: "Requirement: The Defense Portfolio serves as the primary instrument for verifying applicant intent. Candidates must document precise financial details, sponsorship parameters, and long-term strategic objectives to ensure absolute consistency during formal Home Office inquiries.",
+    cta: "Generate Dossier",
+    reviewCta: "Update Records",
     href: "/student/interview-pack",
     icon: ShieldCheck
   },
   {
     id: 3,
-    title: "The Live Simulation",
-    subtitle: "High-Stress AI Mock Interview",
-    tooltip: "Why do I need this? Knowing the answers is only half the battle; delivering them confidently under pressure is the rest. The AI (and your Counselor) will simulate a real, high-stress UKVI interview to test your spoken English, body language, and response time.",
-    cta: "Initialize Mock Interview",
-    reviewCta: "Review Feedback",
+    title: "Operational Readiness",
+    subtitle: "High-Fidelity Simulation Protocol",
+    tooltip: "Objective: Technical knowledge must be complemented by professional delivery. This high-fidelity simulation evaluates linguistic proficiency, situational awareness, and response integrity under stress conditions typical of official UKVI assessments.",
+    cta: "Commence Assessment",
+    reviewCta: "Analysis Report",
     href: "/student/mock-interview",
     icon: Video
   },
   {
     id: 4,
-    title: "Clearance & Counselor Review",
-    subtitle: "Final Validation for CAS Issuance",
-    tooltip: "What happens now? Your Senior Counselor is reviewing your simulation. If you pass, you will be cleared for CAS issuance. If red flags are detected, you will receive feedback and must retry the simulation.",
-    cta: "Awaiting Clearance",
-    reviewCta: "Check Status",
-    href: "/student/mock-interview", // Where they see feedback
+    title: "Final Certification",
+    subtitle: "Executive Verification & CAS Clearance",
+    tooltip: "Status: Senior Counsel review is currently underway. Final validation confirms eligibility for CAS issuance. In the event of identified risk factors, a corrective feedback cycle will be initiated prior to certification.",
+    cta: "Pending Validation",
+    reviewCta: "View Status",
+    href: "/student/mock-interview",
     icon: Star
   }
 ];
@@ -78,7 +77,7 @@ const STAGE_CONTENT = [
 export default function StudentDashboardPage() {
   const { user, userId } = useAuth();
   const { data: stats, loading: statsLoading } = useStudentDashboard(userId);
-  const { currentStage, stages, loading: pipelineLoading, stats: pipelineStats } = useStudentPipeline(userId);
+  const { currentStage, stages, loading: pipelineLoading } = useStudentPipeline(userId);
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
@@ -94,22 +93,22 @@ export default function StudentDashboardPage() {
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    const name = user?.displayName?.split(" ")[0] || "Student";
-    if (hour < 12) return `Good Morning, ${name} 🌅`;
-    if (hour < 18) return `Good Afternoon, ${name} ☀️`;
-    return `Good Evening, ${name} 🌙`;
+    const name = user?.displayName?.split(" ")[0] || "Candidate";
+    if (hour < 12) return `Good Morning, ${name}`;
+    if (hour < 18) return `Good Afternoon, ${name}`;
+    return `Good Evening, ${name}`;
   }, [user]);
 
-  const motivationalQuote = useMemo(() => {
-    return MOTIVATIONAL_PHRASES[Math.floor(Math.random() * MOTIVATIONAL_PHRASES.length)];
+  const briefing = useMemo(() => {
+    return STRATEGIC_BRIEFINGS[Math.floor(Math.random() * STRATEGIC_BRIEFINGS.length)];
   }, []);
 
   if (statsLoading || pipelineLoading) {
     return (
       <AppShell>
-        <div className="flex flex-col items-center justify-center p-20 gap-4">
-           <Sparkles className="w-12 h-12 text-[#1a73e8] animate-spin" />
-           <p className="text-sm font-black uppercase text-gray-500 tracking-widest">Hydrating Dashboard...</p>
+        <div className="flex flex-col items-center justify-center p-24 gap-6">
+           <div className="w-12 h-12 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
+           <p className="text-[10px] font-bold uppercase text-slate-400 tracking-[0.3em]">Initializing Dashboard Environment...</p>
         </div>
       </AppShell>
     );
@@ -117,46 +116,59 @@ export default function StudentDashboardPage() {
 
   return (
     <AppShell>
-      {showConfetti && <ReactConfetti width={window?.innerWidth} height={window?.innerHeight} recycle={false} />}
+      <div className="max-w-5xl mx-auto space-y-16 pb-24 px-4">
 
-      <div className="max-w-4xl mx-auto space-y-12 pb-20">
-
-        {/* ── Minimalist Gamified Header ────────────────────────── */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-700">
-           <div className="space-y-1 text-center md:text-left">
-              <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tighter font-google">{greeting}</h1>
-              <p className="text-sm font-bold text-gray-500 dark:text-blue-400 italic">"{motivationalQuote}"</p>
+        {/* ── Professional Executive Header ────────────────────────── */}
+        <div className="flex flex-col md:flex-row items-end justify-between gap-8 animate-in fade-in slide-in-from-top-4 duration-1000">
+           <div className="space-y-3 text-left w-full md:w-auto">
+              <h1 className="text-4xl md:text-5xl font-light text-slate-900 dark:text-slate-50 tracking-tight leading-none font-sans">
+                {greeting}
+              </h1>
+              <div className="flex items-center gap-3">
+                 <div className="h-[1px] w-8 bg-indigo-500/50" />
+                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 tracking-[0.15em] uppercase">
+                   {briefing}
+                 </p>
+              </div>
            </div>
 
-           <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 border border-orange-100 dark:border-orange-800 shadow-sm">
-                 <Flame className="w-4 h-4 fill-current" />
-                 <span className="text-xs font-black">{stats.streak} DAYS</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 border border-purple-100 dark:border-purple-800 shadow-sm">
-                 <Trophy className="w-4 h-4" />
-                 <span className="text-xs font-black">{stats.points.toLocaleString()} PTS</span>
+           <div className="flex flex-col items-end gap-2 shrink-0">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Journey Status</span>
+              <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 text-white shadow-xl shadow-indigo-500/10 border border-slate-700 dark:border-slate-700">
+                 <div className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                 </div>
+                 <span className="text-[10px] font-bold tracking-[0.2em] uppercase">Phase {currentStage} Active</span>
               </div>
            </div>
         </div>
 
-        {/* ── Strict Linear Pipeline (Roadmap) ──────────────────── */}
-        <div className="space-y-6">
+        {/* ── Sophisticated Milestone Track ──────────────────── */}
+        <div className="space-y-8 relative">
           <div className="flex items-center justify-between px-2">
-             <h2 className="text-sm font-black uppercase tracking-[0.2em] text-gray-400">UKVI Compliance Pipeline</h2>
-             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-gray-500">STAGE {currentStage} / 4</span>
-                <div className="w-32 h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+             <div className="space-y-1">
+                <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-slate-400 flex items-center gap-2">
+                  <Activity size={14} className="text-indigo-500" />
+                  Compliance Pipeline
+                </h2>
+             </div>
+             <div className="flex items-center gap-4 text-slate-500">
+                <span className="text-[10px] font-bold uppercase tracking-widest">{currentStage} OF 4 COMPLETE</span>
+                <div className="w-24 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                    <motion.div
                      initial={{ width: 0 }}
                      animate={{ width: `${(currentStage / 4) * 100}%` }}
-                     className="h-full bg-blue-600"
+                     className="h-full bg-indigo-500"
                    />
                 </div>
              </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="relative grid grid-cols-1 gap-6">
+            {/* The Vertical Glowing Timeline Connector */}
+            <div className="absolute left-[39px] top-10 bottom-10 w-[2px] bg-slate-100 dark:bg-slate-800 hidden md:block" />
+
             {STAGE_CONTENT.map((stage, idx) => {
               const pipelineStage = stages[idx];
               const isLocked = !pipelineStage.isUnlocked;
@@ -167,155 +179,167 @@ export default function StudentDashboardPage() {
               return (
                 <div
                   key={stage.id}
-                  className={`relative group transition-all duration-500 ${isLocked ? 'opacity-50 pointer-events-none' : ''}`}
+                  className={`relative group transition-all duration-700 ${isLocked ? 'opacity-40 grayscale' : ''}`}
                 >
                   <div className={`
-                    relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6 p-8 rounded-[32px] border-2 transition-all
-                    ${isCurrent ? 'bg-white dark:bg-[#1E293B] border-blue-500 shadow-2xl shadow-blue-500/10 ring-2 ring-blue-500/20' :
-                      isCompleted ? 'bg-white dark:bg-[#1E293B] border-emerald-100 dark:border-emerald-900/30' :
-                      'bg-gray-50/50 dark:bg-slate-900/50 border-gray-100 dark:border-slate-800'}
+                    relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 p-8 md:p-10 rounded-3xl border transition-all duration-500
+                    ${isCurrent
+                      ? 'bg-white/80 dark:bg-slate-900/40 backdrop-blur-md border-indigo-500/30 shadow-2xl shadow-indigo-500/5 ring-1 ring-indigo-500/20'
+                      : isCompleted
+                        ? 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200/50 dark:border-slate-800/50'
+                        : 'bg-white/30 dark:bg-slate-900/10 border-slate-100 dark:border-slate-900'}
                   `}>
 
-                    <div className="flex items-center gap-6 w-full sm:w-auto">
+                    <div className="flex items-center gap-8 w-full md:w-auto">
+                       {/* Elegant Icon Indicator */}
                        <div className={`
-                          w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border-2
-                          ${isCompleted ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 text-emerald-600' :
-                            isCurrent ? 'bg-blue-600 border-blue-400 text-white shadow-xl shadow-blue-500/30' :
-                            'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400'}
+                          w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-500
+                          ${isCompleted
+                            ? 'bg-white dark:bg-slate-800 border-emerald-500/30 text-emerald-600 shadow-lg shadow-emerald-500/5'
+                            : isCurrent
+                              ? 'bg-indigo-600 border-indigo-400 text-white shadow-2xl shadow-indigo-600/30 scale-105'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-300'}
                        `}>
-                          {isCompleted ? <CheckCircle2 className="w-8 h-8" /> :
-                           isLocked ? <Lock className="w-6 h-6" /> :
-                           <Icon className="w-8 h-8" />}
+                          {isCompleted ? <Check strokeWidth={1.5} className="w-10 h-10" /> :
+                           isLocked ? <Lock strokeWidth={1.5} className="w-7 h-7" /> :
+                           <Icon strokeWidth={1.5} className="w-10 h-10" />}
                        </div>
 
-                       <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                             <h3 className={`text-xl font-black tracking-tighter ${isLocked ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                       <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                             <h3 className={`text-2xl font-medium tracking-tight ${isLocked ? 'text-slate-400' : 'text-slate-900 dark:text-slate-50'}`}>
                                 {stage.title}
                              </h3>
                              <button
                                onClick={() => setActiveTooltip(stage.id)}
-                               className="text-gray-400 hover:text-blue-500 transition-colors"
+                               className="text-slate-300 hover:text-indigo-500 transition-colors"
                              >
-                                <HelpCircle size={18} />
+                                <HelpCircle size={18} strokeWidth={1.5} />
                              </button>
                           </div>
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{stage.subtitle}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{stage.subtitle}</p>
                        </div>
                     </div>
 
-                    <div className="w-full sm:w-auto">
+                    <div className="w-full md:w-auto pt-6 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
                        {isLocked ? (
-                         <div className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-100 dark:bg-slate-800 text-gray-400 text-[10px] font-black uppercase tracking-widest">
-                            <Lock size={14} /> Stage Locked
+                         <div className="flex items-center justify-center gap-2 px-8 py-3 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                            <Lock size={14} /> Authorization Required
                          </div>
                        ) : (
                          <Link
                            href={stage.href}
                            className={`
-                             group/btn px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3
-                             ${isCompleted ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' :
-                               isCurrent ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-600/20' :
-                               'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50'}
+                             group/btn px-10 py-4 rounded-xl text-[10px] font-bold uppercase tracking-[0.25em] transition-all flex items-center justify-center gap-4
+                             ${isCompleted
+                               ? 'bg-slate-900 dark:bg-slate-800 text-white hover:bg-black dark:hover:bg-slate-700'
+                               : isCurrent
+                                 ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-600/20'
+                                 : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}
                            `}
                          >
                             {isCompleted ? stage.reviewCta : stage.cta}
-                            <ArrowRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+                            <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
                          </Link>
                        )}
                     </div>
                   </div>
-
-                  {/* Connecting Line (except for last) */}
-                  {idx < STAGE_CONTENT.length - 1 && (
-                    <div className="absolute left-[2.5rem] bottom-[-1.5rem] w-1 h-6 bg-gray-100 dark:bg-slate-800 z-0 hidden sm:block" />
-                  )}
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* ── Mission Critical Stats ────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-           <div className="bg-white dark:bg-[#1E293B] p-8 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Readiness Score</p>
-              <div className="flex items-center justify-between">
-                 <div className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">{stats.readiness}%</div>
-                 <div className="w-16 h-16 relative">
-                    <svg className="w-full h-full transform -rotate-90">
-                       <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100 dark:text-slate-800" />
-                       <motion.circle
-                         cx="32" cy="32" r="28" stroke="#1a73e8" strokeWidth="6" fill="transparent"
-                         strokeDasharray={2 * Math.PI * 28}
-                         initial={{ strokeDashoffset: 2 * Math.PI * 28 }}
-                         animate={{ strokeDashoffset: 2 * Math.PI * 28 * (1 - stats.readiness / 100) }}
-                         strokeLinecap="round"
-                         transition={{ duration: 1.5 }}
-                       />
-                    </svg>
-                 </div>
+        {/* ── Mission Critical Stats (Refined) ────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+           <div className="bg-white/50 dark:bg-slate-900/20 backdrop-blur-md p-10 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">Performance Metric: Readiness</p>
+                <div className="text-6xl font-light text-slate-900 dark:text-slate-50 tracking-tighter">
+                  {stats.readiness}<span className="text-2xl text-slate-300">%</span>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Aggregate Assessment Score</span>
+                <div className="flex gap-1">
+                   {[...Array(10)].map((_, i) => (
+                      <div key={i} className={`h-1.5 w-4 rounded-full ${i < stats.readiness/10 ? 'bg-indigo-500' : 'bg-slate-100 dark:bg-slate-800'}`} />
+                   ))}
+                </div>
               </div>
            </div>
 
-           <div className="bg-white dark:bg-[#1E293B] p-8 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Current Module</p>
-              <div className="flex items-center justify-between">
-                 <div className="text-xl font-black text-gray-900 dark:text-white tracking-tighter">
-                    {stats.passedModulesCount < 5 ? `Module ${stats.passedModulesCount + 1}` : 'Modules Complete'}
-                 </div>
-                 <div className="flex gap-1">
+           <div className="bg-slate-900 dark:bg-slate-900/40 backdrop-blur-md p-10 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
+              <div className="relative z-10">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">Verification Stage: Modules</p>
+                <div className="text-3xl font-medium text-white tracking-tight">
+                   {stats.passedModulesCount < 5 ? `Phase ${stats.passedModulesCount + 1}` : 'All Phases Complete'}
+                </div>
+                <p className="text-xs text-slate-500 mt-2 font-medium uppercase tracking-widest">
+                  Requirement: 5/5 Mandatory Modules
+                </p>
+              </div>
+
+              <div className="mt-8 relative z-10">
+                 <div className="flex items-center gap-3">
                     {[1,2,3,4,5].map(i => (
-                       <div key={i} className={`w-3 h-3 rounded-full ${i <= stats.passedModulesCount ? 'bg-emerald-500' : 'bg-gray-100 dark:bg-slate-800'}`} />
+                       <div key={i} className={`flex-1 h-2 rounded-full transition-all duration-700 ${i <= stats.passedModulesCount ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.4)]' : 'bg-slate-800'}`} />
                     ))}
                  </div>
               </div>
+
+              {/* Decorative Element */}
+              <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
            </div>
         </div>
 
       </div>
 
-      {/* ── Contextual Help Modal (Glassmorphism) ─────────────── */}
+      {/* ── Contextual Compliance Briefing (Glassmorphism) ─────────────── */}
       <AnimatePresence>
         {activeTooltip && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
              <motion.div
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                exit={{ opacity: 0 }}
                onClick={() => setActiveTooltip(null)}
-               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+               className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
              />
              <motion.div
-               initial={{ opacity: 0, scale: 0.9, y: 20 }}
+               initial={{ opacity: 0, scale: 0.95, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-               className="relative w-full max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-8 rounded-[40px] border border-white/20 shadow-2xl space-y-6"
+               exit={{ opacity: 0, scale: 0.95, y: 10 }}
+               className="relative w-full max-w-lg bg-white dark:bg-slate-900 p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl space-y-8"
              >
                 <button
                   onClick={() => setActiveTooltip(null)}
-                  className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                  className="absolute top-8 right-8 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
                 >
-                   <X size={20} />
+                   <X size={20} strokeWidth={1.5} />
                 </button>
 
-                <div className="space-y-4">
-                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 text-[10px] font-black uppercase tracking-widest">
-                      <HelpCircle size={14} /> Mission Intelligence
+                <div className="space-y-6">
+                   <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                      <FileText size={14} /> Regulatory Briefing
                    </div>
-                   <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">
-                      {STAGE_CONTENT.find(s => s.id === activeTooltip)?.title}
-                   </h3>
-                   <p className="text-sm font-bold text-gray-600 dark:text-slate-300 leading-relaxed italic">
+                   <div className="space-y-2">
+                      <h3 className="text-3xl font-medium text-slate-900 dark:text-white tracking-tight">
+                         {STAGE_CONTENT.find(s => s.id === activeTooltip)?.title}
+                      </h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Protocol ID: STG-0{activeTooltip}</p>
+                   </div>
+                   <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
                       {STAGE_CONTENT.find(s => s.id === activeTooltip)?.tooltip}
                    </p>
                 </div>
 
                 <button
                   onClick={() => setActiveTooltip(null)}
-                  className="w-full py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl"
+                  className="w-full py-5 bg-slate-900 dark:bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-[0.3em] rounded-xl hover:bg-black dark:hover:bg-indigo-700 transition-all shadow-lg"
                 >
-                   Understood
+                   Acknowledge Receipt
                 </button>
              </motion.div>
           </div>
