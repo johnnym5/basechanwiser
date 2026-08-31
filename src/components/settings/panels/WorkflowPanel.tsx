@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { GitMerge, AlertTriangle, ShieldCheck, Download, Loader2, Zap } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { useAuth } from '@/lib/auth/auth-context';
+import { runSystemRecovery } from '@/lib/client/seed-utils';
 
 interface WorkflowPanelProps {
   config: any;
@@ -11,25 +11,15 @@ interface WorkflowPanelProps {
 }
 
 export default function WorkflowPanel({ config, onChange }: WorkflowPanelProps) {
-  const { user } = useAuth();
   const [seeding, setSeeding] = useState(false);
 
   const handleSeed = async () => {
     if (!confirm("🚨 WARNING: This will overwrite or restore the 5 Core UKVI Modules. Continue?")) return;
     setSeeding(true);
     try {
-      const token = await user?.getIdToken().catch(() => "");
-
-      const res = await fetch("/api/admin/seed-modules", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": token ? `Bearer ${token}` : ""
-        }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Seeding failed");
-      alert(data.message || "Success! Core modules restored.");
+      const result = await runSystemRecovery();
+      if (!result.success) throw new Error(result.message);
+      alert(result.message);
     } catch (e: any) {
       alert(`System Notice: ${e.message}`);
     } finally {

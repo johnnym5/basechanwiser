@@ -15,7 +15,7 @@ import {
 import MockConfigEditor from "@/components/mock-interview/MockConfigEditor";
 import TestConfigEditor from "@/components/academy/TestConfigEditor";
 import { motion, AnimatePresence } from "framer-motion";
-import { auth } from "@/lib/firebase/config";
+import { runSystemRecovery } from "@/lib/client/seed-utils";
 
 type TabType = 'mock' | 'test';
 
@@ -28,34 +28,18 @@ export default function AcademyManagerPage() {
   const handleRestore = async () => {
     setIsRestoring(true);
     try {
-      // 1. Get Firebase ID Token for Authorization
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) {
-        setToast({ message: "Not authenticated", type: 'error' });
-        setIsRestoring(false);
-        return;
-      }
+      const result = await runSystemRecovery();
 
-      // 2. Pass Bearer token in headers
-      const res = await fetch('/api/admin/seed-modules', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setToast({ message: data.message, type: 'success' });
+      if (result.success) {
+        setToast({ message: result.message, type: 'success' });
         setShowRestoreModal(false);
-        // Refresh the active component by toggling tab briefly or just rely on set component internal effect
-        window.location.reload();
+        // Refresh to show restored data
+        setTimeout(() => window.location.reload(), 2000);
       } else {
-        setToast({ message: "Recovery failed", type: 'error' });
+        setToast({ message: result.message, type: 'error' });
       }
     } catch (e) {
-      setToast({ message: "Network error during recovery", type: 'error' });
+      setToast({ message: "Recovery failed", type: 'error' });
     } finally {
       setIsRestoring(false);
       setTimeout(() => setToast(null), 4000);
