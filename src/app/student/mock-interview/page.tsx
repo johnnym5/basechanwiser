@@ -11,6 +11,7 @@ import { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, serv
 import { MockQuestionSet, MockQuestion, MockInterviewAttempt } from "@/types/mock";
 import { Loader2, CheckCircle2, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Firebase Storage Decommissioned - Retake cleanup logic disabled.
 // TODO: Implement Google Drive file management for mock sessions.
@@ -151,9 +152,9 @@ export default function StudentMockInterviewPage() {
            </Link>
         </div>
         {step === 'loading' && (
-          <div className="flex flex-col items-center justify-center p-20 gap-4">
-             <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-             <p className="text-sm font-black uppercase text-gray-500 tracking-widest">Preparing Arena...</p>
+          <div className="max-w-4xl mx-auto space-y-8 pb-20">
+             <Skeleton className="h-16 w-full rounded-3xl" />
+             <Skeleton className="h-[500px] w-full rounded-[40px]" />
           </div>
         )}
 

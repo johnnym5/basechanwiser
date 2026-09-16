@@ -26,6 +26,7 @@ import { UserProfile, InterviewPack } from '@/types';
 import { MockInterviewAttempt, MockInterviewAnswer } from '@/types/mock';
 import MockSegmentReviewModal from '@/components/counselor/MockSegmentReviewModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface StudentProfileViewProps {
   studentId: string;

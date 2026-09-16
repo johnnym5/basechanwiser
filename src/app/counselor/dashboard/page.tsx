@@ -45,6 +45,7 @@ import { db } from "@/lib/firebase/config";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { withTimeout } from "@/lib/utils/promise-timeout";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PriorityTask {
   id: string;
@@ -267,9 +268,30 @@ export default function CounselorDashboard() {
   if (loading || dataLoading) {
     return (
       <AppShell>
-        <div className="flex flex-col items-center justify-center p-20 gap-4">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-          <p className="text-xs font-black uppercase text-gray-400 tracking-widest">Synchronizing Command Center...</p>
+        <div className="max-w-7xl mx-auto space-y-10 pb-20 px-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-10 w-64" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-24 rounded-2xl" />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
+              <Skeleton className="h-[400px] w-full rounded-[40px]" />
+              <Skeleton className="h-[400px] w-full rounded-[40px]" />
+            </div>
+            <div className="space-y-8">
+              <Skeleton className="h-[300px] w-full rounded-[40px]" />
+              <Skeleton className="h-[500px] w-full rounded-[40px]" />
+            </div>
+          </div>
         </div>
       </AppShell>
     );

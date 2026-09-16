@@ -21,6 +21,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import EmptyState from "@/components/common/EmptyState";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { AskedQuestion } from "@/types/academy";
 
@@ -108,7 +109,11 @@ export default function ActivityHistoryPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-[32px]" />
+            ))}
+          </div>
         ) : fetchError ? (
           <EmptyState
             icon={AlertTriangle}

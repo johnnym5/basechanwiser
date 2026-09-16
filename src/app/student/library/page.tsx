@@ -10,6 +10,7 @@ import { BookOpen, FileText, Loader2, Video, Link2, ChevronLeft, Lock, ArrowRigh
 import EmptyState from "@/components/common/EmptyState";
 import Link from 'next/link';
 import { TestQuestionSet } from '@/types/academy';
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Student Library: The primary entry point for study materials.
@@ -112,9 +113,10 @@ export default function StudentLibrary() {
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center p-20 gap-4">
-            <Sparkles className="w-10 h-10 animate-spin text-indigo-500" />
-            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Loading library...</p>
+          <div className="flex flex-col gap-6 max-w-5xl">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-48 w-full rounded-[32px]" />
+            ))}
           </div>
         ) : (
           <div className="flex flex-col gap-6 max-w-5xl">

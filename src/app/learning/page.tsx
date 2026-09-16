@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { UserProfile } from "@/types";
 import { TestQuestionSet } from "@/types/academy";
 import { LibraryResource } from "@/types/resource";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function LearningModulesPage() {
   const { userId } = useAuth();
@@ -105,9 +106,18 @@ export default function LearningModulesPage() {
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center p-20 gap-4">
-            <Sparkles className="w-10 h-10 animate-spin text-blue-500" />
-            <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Loading lessons...</p>
+          <div className="space-y-16">
+            <section className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-6 w-48" />
+              </div>
+              <div className="flex flex-col gap-6 max-w-5xl mx-auto">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-48 w-full rounded-[32px]" />
+                ))}
+              </div>
+            </section>
           </div>
         ) : (
           <div className="space-y-16">

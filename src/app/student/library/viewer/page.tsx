@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { LibraryResource } from "@/types/resource";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -46,7 +47,19 @@ function ViewerContent() {
   }, [id]);
 
   if (loading) {
-    return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>;
+    return (
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-96" />
+          <Skeleton className="h-4 w-full max-w-2xl" />
+        </div>
+        <Skeleton className="h-[75vh] w-full rounded-[40px]" />
+      </div>
+    );
   }
 
   if (!resource) {

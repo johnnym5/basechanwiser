@@ -48,6 +48,7 @@ import QuickNoteModal from "@/components/counselor/QuickNoteModal";
 import EmptyState from "@/components/common/EmptyState";
 import StatusDropdown from "@/components/ui/StatusDropdown";
 import { formatDistanceToNow } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const generateStudentId = () => {
   const randomNum = Math.floor(10000 + Math.random() * 90000);
@@ -551,9 +552,10 @@ export default function CounselorStudentsPage() {
         {/* Master Student Card Grid */}
         <div className="space-y-6">
           {dataLoading ? (
-            <div className="p-12 text-center">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#1a73e8] mb-2" />
-              <p className="font-black uppercase tracking-widest text-[10px] text-gray-400">Synchronizing Master Data...</p>
+            <div className="space-y-4 pb-20">
+               {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full rounded-[32px]" />
+               ))}
             </div>
           ) : fetchError ? (
             <div className="p-12">

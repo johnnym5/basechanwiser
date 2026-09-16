@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useRouter } from "next/navigation";
 import EmptyState from "./EmptyState";
+import { Skeleton } from "../ui/skeleton";
 
 interface LeaderboardEntry {
   userId: string;
@@ -137,7 +138,17 @@ export default function LeaderboardView({ isCounselorView = false }: Leaderboard
   };
 
   if (loading) {
-    return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>;
+    return (
+      <div className="space-y-12">
+        <Skeleton className="h-16 w-full rounded-[32px]" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end max-w-4xl mx-auto">
+          <Skeleton className="h-48 w-full rounded-t-[32px]" />
+          <Skeleton className="h-64 w-full rounded-t-[40px]" />
+          <Skeleton className="h-32 w-full rounded-t-[24px]" />
+        </div>
+        <Skeleton className="h-[400px] w-full rounded-[40px]" />
+      </div>
+    );
   }
 
   return (

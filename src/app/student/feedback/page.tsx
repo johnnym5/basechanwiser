@@ -6,6 +6,7 @@ import StudentProfileView from "@/components/student/StudentProfileView";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Loader2, MessageSquare, ChevronLeft } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function StudentFeedbackHubPage() {
   const { userId, loading } = useAuth();
@@ -13,9 +14,20 @@ export default function StudentFeedbackHubPage() {
   if (loading) {
     return (
       <AppShell>
-        <div className="flex flex-col items-center justify-center p-20 gap-4">
-           <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-           <p className="text-xs font-black uppercase text-gray-400 tracking-widest">Synchronizing Feedback Hub...</p>
+        <div className="space-y-8">
+          <div className="flex items-center gap-3 border-b border-slate-800 pb-6">
+            <Skeleton className="h-12 w-12 rounded-2xl" />
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <Skeleton className="h-[600px] w-full rounded-3xl" />
+            <div className="lg:col-span-2">
+              <Skeleton className="h-[600px] w-full rounded-3xl" />
+            </div>
+          </div>
         </div>
       </AppShell>
     );

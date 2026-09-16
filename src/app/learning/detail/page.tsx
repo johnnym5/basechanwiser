@@ -13,6 +13,7 @@ import { UserProfile } from "@/types";
 import { Resource } from "@/types/resource";
 import { logActivityAndNotify } from "@/lib/server/notifications";
 import { showPushNotification } from "@/lib/client/push-notifications";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { withTimeout } from "@/lib/utils/promise-timeout";
 
@@ -258,9 +259,16 @@ function ModuleDetailContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 gap-4">
-        <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-        <p className="text-sm font-black uppercase text-gray-500 tracking-widest text-center">Loading Quiz...</p>
+      <div className="max-w-4xl mx-auto space-y-8 pb-20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-10 w-32 rounded-2xl" />
+        </div>
+        <Skeleton className="h-[600px] w-full rounded-[40px]" />
       </div>
     );
   }

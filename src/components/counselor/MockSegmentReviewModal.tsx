@@ -178,7 +178,7 @@ export default function MockSegmentReviewModal({
 
         {/* Footer info */}
         <div className="px-8 py-3 bg-slate-950 border-t border-slate-800 text-[9px] font-black text-slate-600 uppercase tracking-widest">
-           Secure Audit Transmission Active • Synchronizing to Scholar Dossier
+           Secure Audit Transmission Active • Saving to Scholar Dossier
         </div>
       </motion.div>
     </div>

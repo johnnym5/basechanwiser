@@ -50,6 +50,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import EmptyState from "@/components/common/EmptyState";
 import { withTimeout } from "@/lib/utils/promise-timeout";
 import { format, formatDistanceToNow } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * StudentPortfolioPage: Deep-dive view of a single scholar.
@@ -282,7 +283,33 @@ function PortfolioContent() {
     }
   };
 
-  if (loading) return <div className="flex flex-col items-center justify-center p-20 gap-4"><Loader2 className="animate-spin text-blue-500" size={40} /><p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Establishing Uplink...</p></div>;
+  if (loading) {
+    return (
+      <AppShell>
+        <div className="max-w-6xl mx-auto space-y-8 pb-32 relative">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+              <Skeleton className="w-20 h-20 rounded-[28px]" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            </div>
+            <Skeleton className="h-12 w-48 rounded-2xl" />
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32 rounded-[32px]" />
+            ))}
+          </div>
+
+          <Skeleton className="h-[600px] w-full rounded-[40px]" />
+        </div>
+      </AppShell>
+    );
+  }
   if (!student) return <div className="p-20 text-center"><p className="text-gray-500 font-bold">Scholar not found.</p></div>;
 
   const avgScore = attempts.length > 0 ? Math.round(attempts.reduce((acc, a) => acc + (a.score || a.scorePercentage || 0), 0) / attempts.length) : 0;

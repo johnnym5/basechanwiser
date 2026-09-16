@@ -22,6 +22,7 @@ import {
 import { useStudentDashboard } from "@/hooks/useStudentDashboard";
 import { useStudentPipeline } from "@/hooks/useStudentPipeline";
 import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const STRATEGIC_BRIEFINGS = [
   "You are on track for your CAS!",
@@ -106,9 +107,34 @@ export default function StudentDashboardPage() {
   if (statsLoading || pipelineLoading) {
     return (
       <AppShell>
-        <div className="flex flex-col items-center justify-center p-24 gap-6">
-           <div className="w-12 h-12 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-           <p className="text-[10px] font-bold uppercase text-slate-400 tracking-[0.3em]">Opening Dashboard...</p>
+        <div className="max-w-5xl mx-auto space-y-16 pb-24 px-4">
+          <div className="flex flex-col md:flex-row items-end justify-between gap-8">
+            <div className="space-y-3 w-full md:w-auto">
+              <Skeleton className="h-12 w-64" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+            <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-10 w-40" />
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-32 w-full rounded-[32px]" />
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Skeleton className="h-48 w-full rounded-3xl" />
+            <Skeleton className="h-48 w-full rounded-3xl" />
+          </div>
         </div>
       </AppShell>
     );

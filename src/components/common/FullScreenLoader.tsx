@@ -15,8 +15,8 @@ export default function FullScreenLoader() {
     <div className="flex h-screen w-full flex-col items-center justify-center bg-[#0F172A] text-slate-200 p-6 text-center">
       <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4"/>
       <div className="space-y-2">
-        <p className="text-lg font-black uppercase tracking-tighter animate-pulse">Synchronizing Workspace</p>
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">Establishing secure uplink to mission control...</p>
+        <p className="text-lg font-black uppercase tracking-tighter animate-pulse">Loading</p>
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">Establishing secure uplink...</p>
       </div>
 
       {showRetry && (
