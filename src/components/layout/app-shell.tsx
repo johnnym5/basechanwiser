@@ -72,8 +72,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const counselorLinks = [
     { name: "Dashboard", href: "/counselor/dashboard", icon: LayoutDashboard },
     { name: "My Students", href: "/counselor/students", icon: Users },
-    { name: "Academy Manager", href: "/counselor/academy-manager", icon: LayoutGrid },
-    { name: "Resource Library", href: "/counselor/library", icon: BookOpen },
+    { name: "Course Manager", href: "/counselor/academy-manager", icon: LayoutGrid },
+    { name: "Study Files", href: "/counselor/library", icon: BookOpen },
     { name: "Leaderboard", href: "/counselor/leaderboard", icon: Trophy },
   ];
 

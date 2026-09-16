@@ -107,28 +107,28 @@ export function useStudentPipeline(userId: string | null | undefined) {
         const stages: PipelineStage[] = [
           {
             id: 1,
-            title: "The Knowledge Forges",
+            title: "Study Materials",
             isUnlocked: true,
             isCompleted: isStage1Complete,
             status: isStage1Complete ? 'completed' : (currentStage === 1 ? 'current' : 'locked')
           },
           {
             id: 2,
-            title: "The Defense Portfolio",
+            title: "Interview Details",
             isUnlocked: isStage1Complete,
             isCompleted: isStage2Complete,
             status: isStage2Complete ? 'completed' : (currentStage === 2 ? 'current' : 'locked')
           },
           {
             id: 3,
-            title: "The Live Simulation",
+            title: "Practice Interview",
             isUnlocked: isStage1Complete && isStage2Complete,
             isCompleted: isStage3Complete,
             status: isStage3Complete ? 'completed' : (currentStage === 3 ? 'current' : 'locked')
           },
           {
             id: 4,
-            title: "Clearance & Counselor Review",
+            title: "Final Check",
             isUnlocked: isStage1Complete && isStage2Complete && isStage3Complete,
             isCompleted: false, // This is the terminal stage
             status: currentStage === 4 ? 'current' : 'locked'

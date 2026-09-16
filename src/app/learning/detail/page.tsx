@@ -61,7 +61,7 @@ function ModuleDetailContent() {
         return (
           <div className="p-8 rounded-[32px] bg-slate-900 border border-slate-800 shadow-xl flex flex-col items-center gap-4">
              <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500"><Zap /></div>
-             <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Audio Briefing Transmission</p>
+             <p className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Audio Guide</p>
              <audio src={pack.attachmentUrl} controls className="w-full" />
           </div>
         );
@@ -260,7 +260,7 @@ function ModuleDetailContent() {
     return (
       <div className="flex flex-col items-center justify-center p-20 gap-4">
         <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
-        <p className="text-sm font-black uppercase text-gray-500 tracking-widest text-center">Entering Arena...</p>
+        <p className="text-sm font-black uppercase text-gray-500 tracking-widest text-center">Loading Quiz...</p>
       </div>
     );
   }
@@ -319,7 +319,7 @@ function ModuleDetailContent() {
                 <Sparkles className="w-12 h-12 text-blue-500" />
              </div>
              <div className="space-y-2">
-                <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Test Arena</h2>
+                <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Quiz Area</h2>
                 <p className="text-sm text-gray-500 font-bold max-w-sm mx-auto leading-relaxed uppercase tracking-widest">
                    Each question has a strict 15s timer. Be fast, be accurate.
                 </p>
@@ -343,7 +343,7 @@ function ModuleDetailContent() {
         ) : phase === 'learning' && !quizFinished ? (
           <div className="space-y-8 animate-in fade-in duration-500">
              <div className="bg-white dark:bg-slate-800 rounded-[40px] p-10 border border-gray-100 dark:border-slate-700 shadow-xl space-y-8">
-                <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Mission Briefing</h2>
+                <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Study Guide</h2>
 
                 <div className="space-y-6">
                    {/* ── ATTACHMENT PLAYER ── */}
@@ -390,14 +390,14 @@ function ModuleDetailContent() {
 
              <div className="space-y-2">
                 <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
-                   Session Complete
+                   Quiz Finished
                 </h2>
                 <p className="text-gray-500 font-bold uppercase tracking-widest">You secured <span className="text-blue-600">{gamifiedScore} total points</span></p>
              </div>
 
              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                   { label: 'Accuracy', val: `${correctCount}/10`, icon: Award, c: 'text-emerald-500' },
+                   { label: 'Score', val: `${correctCount}/10`, icon: Award, c: 'text-emerald-500' },
                    { label: 'Points', val: gamifiedScore, icon: Zap, c: 'text-purple-500' },
                    { label: 'Status', val: (correctCount / 10) >= 0.8 ? 'PASSED' : 'RETRY', icon: CheckCircle2, c: 'text-emerald-500' },
                 ].map((stat, i) => (
@@ -419,13 +419,13 @@ function ModuleDetailContent() {
                   }}
                   className="w-full sm:w-auto px-10 py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black rounded-full text-xs uppercase tracking-widest hover:scale-105 transition-all flex items-center justify-center gap-2"
                 >
-                   <RotateCcw className="w-4 h-4" /> Re-Enter Arena
+                   <RotateCcw className="w-4 h-4" /> Re-Try Quiz
                 </button>
                 <button
                   onClick={() => router.push("/learning")}
                   className="w-full sm:w-auto px-10 py-5 bg-blue-600 text-white font-black rounded-full text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-blue-500/20"
                 >
-                   Return to Modules
+                   Return to Lessons
                 </button>
              </div>
           </div>

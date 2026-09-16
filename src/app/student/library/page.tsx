@@ -102,10 +102,10 @@ export default function StudentLibrary() {
             </Link>
             <div className="space-y-1">
               <h1 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
-                <BookOpen className="w-10 h-10 text-indigo-600" /> Resource Vault
+                <BookOpen className="w-10 h-10 text-indigo-600" /> Study Library
               </h1>
               <p className="text-sm text-slate-500 font-bold uppercase tracking-widest leading-relaxed max-w-2xl">
-                Premium UKVI guides, University Briefings, and Strategic Credibility Materials.
+                Official guides and briefings for your visa application.
               </p>
             </div>
           </div>
@@ -114,7 +114,7 @@ export default function StudentLibrary() {
         {loading ? (
           <div className="flex flex-col items-center justify-center p-20 gap-4">
             <Sparkles className="w-10 h-10 animate-spin text-indigo-500" />
-            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Hydrating Resource Vault...</p>
+            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Loading library...</p>
           </div>
         ) : (
           <div className="flex flex-col gap-6 max-w-5xl">
@@ -182,7 +182,7 @@ export default function StudentLibrary() {
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-3">
                           <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isLocked ? 'text-slate-400' : 'text-indigo-500'}`}>
-                            {file.fileType} Resource {moduleInfo && `• Module ${moduleInfo.orderIndex || ''}`}
+                            {file.fileType} File {moduleInfo && `• Step ${moduleInfo.orderIndex || ''}`}
                           </span>
                           {file.linkedPackId && (
                             <div className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${
@@ -190,7 +190,7 @@ export default function StudentLibrary() {
                                 ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border-emerald-100 dark:border-emerald-800"
                                 : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-blue-100 dark:border-blue-800"
                             }`}>
-                              Assessment Linked {isPassed && `• ${score}%`}
+                              Quiz Linked {isPassed && `• ${score}%`}
                             </div>
                           )}
                         </div>
@@ -198,15 +198,15 @@ export default function StudentLibrary() {
                           {file.title?.replace(/_/g, ' ')}
                         </h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed line-clamp-2 max-w-lg">
-                          {file.description || 'Access mission-critical briefings and university preparation documents.'}
+                          {file.description || 'Access guides and university preparation documents.'}
                         </p>
                       </div>
                     </div>
 
                     <div className="w-full md:w-auto flex flex-col gap-3 pt-6 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800 min-w-[240px] justify-center">
                       {isLocked ? (
-                        <div className="w-full py-4 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border border-dashed border-slate-200 dark:border-slate-800">
-                          <Lock className="w-4 h-4" /> Sequential Lock
+                        <div className="w-full py-4 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border border-dashed border-gray-200 dark:border-slate-800">
+                          <Lock className="w-4 h-4" /> Locked: Complete previous step
                         </div>
                       ) : (
                         <>

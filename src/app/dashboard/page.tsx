@@ -24,51 +24,51 @@ import { useStudentPipeline } from "@/hooks/useStudentPipeline";
 import { motion, AnimatePresence } from "framer-motion";
 
 const STRATEGIC_BRIEFINGS = [
-  "Current trajectory aligns with target CAS issuance parameters.",
-  "Operational compliance baseline established. Maintaining consistency.",
-  "Strategic engagement is the primary driver of successful clearance.",
-  "Internal readiness indicates a high probability of certification.",
-  "UKVI regulatory alignment remains the priority for this session."
+  "You are on track for your CAS!",
+  "Excellent progress on your modules.",
+  "Keep it up to ensure a smooth visa process.",
+  "Your preparation is looking solid.",
+  "Let's review your requirements today."
 ];
 
 const STAGE_CONTENT = [
   {
     id: 1,
-    title: "Knowledge Repository",
-    subtitle: "Critical Compliance Documentation",
-    tooltip: "Executive Briefing: UKVI Entry Clearance Officers evaluate candidate authenticity regarding institutional selection and financial viability. These modules establish the mandatory baseline required for regulatory compliance. A minimum assessment score of 80% is required for progression.",
-    cta: "Access Repository",
-    reviewCta: "Review Modules",
+    title: "Study Materials",
+    subtitle: "Rules and Guides",
+    tooltip: "UKVI Officers will check how well you know your course and university. These guides cover the key rules you need to know. You should aim for 80% in the tests to be fully prepared.",
+    cta: "Start Reading",
+    reviewCta: "Review Library",
     href: "/student/library",
     icon: BookOpen
   },
   {
     id: 2,
-    title: "Strategic Dossier",
-    subtitle: "Candidate Credibility Portfolio",
-    tooltip: "Requirement: The Defense Portfolio serves as the primary instrument for verifying applicant intent. Candidates must document precise financial details, sponsorship parameters, and long-term strategic objectives to ensure absolute consistency during formal Home Office inquiries.",
-    cta: "Generate Dossier",
-    reviewCta: "Update Records",
+    title: "Interview Details",
+    subtitle: "Your Personal Information",
+    tooltip: "You need to record your specific details like tuition fees and sponsorship info. This helps ensure your answers are consistent during the real interview.",
+    cta: "Fill Details",
+    reviewCta: "Update Info",
     href: "/student/interview-pack",
     icon: ShieldCheck
   },
   {
     id: 3,
-    title: "Operational Readiness",
-    subtitle: "High-Fidelity Simulation Protocol",
-    tooltip: "Objective: Technical knowledge must be complemented by professional delivery. This high-fidelity simulation evaluates linguistic proficiency, situational awareness, and response integrity under stress conditions typical of official UKVI assessments.",
-    cta: "Commence Assessment",
-    reviewCta: "Analysis Report",
+    title: "Practice Interview",
+    subtitle: "Mock Sessions",
+    tooltip: "Test your confidence! This practice session simulates a real interview to check your English and how you handle pressure.",
+    cta: "Start Mock",
+    reviewCta: "See Feedback",
     href: "/student/mock-interview",
     icon: Video
   },
   {
     id: 4,
-    title: "Final Certification",
-    subtitle: "Executive Verification & CAS Clearance",
-    tooltip: "Status: Senior Counsel review is currently underway. Final validation confirms eligibility for CAS issuance. In the event of identified risk factors, a corrective feedback cycle will be initiated prior to certification.",
-    cta: "Pending Validation",
-    reviewCta: "View Status",
+    title: "Final Check",
+    subtitle: "Counselor Review",
+    tooltip: "Your Counselor is checking your mock interview. Once they approve it, you are ready for your CAS!",
+    cta: "Waiting for Review",
+    reviewCta: "Check Status",
     href: "/student/mock-interview",
     icon: Star
   }
@@ -108,7 +108,7 @@ export default function StudentDashboardPage() {
       <AppShell>
         <div className="flex flex-col items-center justify-center p-24 gap-6">
            <div className="w-12 h-12 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-           <p className="text-[10px] font-bold uppercase text-slate-400 tracking-[0.3em]">Initializing Dashboard Environment...</p>
+           <p className="text-[10px] font-bold uppercase text-slate-400 tracking-[0.3em]">Opening Dashboard...</p>
         </div>
       </AppShell>
     );
@@ -150,7 +150,7 @@ export default function StudentDashboardPage() {
              <div className="space-y-1">
                 <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-slate-400 flex items-center gap-2">
                   <Activity size={14} className="text-indigo-500" />
-                  Compliance Pipeline
+                  My Progress
                 </h2>
              </div>
              <div className="flex items-center gap-4 text-slate-500">
@@ -224,7 +224,7 @@ export default function StudentDashboardPage() {
                     <div className="w-full md:w-auto pt-6 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
                        {isLocked ? (
                          <div className="flex items-center justify-center gap-2 px-8 py-3 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
-                            <Lock size={14} /> Authorization Required
+                            <Lock size={14} /> Ready for next step
                          </div>
                        ) : (
                          <Link
@@ -254,14 +254,14 @@ export default function StudentDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
            <div className="bg-white/50 dark:bg-slate-900/20 backdrop-blur-md p-10 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col justify-between">
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">Performance Metric: Readiness</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">Readiness Score</p>
                 <div className="text-6xl font-light text-slate-900 dark:text-slate-50 tracking-tighter">
                   {stats.readiness}<span className="text-2xl text-slate-300">%</span>
                 </div>
               </div>
 
               <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Aggregate Assessment Score</span>
+                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Overall Study Score</span>
                 <div className="flex gap-1">
                    {[...Array(10)].map((_, i) => (
                       <div key={i} className={`h-1.5 w-4 rounded-full ${i < stats.readiness/10 ? 'bg-indigo-500' : 'bg-slate-100 dark:bg-slate-800'}`} />
@@ -272,12 +272,12 @@ export default function StudentDashboardPage() {
 
            <div className="bg-slate-900 dark:bg-slate-900/40 backdrop-blur-md p-10 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-between overflow-hidden relative">
               <div className="relative z-10">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">Verification Stage: Modules</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">Current Step: Modules</p>
                 <div className="text-3xl font-medium text-white tracking-tight">
-                   {stats.passedModulesCount < 5 ? `Phase ${stats.passedModulesCount + 1}` : 'All Phases Complete'}
+                   {stats.passedModulesCount < 5 ? `Step ${stats.passedModulesCount + 1}` : 'All Steps Done'}
                 </div>
                 <p className="text-xs text-slate-500 mt-2 font-medium uppercase tracking-widest">
-                  Requirement: 5/5 Mandatory Modules
+                  Target: 5/5 Modules
                 </p>
               </div>
 
@@ -322,13 +322,13 @@ export default function StudentDashboardPage() {
 
                 <div className="space-y-6">
                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold uppercase tracking-[0.2em]">
-                      <FileText size={14} /> Regulatory Briefing
+                      <FileText size={14} /> Information
                    </div>
                    <div className="space-y-2">
                       <h3 className="text-3xl font-medium text-slate-900 dark:text-white tracking-tight">
                          {STAGE_CONTENT.find(s => s.id === activeTooltip)?.title}
                       </h3>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Protocol ID: STG-0{activeTooltip}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Step ID: 0{activeTooltip}</p>
                    </div>
                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
                       {STAGE_CONTENT.find(s => s.id === activeTooltip)?.tooltip}
@@ -339,7 +339,7 @@ export default function StudentDashboardPage() {
                   onClick={() => setActiveTooltip(null)}
                   className="w-full py-5 bg-slate-900 dark:bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-[0.3em] rounded-xl hover:bg-black dark:hover:bg-indigo-700 transition-all shadow-lg"
                 >
-                   Acknowledge Receipt
+                   Got it
                 </button>
              </motion.div>
           </div>

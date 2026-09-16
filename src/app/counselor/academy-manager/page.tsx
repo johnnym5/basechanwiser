@@ -70,10 +70,10 @@ export default function AcademyManagerPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex flex-col gap-1 border-l-4 border-[#1a73e8] pl-6 py-2">
             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3 font-google uppercase tracking-tighter">
-              <LayoutGrid className="w-8 h-8 text-[#1a73e8]" /> Academy Manager
+              <LayoutGrid className="w-8 h-8 text-[#1a73e8]" /> Course Manager
             </h1>
             <p className="text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest leading-none">
-              Control Center for Curriculum & Compliance Excellence
+              Manage your learning modules and practice interviews
             </p>
           </div>
 
@@ -121,9 +121,9 @@ export default function AcademyManagerPage() {
                      <AlertTriangle size={40} />
                   </div>
                   <div className="space-y-2">
-                     <h3 className="text-2xl font-black dark:text-white uppercase tracking-tighter">System Recovery</h3>
+                     <h3 className="text-2xl font-black dark:text-white uppercase tracking-tighter">Reset Default Modules</h3>
                      <p className="text-sm font-bold text-gray-500 uppercase tracking-widest leading-relaxed">
-                        Are you sure? This will scan the database and recreate any missing Core UKVI Modules (1-5). Existing custom sets will not be affected.
+                        This will restore the 5 main study modules if they are missing. Existing custom sets will not be changed.
                      </p>
                   </div>
                   <div className="flex gap-4">
@@ -138,7 +138,7 @@ export default function AcademyManagerPage() {
                        disabled={isRestoring}
                        className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2"
                      >
-                        {isRestoring ? <Loader2 size={18} className="animate-spin" /> : 'Confirm Recovery'}
+                        {isRestoring ? <Loader2 size={18} className="animate-spin" /> : 'Restore Now'}
                      </button>
                   </div>
                </motion.div>
