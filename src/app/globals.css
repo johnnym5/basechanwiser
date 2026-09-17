@@ -159,7 +159,7 @@ body {
 }
 
 .animate-ken-burns-slow {
-  animation: ultraSlowKenBurns 75s ease-in-out infinite alternate;
+  animation: ultraSlowKenBurns 90s ease-in-out infinite alternate;
 }
 
 .animate-slide-pan {
