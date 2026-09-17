@@ -160,6 +160,18 @@ export default function LoginPage() {
               <GraduationCap size={18} />
               <span>Login as Student</span>
             </button>
+
+            {/* Link to Cinematic Stealth Onboarding Wizard */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => router.push("/auth")}
+                className="w-full py-3 px-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-bold text-xs flex items-center justify-center gap-2 transition-all"
+              >
+                <span>New Student? Start Guided Setup Wizard</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
           </div>
         )}
 

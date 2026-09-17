@@ -6,7 +6,7 @@
     "node": "20"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "build:export": "cross-env NEXT_STATIC_EXPORT=1 next build",
     "deploy:hosting": "firebase deploy --only hosting",
