@@ -1,248 +1,138 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth/auth-context";
-import { useTheme } from "@/lib/theme/theme-context";
-import { User, Mail, ArrowRight, LogIn, GraduationCap, Sun, Moon, Loader2 } from "lucide-react";
-import Image from "next/image";
-import { db } from "@/lib/firebase/config";
-import { doc, getDoc } from "firebase/firestore";
-
-type LoginMode = "choose" | "student";
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth/auth-context';
+import { db } from '@/lib/firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
+import StealthOnboardingWizard from '@/components/auth/StealthOnboardingWizard';
+import LoginModal from '@/components/auth/LoginModal';
+import { ArrowRight, LogIn, Sparkles, ShieldCheck } from 'lucide-react';
+import Image from 'next/image';
 
 export default function LoginPage() {
-  const { user, role, signInWithGoogle, signInWithNameAndEmail, loading } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { user, role, loading } = useAuth();
   const router = useRouter();
-  const [mode, setMode] = useState<LoginMode>("choose");
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  // ── Local Safe State Fallback ──
-  const [showFormAnyway, setShowFormAnyway] = useState(false);
+  // Auto-redirect if already authenticated
   useEffect(() => {
-    const timer = setTimeout(() => setShowFormAnyway(true), 10000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (user && role) {
-      if (role === "Super Admin") {
-        router.push("/admin/analytics");
-      } else if (role === "Head of Compliance") {
-        router.push("/head-of-compliance/dashboard");
-      } else if (role === "Admin" || role === "Counselor") {
-        router.push("/counselor/dashboard");
+    if (!loading && user && role) {
+      if (role === 'Super Admin') {
+        router.push('/admin/analytics');
+      } else if (role === 'Head of Compliance') {
+        router.push('/head-of-compliance/dashboard');
+      } else if (role === 'Admin' || role === 'Counselor') {
+        router.push('/counselor/dashboard');
       } else {
-        // Check for maintenance mode for students
         const checkMaintenance = async () => {
-          const sysSnap = await getDoc(doc(db, "system_settings", "global"));
-          if (sysSnap.exists() && sysSnap.data().maintenanceMode) {
-            router.push("/maintenance");
-          } else {
-            router.push("/dashboard");
+          try {
+            const sysSnap = await getDoc(doc(db, 'system_settings', 'global'));
+            if (sysSnap.exists() && sysSnap.data().maintenanceMode) {
+              router.push('/maintenance');
+            } else {
+              router.push('/dashboard');
+            }
+          } catch (e) {
+            router.push('/dashboard');
           }
         };
         checkMaintenance();
       }
     }
-  }, [user, role, router]);
-
-  const handleGoogleSignIn = async () => {
-    setIsSigningIn(true);
-    setErrorMsg(null);
-    try {
-      await signInWithGoogle();
-    } catch (err: any) {
-      setErrorMsg(err.message || "Google Sign-In failed.");
-      setIsSigningIn(false);
-    }
-  };
-
-  const handleNameEmailSignIn = async () => {
-    if (!fullName.trim()) {
-      setErrorMsg("Please enter your full name.");
-      return;
-    }
-    if (!email.trim() || !email.includes("@")) {
-      setErrorMsg("Please enter a valid email address.");
-      return;
-    }
-    setIsSigningIn(true);
-    setErrorMsg(null);
-    try {
-      await signInWithNameAndEmail(fullName.trim(), email.trim().toLowerCase());
-    } catch (err: any) {
-      setErrorMsg(err.message || "Sign-In failed. Please try again.");
-      setIsSigningIn(false);
-    }
-  };
-
-  const isFormDisabled = isSigningIn || (loading && !showFormAnyway);
+  }, [user, role, loading, router]);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-[#111827] flex flex-col items-center justify-center p-4 font-sans transition-colors duration-300">
-      {/* Dark Mode Toggle — Top Right */}
-      <button
-        onClick={toggleTheme}
-        className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-700 dark:text-yellow-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all shadow-md"
-        aria-label="Toggle theme"
-      >
-        {theme === "light" ? <Moon className="w-[18px] h-[18px]" /> : <Sun className="w-[18px] h-[18px]" />}
-      </button>
-
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-200 dark:border-gray-700 space-y-6 text-center transition-all">
-        {/* Brand Header with BN Logo */}
-        <div className="flex flex-col items-center space-y-3">
-          <Image
-            src="/logo.png"
-            alt="BASECHANWISER"
-            width={72}
-            height={72}
-            className="drop-shadow-lg"
-            priority
-          />
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white font-google">
-            BASECHANWISER
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-            Student Compliance &amp; Operations Platform
-          </p>
-        </div>
-
-        {errorMsg && (
-          <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-900/40 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-200 text-xs font-semibold">
-            {errorMsg}
-          </div>
-        )}
-
-        {/* ── Choose Mode ── */}
-        {mode === "choose" && (
-          <div className="space-y-3 pt-2">
-            {/* Google Sign-In — Primary for Staff & Students */}
-            <button
-              onClick={handleGoogleSignIn}
-              disabled={isFormDisabled}
-              className="w-full py-4 px-4 rounded-full bg-[#1a73e8] hover:bg-[#1557b0] text-white font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 transition-all shadow-lg shadow-blue-500/25 active:scale-[0.98] disabled:opacity-50"
-            >
-              {isSigningIn ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                  </svg>
-                  <span>Sign in with Google</span>
-                </>
-              )}
-            </button>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 py-1">
-              <div className="flex-1 h-px bg-gray-300 dark:bg-gray-600" />
-              <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">or</span>
-              <div className="flex-1 h-px bg-gray-300 dark:bg-gray-600" />
-            </div>
-
-            {/* Login as Student (Anonymous) */}
-            <button
-              onClick={() => { setMode("student"); setErrorMsg(null); }}
-              disabled={isFormDisabled}
-              className="w-full py-4 px-4 rounded-full border-2 border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              <GraduationCap size={18} />
-              <span>Login as Student</span>
-            </button>
-
-            {/* Link to Cinematic Stealth Onboarding Wizard */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => router.push("/auth")}
-                className="w-full py-3 px-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-bold text-xs flex items-center justify-center gap-2 transition-all"
-              >
-                <span>New Student? Start Guided Setup Wizard</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Student Login Form ── */}
-        {mode === "student" && (
-          <div className="space-y-4 pt-2 text-left">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Student Access</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Please provide your name and email so we know who you are.</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="student-name" className="text-xs font-bold text-gray-700 dark:text-gray-200">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
-                <input
-                  id="student-name"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Full Name"
-                  disabled={isFormDisabled}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm font-medium text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/50 focus:border-[#1a73e8] transition-all disabled:opacity-50"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="student-email" className="text-xs font-bold text-gray-700 dark:text-gray-200">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
-                <input
-                  id="student-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email Address"
-                  disabled={isFormDisabled}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-sm font-medium text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/50 focus:border-[#1a73e8] transition-all disabled:opacity-50"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={handleNameEmailSignIn}
-              disabled={isFormDisabled}
-              className="w-full py-4 px-4 rounded-full border-2 border-[#1a73e8] bg-white dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600 text-[#1a73e8] dark:text-blue-300 font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              {isSigningIn ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <ArrowRight size={18} />
-                  <span>Login as Student</span>
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={() => { setMode("choose"); setErrorMsg(null); setFullName(""); setEmail(""); }}
-              className="w-full text-sm text-gray-600 dark:text-gray-300 hover:text-[#1a73e8] dark:hover:text-blue-400 font-bold transition-colors pt-1"
-            >
-              ← Back to login options
-            </button>
-          </div>
-        )}
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans">
+      
+      {/* Ambient Pan-and-Tilt Background (Ken Burns Effect) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div 
+          className="absolute inset-[-10%] bg-cover bg-center opacity-25 filter blur-[2px] animate-ken-burns"
+          style={{
+            backgroundImage: "url('/images/onboarding/auth-hero.jpg')",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/90 to-slate-950" />
       </div>
 
-      <p className="mt-6 text-xs text-gray-500 dark:text-gray-400 font-medium">
-        © {new Date().getFullYear()} Basechan Group · Internal Use Only
-      </p>
+      {/* Top Navbar */}
+      <header className="relative z-10 max-w-7xl w-full mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-indigo-600/90 border border-indigo-500/30 rounded-xl flex items-center justify-center p-1.5 shadow-lg shadow-indigo-600/30">
+            <Image src="/logo.png" alt="Basechan Wiser Logo" width={32} height={32} className="object-contain" priority />
+          </div>
+          <span className="font-extrabold text-lg tracking-wider uppercase text-white">
+            BASECHAN <span className="text-indigo-400">WISER</span>
+          </span>
+        </div>
+
+        {/* Existing User Login Quick Trigger */}
+        <button
+          onClick={() => setIsLoginModalOpen(true)}
+          className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white px-4 py-2.5 rounded-xl bg-slate-900/80 backdrop-blur-md border border-slate-800 hover:border-slate-700 transition-all hover:scale-105 active:scale-95 shadow-md"
+        >
+          <LogIn className="w-4 h-4 text-indigo-400" />
+          <span>Log In</span>
+        </button>
+      </header>
+
+      {/* Hero Welcome View */}
+      <main className="relative z-10 max-w-4xl mx-auto px-6 py-12 text-center flex flex-col items-center justify-center my-auto">
+        <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-widest mb-6 shadow-sm">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>UKVI Credibility Compliance OS</span>
+        </div>
+
+        <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-tight mb-6">
+          Zero Credibility Refusals. <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-sky-300 to-emerald-400">
+            Guaranteed Study Clearance.
+          </span>
+        </h1>
+
+        <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed mb-10">
+          Prepare for university Pre-CAS and Home Office credibility interviews through our sequential 4-stage pipeline. Take the guided setup to establish your credentials.
+        </p>
+
+        {/* The Two Primary Action Gates */}
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center max-w-md">
+          {/* Sign Up -> Starts the Cinematic Setup Wizard */}
+          <button
+            onClick={() => setIsWizardOpen(true)}
+            className="w-full sm:w-auto flex-1 flex items-center justify-center space-x-3 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm uppercase tracking-wider rounded-2xl transition-all shadow-xl shadow-indigo-600/30 hover:scale-[1.02] active:scale-[0.98] group"
+          >
+            <span>Sign Up &amp; Setup</span>
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+          </button>
+
+          {/* Quick Login -> Opens Modal */}
+          <button
+            onClick={() => setIsLoginModalOpen(true)}
+            className="w-full sm:w-auto flex-1 flex items-center justify-center space-x-2 px-8 py-4 bg-slate-900/80 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 font-bold text-sm uppercase tracking-wider rounded-2xl transition-all backdrop-blur-md active:scale-[0.98]"
+          >
+            <span>I Have an Account</span>
+          </button>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 py-6 text-center text-xs text-slate-600 flex items-center justify-center space-x-2">
+        <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+        <span>BASECHAN WISER Compliance OS • Protected System</span>
+      </footer>
+
+      {/* The Fullscreen Stealth Wizard */}
+      {isWizardOpen && (
+        <StealthOnboardingWizard onClose={() => setIsWizardOpen(false)} />
+      )}
+
+      {/* Login Modal */}
+      {isLoginModalOpen && (
+        <LoginModal onClose={() => setIsLoginModalOpen(false)} />
+      )}
     </div>
   );
 }
