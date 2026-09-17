@@ -292,7 +292,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
               <button
                 type="button"
                 onClick={handlePrev}
-                className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-all hover:-translate-x-1 active:scale-95 group py-1.5 px-3 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-indigo-500/50"
+                className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-all hover:-translate-x-1 active:scale-95 group py-1.5 px-3 rounded-xl bg-[#0b1426]/90 border border-[#1c283c] hover:border-[#2b3a52] shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
                 aria-label="Previous step"
               >
                 <ArrowLeft className="w-4 h-4 text-indigo-400 group-hover:text-white transition-colors" />
@@ -376,7 +376,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="w-full py-4 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-indigo-600/30 hover:scale-[1.02] active:scale-[0.98]"
+                  className="w-full py-4 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all border border-[#2a3652] shadow-[0_12px_32px_rgba(0,0,0,0.85)] hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <span>Sign Up &amp; Start Setup</span>
                   <ArrowRight className="w-4 h-4" />
@@ -386,7 +386,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                   type="button"
                   onClick={handleGoogleSignInClick}
                   disabled={isGoogleLoading}
-                  className="w-full py-3.5 px-6 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-3 transition-all shadow-md active:scale-[0.98] disabled:opacity-50"
+                  className="w-full py-3.5 px-6 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-3 transition-all shadow-[0_8px_24px_rgba(0,0,0,0.75)] active:scale-[0.98] disabled:opacity-50"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -401,7 +401,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                   <button
                     type="button"
                     onClick={() => setIsLoginModalOpen(true)}
-                    className="w-full py-3 px-6 rounded-2xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-800 font-bold text-xs uppercase tracking-wider transition-all"
+                    className="w-full py-3 px-6 rounded-2xl bg-[#0b1426]/90 hover:bg-[#101e38] text-slate-300 border border-[#1c283c] hover:border-[#2b3a52] font-bold text-xs uppercase tracking-wider transition-all shadow-[0_10px_28px_rgba(0,0,0,0.85)]"
                   >
                     <span>Already Have an Account? Log In</span>
                   </button>
@@ -409,16 +409,16 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
               </motion.div>
 
               {/* Bottom Feature Trust Badges: Utilizes space and grounds the page */}
-              <motion.div variants={itemVariants} className="pt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto border-t border-slate-800/60 mt-8">
-                <div className="flex items-center justify-center gap-2.5 text-xs font-semibold text-slate-400">
+              <motion.div variants={itemVariants} className="pt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto border-t border-[#1c283c] mt-8">
+                <div className="flex items-center justify-center gap-2.5 text-xs font-semibold text-slate-400 py-2.5 px-4 rounded-xl bg-[#0b1426]/70 border border-[#1c283c] shadow-[0_4px_16px_rgba(0,0,0,0.7)]">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>Home Office UKVI Aligned</span>
                 </div>
-                <div className="flex items-center justify-center gap-2.5 text-xs font-semibold text-slate-400">
+                <div className="flex items-center justify-center gap-2.5 text-xs font-semibold text-slate-400 py-2.5 px-4 rounded-xl bg-[#0b1426]/70 border border-[#1c283c] shadow-[0_4px_16px_rgba(0,0,0,0.7)]">
                   <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
                   <span>Zero Credibility Refusal Target</span>
                 </div>
-                <div className="flex items-center justify-center gap-2.5 text-xs font-semibold text-slate-400">
+                <div className="flex items-center justify-center gap-2.5 text-xs font-semibold text-slate-400 py-2.5 px-4 rounded-xl bg-[#0b1426]/70 border border-[#1c283c] shadow-[0_4px_16px_rgba(0,0,0,0.7)]">
                   <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
                   <span>Dedicated Counselor Pairing</span>
                 </div>
@@ -453,22 +453,22 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                 </motion.p>
 
                 <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                  <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+                  <div className="p-5 rounded-2xl bg-[#091122]/90 border border-[#1c283c] shadow-[0_10px_28px_rgba(0,0,0,0.8)]">
                     <h4 className="font-bold text-white text-sm">Pre-CAS Readiness</h4>
                     <p className="text-xs text-slate-400 mt-1">Audit-proof answers</p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+                  <div className="p-5 rounded-2xl bg-[#091122]/90 border border-[#1c283c] shadow-[0_10px_28px_rgba(0,0,0,0.8)]">
                     <h4 className="font-bold text-white text-sm">28-Day Rules</h4>
                     <p className="text-xs text-slate-400 mt-1">Living fund calculation</p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+                  <div className="p-5 rounded-2xl bg-[#091122]/90 border border-[#1c283c] shadow-[0_10px_28px_rgba(0,0,0,0.8)]">
                     <h4 className="font-bold text-white text-sm">Human Audit</h4>
                     <p className="text-xs text-slate-400 mt-1">Assigned senior counselor</p>
                   </div>
                 </motion.div>
               </div>
 
-              <motion.div variants={itemVariants} className="lg:col-span-5 relative rounded-[2.5rem] overflow-hidden border border-slate-700/60 shadow-2xl h-[460px] sm:h-[540px] lg:h-[620px] w-full bg-slate-900">
+              <motion.div variants={itemVariants} className="lg:col-span-5 relative rounded-[2.5rem] overflow-hidden border border-[#1c283c] shadow-[0_24px_60px_rgba(0,0,0,0.95)] h-[460px] sm:h-[540px] lg:h-[620px] w-full bg-[#091122]">
                 <Image 
                   src="/images/onboarding/pdf-student-campus.jpg" 
                   alt="Student on campus" 
@@ -476,7 +476,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                   className="object-cover" 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
-                <div className="absolute bottom-8 left-8 right-8 p-6 rounded-2xl bg-slate-950/80 backdrop-blur-xl border border-white/10">
+                <div className="absolute bottom-8 left-8 right-8 p-6 rounded-2xl bg-[#080e1d]/90 backdrop-blur-xl border border-[#1c283c] shadow-[0_8px_24px_rgba(0,0,0,0.9)]">
                   <p className="text-sm font-bold text-white">Student Compliance Portal</p>
                   <p className="text-xs text-slate-400 mt-1">100% genuine academic intent tracking</p>
                 </div>
@@ -501,28 +501,28 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
               </motion.h2>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 pt-2">
-                <motion.div variants={itemVariants} className="p-10 sm:p-14 lg:p-16 bg-slate-900/80 border border-slate-800/90 rounded-[2.5rem] space-y-6 backdrop-blur-2xl">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <motion.div variants={itemVariants} className="p-10 sm:p-14 lg:p-16 bg-[#091122]/90 border border-[#1c283c] rounded-[2.5rem] space-y-6 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
+                  <div className="w-14 h-14 rounded-2xl bg-[#0f1b33] border border-[#1c283c] flex items-center justify-center text-indigo-400 shadow-[0_4px_16px_rgba(0,0,0,0.7)]">
                     <ShieldCheck className="w-8 h-8" />
                   </div>
                   <h3 className="text-3xl sm:text-4xl font-black text-indigo-400">Zero Credibility Refusals</h3>
                   <p className="text-base sm:text-xl text-slate-300 leading-relaxed">
                     UKVI Entry Clearance Officers evaluate academic fit, funding legitimacy, and genuine intent to study. Our goal is to ensure 100% of your answers match home office standards without memorized scripts.
                   </p>
-                  <p className="text-sm sm:text-base text-slate-400 leading-relaxed border-t border-slate-800 pt-4">
+                  <p className="text-sm sm:text-base text-slate-400 leading-relaxed border-t border-[#1c283c] pt-4">
                     Eliminates common refusal triggers like inconsistent course rationales, lack of career progression clarity, and unverified sponsor funds.
                   </p>
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="p-10 sm:p-14 lg:p-16 bg-slate-900/80 border border-slate-800/90 rounded-[2.5rem] space-y-6 backdrop-blur-2xl">
-                  <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                <motion.div variants={itemVariants} className="p-10 sm:p-14 lg:p-16 bg-[#091122]/90 border border-[#1c283c] rounded-[2.5rem] space-y-6 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
+                  <div className="w-14 h-14 rounded-2xl bg-[#0f1b33] border border-[#1c283c] flex items-center justify-center text-cyan-400 shadow-[0_4px_16px_rgba(0,0,0,0.7)]">
                     <Compass className="w-8 h-8" />
                   </div>
                   <h3 className="text-3xl sm:text-4xl font-black text-cyan-400">Flexible, Linear Guidance</h3>
                   <p className="text-base sm:text-xl text-slate-300 leading-relaxed">
                     Never worry if you haven't received your CAS or final accommodation invoice yet. Our onboarding allows optional fields so you can begin training immediately and fill in details later.
                   </p>
-                  <p className="text-sm sm:text-base text-slate-400 leading-relaxed border-t border-slate-800 pt-4">
+                  <p className="text-sm sm:text-base text-slate-400 leading-relaxed border-t border-[#1c283c] pt-4">
                     Sequential progress tracking ensures you master fundamentals first before advancing to high-stakes simulated interview audits.
                   </p>
                 </motion.div>
@@ -548,17 +548,17 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-8 pt-4">
                 {[
-                  { stage: 'Stage 1: Knowledge', desc: 'Pass all 5 compliance quizzes with 80%+ scores.', color: 'border-indigo-500 text-indigo-400 bg-indigo-500/10' },
-                  { stage: 'Stage 2: Portfolio', desc: 'Document tuition, sponsors, and career ROI proofs.', color: 'border-cyan-500 text-cyan-400 bg-cyan-500/10' },
-                  { stage: 'Stage 3: Simulation', desc: 'High-pressure AI mock interview with red flag checks.', color: 'border-blue-500 text-blue-400 bg-blue-500/10' },
-                  { stage: 'Stage 4: Clearance', desc: 'Admin-assigned counselor audit & CAS sign-off.', color: 'border-emerald-500 text-emerald-400 bg-emerald-500/10' },
+                  { stage: 'Stage 1: Knowledge', desc: 'Pass all 5 compliance quizzes with 80%+ scores.', color: 'border-indigo-500/60 text-indigo-400 bg-indigo-500/10' },
+                  { stage: 'Stage 2: Portfolio', desc: 'Document tuition, sponsors, and career ROI proofs.', color: 'border-cyan-500/60 text-cyan-400 bg-cyan-500/10' },
+                  { stage: 'Stage 3: Simulation', desc: 'High-pressure AI mock interview with red flag checks.', color: 'border-blue-500/60 text-blue-400 bg-blue-500/10' },
+                  { stage: 'Stage 4: Clearance', desc: 'Admin-assigned counselor audit & CAS sign-off.', color: 'border-emerald-500/60 text-emerald-400 bg-emerald-500/10' },
                 ].map((item, idx) => (
                   <motion.div
                     key={idx}
                     variants={itemVariants}
-                    className="flex flex-col items-start text-left space-y-5 p-8 sm:p-10 bg-slate-900/80 rounded-[2rem] border border-slate-800 backdrop-blur-xl hover:border-slate-700 transition-colors"
+                    className="flex flex-col items-start text-left space-y-5 p-8 sm:p-10 bg-[#091122]/90 rounded-[2rem] border border-[#1c283c] hover:border-[#2b3a52] backdrop-blur-xl shadow-[0_14px_36px_rgba(0,0,0,0.85)] transition-colors"
                   >
-                    <div className={`w-14 h-14 rounded-2xl border-2 ${item.color} flex items-center justify-center font-black text-xl shadow-xl`}>
+                    <div className={`w-14 h-14 rounded-2xl border-2 ${item.color} flex items-center justify-center font-black text-xl shadow-[0_4px_16px_rgba(0,0,0,0.6)]`}>
                       0{idx + 1}
                     </div>
                     <div>
@@ -593,17 +593,17 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
 
               {/* 3 Overview Preview Cards */}
               <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 text-left">
-                <div className="p-8 rounded-3xl bg-slate-900/80 border border-slate-800">
+                <div className="p-8 rounded-3xl bg-[#091122]/90 border border-[#1c283c] shadow-[0_14px_36px_rgba(0,0,0,0.85)]">
                   <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Part 1</span>
                   <h4 className="font-black text-white text-lg mt-2">Identity &amp; Course</h4>
                   <p className="text-xs text-slate-400 mt-2 leading-relaxed">Name, country, and university choices for personalized drills.</p>
                 </div>
-                <div className="p-8 rounded-3xl bg-slate-900/80 border border-slate-800">
+                <div className="p-8 rounded-3xl bg-[#091122]/90 border border-[#1c283c] shadow-[0_14px_36px_rgba(0,0,0,0.85)]">
                   <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">Part 2</span>
                   <h4 className="font-black text-white text-lg mt-2">Finances &amp; CAS</h4>
                   <p className="text-xs text-slate-400 mt-2 leading-relaxed">Tuition estimates and living fund calculations (Optional).</p>
                 </div>
-                <div className="p-8 rounded-3xl bg-slate-900/80 border border-slate-800">
+                <div className="p-8 rounded-3xl bg-[#091122]/90 border border-[#1c283c] shadow-[0_14px_36px_rgba(0,0,0,0.85)]">
                   <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Part 3</span>
                   <h4 className="font-black text-white text-lg mt-2">Risk &amp; Mitigation</h4>
                   <p className="text-xs text-slate-400 mt-2 leading-relaxed">Study gaps or previous refusals to prep counselor defense (Optional).</p>
@@ -635,8 +635,8 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                 {/* Personal Identity (Required) */}
-                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-5">
-                  <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-[#091122]/95 border border-[#1c283c] rounded-3xl space-y-5 shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
+                  <div className="flex items-center gap-2 pb-3 border-b border-[#1c283c]">
                     <User className="w-5 h-5 text-emerald-400" />
                     <h3 className="font-bold text-white text-lg">Personal Identity</h3>
                     <span className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2.5 py-0.5 rounded font-black uppercase ml-auto">Required</span>
@@ -651,7 +651,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.fullName}
                       onChange={(e) => updateField('fullName', e.target.value)}
                       placeholder="Exact match to passport"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
 
@@ -664,7 +664,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.countryOfResidence}
                       onChange={(e) => updateField('countryOfResidence', e.target.value)}
                       placeholder="Locates visa jurisdiction (e.g. Nigeria, India)"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
 
@@ -677,7 +677,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.email}
                       onChange={(e) => updateField('email', e.target.value)}
                       placeholder="Real-time counselor alerts"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
 
@@ -690,17 +690,17 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.password}
                       onChange={(e) => updateField('password', e.target.value)}
                       placeholder="Minimum 6 characters"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
                 </motion.div>
 
                 {/* Academic Choice (Optional) */}
-                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-5">
-                  <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-[#091122]/95 border border-[#1c283c] rounded-3xl space-y-5 shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
+                  <div className="flex items-center gap-2 pb-3 border-b border-[#1c283c]">
                     <GraduationCap className="w-5 h-5 text-indigo-400" />
                     <h3 className="font-bold text-white text-lg">Academic Choice</h3>
-                    <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2.5 py-0.5 rounded font-black uppercase ml-auto">Optional</span>
+                    <span className="text-[10px] bg-[#0f1b33] text-slate-400 border border-[#1c283c] px-2.5 py-0.5 rounded font-black uppercase ml-auto">Optional</span>
                   </div>
 
                   <div>
@@ -712,7 +712,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.schoolOfChoice}
                       onChange={(e) => updateField('schoolOfChoice', e.target.value)}
                       placeholder="Target UK University (e.g. Coventry)"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
 
@@ -725,7 +725,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.courseTitle}
                       onChange={(e) => updateField('courseTitle', e.target.value)}
                       placeholder="Degree name &amp; RQF level (e.g. MSc Data Science)"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
 
@@ -738,7 +738,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.targetIntake}
                       onChange={(e) => updateField('targetIntake', e.target.value)}
                       placeholder="Intended start month/year (e.g. Sept 2025)"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
 
@@ -751,7 +751,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.mobileNumber}
                       onChange={(e) => updateField('mobileNumber', e.target.value)}
                       placeholder="+44 or international country code"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none transition-colors shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
                 </motion.div>
@@ -780,7 +780,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                 </motion.p>
               </div>
 
-              <motion.div variants={itemVariants} className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 sm:p-12 space-y-6">
+              <motion.div variants={itemVariants} className="bg-[#091122]/95 border border-[#1c283c] rounded-3xl p-8 sm:p-12 space-y-6 shadow-[0_20px_50px_rgba(0,0,0,0.85)]">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
@@ -789,7 +789,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                     <select
                       value={formData.casStatus}
                       onChange={(e) => updateField('casStatus', e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none mb-3"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none mb-3 shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     >
                       <option value="Pending">Pending (Validates sponsorship readiness)</option>
                       <option value="In Progress">In Progress (Interview completed)</option>
@@ -801,7 +801,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                         value={formData.casNumber}
                         onChange={(e) => updateField('casNumber', e.target.value)}
                         placeholder="Enter 14-char CAS number"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-xs text-white outline-none"
+                        className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3 text-xs text-white outline-none shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                       />
                     )}
                   </div>
@@ -813,7 +813,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                     <select
                       value={formData.campusRegion}
                       onChange={(e) => updateField('campusRegion', e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     >
                       <option value="Outer London">Outer London (Calculates 9-month living funds)</option>
                       <option value="Inner London">Inner London (Calculates 9-month living funds)</option>
@@ -829,7 +829,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.tuitionFee}
                       onChange={(e) => updateField('tuitionFee', e.target.value)}
                       placeholder="Course Fee Amount (£)"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
 
@@ -842,7 +842,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.depositPaid}
                       onChange={(e) => updateField('depositPaid', e.target.value)}
                       placeholder="Deposit Amount (£)"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   </div>
 
@@ -853,7 +853,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                     <select
                       value={formData.sponsorType}
                       onChange={(e) => updateField('sponsorType', e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none"
+                      className="w-full bg-[#050914] border border-[#1c283c] rounded-2xl px-5 py-3.5 text-sm text-white focus:border-indigo-500 outline-none shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     >
                       <option value="Biological Parents">Biological Parents (Pre-validates 28-day rule)</option>
                       <option value="Self">Self (Funds in student's name)</option>
@@ -888,8 +888,8 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Card 1: Study Gaps */}
-                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-4">
-                  <span className="text-[10px] bg-slate-800 text-slate-400 px-2.5 py-0.5 rounded font-black uppercase">Optional</span>
+                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-[#091122]/95 border border-[#1c283c] rounded-3xl space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.85)]">
+                  <span className="text-[10px] bg-[#0f1b33] text-slate-400 border border-[#1c283c] px-2.5 py-0.5 rounded font-black uppercase">Optional</span>
                   <h4 className="font-bold text-white text-lg">Study Gaps</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Do you have any academic gaps exceeding 12 months? You can note them now or upload employment evidence later in Stage 2.
@@ -902,8 +902,8 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                         onClick={() => updateField('hasStudyGaps', opt)}
                         className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase transition-all ${
                           formData.hasStudyGaps === opt
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-slate-950 text-slate-400 border border-slate-800'
+                            ? 'bg-indigo-600 text-white border border-[#2a3652] shadow-[0_6px_20px_rgba(0,0,0,0.8)]'
+                            : 'bg-[#050914] text-slate-400 border border-[#1c283c] shadow-[0_4px_12px_rgba(0,0,0,0.7)]'
                         }`}
                       >
                         {opt}
@@ -916,14 +916,14 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.studyGapExplanation}
                       onChange={(e) => updateField('studyGapExplanation', e.target.value)}
                       placeholder="State reason (e.g. Work experience)..."
-                      className="w-full mt-2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white outline-none"
+                      className="w-full mt-2 bg-[#050914] border border-[#1c283c] rounded-xl p-3 text-xs text-white outline-none shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   )}
                 </motion.div>
 
                 {/* Card 2: Immigration Log */}
-                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-4">
-                  <span className="text-[10px] bg-slate-800 text-slate-400 px-2.5 py-0.5 rounded font-black uppercase">Optional</span>
+                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-[#091122]/95 border border-[#1c283c] rounded-3xl space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.85)]">
+                  <span className="text-[10px] bg-[#0f1b33] text-slate-400 border border-[#1c283c] px-2.5 py-0.5 rounded font-black uppercase">Optional</span>
                   <h4 className="font-bold text-white text-lg">Immigration Log</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Prior UK or global visa refusals? Disclose early so your assigned counselor can prepare mitigation statements.
@@ -936,8 +936,8 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                         onClick={() => updateField('hasVisaRefusal', opt)}
                         className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase transition-all ${
                           formData.hasVisaRefusal === opt
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-slate-950 text-slate-400 border border-slate-800'
+                            ? 'bg-indigo-600 text-white border border-[#2a3652] shadow-[0_6px_20px_rgba(0,0,0,0.8)]'
+                            : 'bg-[#050914] text-slate-400 border border-[#1c283c] shadow-[0_4px_12px_rgba(0,0,0,0.7)]'
                         }`}
                       >
                         {opt}
@@ -950,14 +950,14 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                       value={formData.visaRefusalExplanation}
                       onChange={(e) => updateField('visaRefusalExplanation', e.target.value)}
                       placeholder="Refusal country & approximate date..."
-                      className="w-full mt-2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white outline-none"
+                      className="w-full mt-2 bg-[#050914] border border-[#1c283c] rounded-xl p-3 text-xs text-white outline-none shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                     />
                   )}
                 </motion.div>
 
                 {/* Card 3: Return Goals */}
-                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-slate-900/90 border border-slate-800 rounded-3xl space-y-4">
-                  <span className="text-[10px] bg-slate-800 text-slate-400 px-2.5 py-0.5 rounded font-black uppercase">Optional</span>
+                <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-[#091122]/95 border border-[#1c283c] rounded-3xl space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.85)]">
+                  <span className="text-[10px] bg-[#0f1b33] text-slate-400 border border-[#1c283c] px-2.5 py-0.5 rounded font-black uppercase">Optional</span>
                   <h4 className="font-bold text-white text-lg">Return Goals</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Target job titles and industry employers in your home country. You can refine these during the Stage 2 Defense Pack.
@@ -967,7 +967,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                     value={formData.targetReturnRole}
                     onChange={(e) => updateField('targetReturnRole', e.target.value)}
                     placeholder="e.g. Senior Data Analyst at KPMG"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-white outline-none mt-2"
+                    className="w-full bg-[#050914] border border-[#1c283c] rounded-xl p-3.5 text-xs text-white outline-none mt-2 shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)]"
                   />
                 </motion.div>
               </div>
@@ -991,7 +991,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
               </motion.h2>
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-center pt-4">
-                <motion.div variants={itemVariants} className="md:col-span-5 p-12 sm:p-16 bg-slate-900/80 border border-slate-800 rounded-[2.5rem] text-center space-y-4 backdrop-blur-xl">
+                <motion.div variants={itemVariants} className="md:col-span-5 p-12 sm:p-16 bg-[#091122]/95 border border-[#1c283c] rounded-[2.5rem] text-center space-y-4 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.9)]">
                   <div className="text-7xl sm:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-300 to-emerald-400">
                     100%
                   </div>
@@ -1041,8 +1041,8 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                   { title: 'AI & Counselor Simulation', desc: 'Practice real-time spoken mock interviews evaluated against Home Office rubrics with immediate red flag detection.' },
                   { title: 'Institutional CAS Clearance', desc: 'Receive counselor sign-off certifying that your application is 100% ready for submission.' },
                 ].map((item, idx) => (
-                  <motion.div key={idx} variants={itemVariants} className="flex items-start gap-6 p-8 rounded-[2rem] bg-slate-900/80 border border-slate-800/90 backdrop-blur-xl">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <motion.div key={idx} variants={itemVariants} className="flex items-start gap-6 p-8 rounded-[2rem] bg-[#091122]/90 border border-[#1c283c] backdrop-blur-xl shadow-[0_14px_36px_rgba(0,0,0,0.8)]">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 shadow-[0_4px_12px_rgba(0,0,0,0.6)]">
                       <Check className="w-5 h-5" />
                     </div>
                     <div>
@@ -1068,11 +1068,6 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
               className="w-full grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 xl:gap-24 items-center py-4"
             >
               <div className="lg:col-span-7 space-y-8 text-left">
-                <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-widest">
-                  <User className="w-4 h-4" />
-                  <span>Manual Admin Pairing</span>
-                </motion.div>
-
                 <motion.h2 variants={itemVariants} className="text-5xl sm:text-7xl lg:text-8xl font-black text-white tracking-tight leading-[1.04]">
                   Dedicated Counselor Support
                 </motion.h2>
@@ -1086,7 +1081,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                 </motion.p>
               </div>
 
-              <motion.div variants={itemVariants} className="lg:col-span-5 relative rounded-[2.5rem] overflow-hidden border border-slate-700/60 shadow-2xl h-[460px] sm:h-[540px] lg:h-[620px] w-full bg-slate-900">
+              <motion.div variants={itemVariants} className="lg:col-span-5 relative rounded-[2.5rem] overflow-hidden border border-[#1c283c] shadow-[0_24px_60px_rgba(0,0,0,0.95)] h-[460px] sm:h-[540px] lg:h-[620px] w-full bg-[#091122]">
                 <Image 
                   src="/images/onboarding/pdf-counselor-support.jpg" 
                   alt="Counselor support" 
@@ -1094,7 +1089,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                   className="object-cover" 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
-                <div className="absolute bottom-8 left-8 right-8 p-6 rounded-2xl bg-slate-950/80 backdrop-blur-xl border border-white/10">
+                <div className="absolute bottom-8 left-8 right-8 p-6 rounded-2xl bg-[#080e1d]/90 backdrop-blur-xl border border-[#1c283c] shadow-[0_8px_24px_rgba(0,0,0,0.9)]">
                   <p className="text-sm font-bold text-white">1-on-1 Compliance Counselor</p>
                   <p className="text-xs text-slate-400 mt-1">Dedicated human guidance at every stage</p>
                 </div>
@@ -1114,7 +1109,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
               exit="exit"
               className="w-full max-w-4xl text-center space-y-8 py-4"
             >
-              <motion.div variants={itemVariants} className="w-20 h-20 bg-emerald-500/15 border border-emerald-500/30 rounded-3xl flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/20">
+              <motion.div variants={itemVariants} className="w-20 h-20 bg-emerald-500/15 border border-emerald-500/30 rounded-3xl flex items-center justify-center mx-auto text-emerald-400 shadow-[0_10px_28px_rgba(0,0,0,0.85)]">
                 <CheckCircle2 className="w-10 h-10" />
               </motion.div>
 
@@ -1131,20 +1126,20 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
               </motion.div>
 
               {/* Profile Review Summary Card */}
-              <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-slate-900/90 border border-slate-800 rounded-3xl max-w-xl mx-auto text-left space-y-4 text-sm text-slate-300">
-                <div className="flex justify-between pb-3 border-b border-slate-800">
+              <motion.div variants={itemVariants} className="p-8 sm:p-10 bg-[#091122]/95 border border-[#1c283c] rounded-3xl max-w-xl mx-auto text-left space-y-4 text-sm text-slate-300 shadow-[0_20px_50px_rgba(0,0,0,0.9)]">
+                <div className="flex justify-between pb-3 border-b border-[#1c283c]">
                   <span className="text-slate-500">Legal Name:</span>
                   <span className="font-bold text-white">{formData.fullName || 'Registered Student'}</span>
                 </div>
-                <div className="flex justify-between pb-3 border-b border-slate-800">
+                <div className="flex justify-between pb-3 border-b border-[#1c283c]">
                   <span className="text-slate-500">Email:</span>
                   <span className="font-bold text-white">{formData.email}</span>
                 </div>
-                <div className="flex justify-between pb-3 border-b border-slate-800">
+                <div className="flex justify-between pb-3 border-b border-[#1c283c]">
                   <span className="text-slate-500">Target University:</span>
                   <span className="font-bold text-white">{formData.schoolOfChoice || 'To be updated in Stage 2'}</span>
                 </div>
-                <div className="flex justify-between pb-3 border-b border-slate-800">
+                <div className="flex justify-between pb-3 border-b border-[#1c283c]">
                   <span className="text-slate-500">Counselor Status:</span>
                   <span className="font-bold text-amber-400">Admin Will Assign Manually</span>
                 </div>
@@ -1160,7 +1155,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
                   type="button"
                   onClick={handleCompleteRegistration}
                   disabled={isSubmitting}
-                  className="w-full py-4 px-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-emerald-600/30 hover:scale-105 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+                  className="w-full py-4 px-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all border border-[#2a3652] shadow-[0_16px_40px_rgba(0,0,0,0.9),_0_4px_12px_rgba(0,0,0,0.95)] hover:scale-105 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
                 >
                   <span>{isSubmitting ? 'Activating Profile...' : 'Complete Setup & Enter Stage 1'}</span>
                   <Sparkles className="w-4 h-4" />
@@ -1185,11 +1180,11 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
           <button
             type="button"
             onClick={handleNext}
-            className="group flex items-center gap-3 px-7 py-4 rounded-2xl bg-[#0b1736]/60 hover:bg-[#10224d]/80 text-blue-100 hover:text-white font-black text-xs uppercase tracking-widest backdrop-blur-xl border border-blue-400/30 hover:border-blue-400/60 shadow-[0_8px_32px_rgba(2,6,23,0.5)] hover:scale-105 active:scale-95 transition-all duration-300"
+            className="group flex items-center gap-3 px-7 py-4 rounded-2xl bg-[#0b1426]/90 hover:bg-[#101e38] text-slate-200 hover:text-white font-black text-xs uppercase tracking-widest backdrop-blur-xl border border-[#1c283c] hover:border-[#2b3a52] shadow-[0_14px_36px_rgba(0,0,0,0.9),_0_4px_12px_rgba(0,0,0,0.95)] hover:scale-105 active:scale-95 transition-all duration-300"
             aria-label="Next slide"
           >
             <span>Next Step</span>
-            <ArrowRight className="w-4 h-4 text-blue-300 group-hover:text-white transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-transform group-hover:translate-x-1" />
           </button>
         </div>
       )}
