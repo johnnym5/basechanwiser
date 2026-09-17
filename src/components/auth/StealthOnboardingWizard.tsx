@@ -244,20 +244,20 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
   return (
     <div className="min-h-screen bg-[#080d1a] text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans select-none">
       
-      {/* ── ULTRA-SLOW KEN BURNS AMBIENT BACKGROUND WITH SMOOTH CROSS-FADES ── */}
+      {/* ── ULTRA-SLOW KEN BURNS AMBIENT BACKGROUND WITH CINEMATIC BLUR & SMOOTH CROSS-FADES ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         {SLIDE_BACKGROUNDS.map((bgUrl, idx) => (
           <div
             key={bgUrl + idx}
-            className={`absolute inset-[-12%] bg-cover bg-center transition-opacity duration-1500 ease-in-out ${
-              currentStep === idx ? 'opacity-25 animate-ken-burns-slow' : 'opacity-0'
+            className={`absolute inset-[-15%] bg-cover bg-center filter blur-[8px] transition-opacity duration-1500 ease-in-out ${
+              currentStep === idx ? 'opacity-35 animate-ken-burns-slow scale-105' : 'opacity-0'
             }`}
             style={{ backgroundImage: `url('${bgUrl}')` }}
           />
         ))}
-        {/* Soft dark vignette overlays ensuring pristine contrast */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#080d1a]/85 via-[#080d1a]/90 to-[#080d1a]/95" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-950/20 via-transparent to-transparent" />
+        {/* Deep atmospheric vignette overlays ensuring pristine contrast and readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#080d1a]/75 via-[#080d1a]/85 to-[#080d1a]/95" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-950/25 via-transparent to-transparent" />
       </div>
 
       {/* ── TOP HEADER / PROGRESSION BAR (Hidden on Step 1, Clean on Steps 2-12) ── */}
@@ -331,11 +331,16 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
               exit="exit"
               className="w-full max-w-2xl text-center space-y-6 py-6"
             >
-              {/* Prominent Logo */}
-              <motion.div variants={itemVariants} className="flex justify-center mb-2">
-                <div className="w-20 h-20 bg-indigo-600/20 border border-indigo-500/30 rounded-3xl p-3 flex items-center justify-center shadow-2xl shadow-indigo-600/30 backdrop-blur-xl">
-                  <Image src="/logo.png" alt="BASECHAN WISER Logo" width={64} height={64} className="object-contain" priority />
-                </div>
+              {/* Uncaged Large Logo */}
+              <motion.div variants={itemVariants} className="flex justify-center mb-3">
+                <Image 
+                  src="/logo.png" 
+                  alt="BASECHAN WISER Logo" 
+                  width={120} 
+                  height={120} 
+                  className="object-contain drop-shadow-[0_12px_32px_rgba(0,0,0,0.7)] transition-transform duration-500 hover:scale-105" 
+                  priority 
+                />
               </motion.div>
 
               {/* Title */}
