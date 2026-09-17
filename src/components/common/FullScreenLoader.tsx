@@ -16,7 +16,7 @@ export default function FullScreenLoader() {
       <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4"/>
       <div className="space-y-2">
         <p className="text-lg font-black uppercase tracking-tighter animate-pulse">Loading</p>
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">Establishing secure uplink...</p>
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed">Please wait...</p>
       </div>
 
       {showRetry && (

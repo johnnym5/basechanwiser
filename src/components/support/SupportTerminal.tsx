@@ -169,7 +169,7 @@ export default function SupportTerminal() {
   if (chatLoading || addressLoading) return (
     <div className="flex flex-col items-center justify-center p-20 gap-4">
       <Loader2 className="animate-spin text-blue-500" size={48} />
-      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Establishing Secure Uplink...</p>
+      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Please wait...</p>
     </div>
   );
 

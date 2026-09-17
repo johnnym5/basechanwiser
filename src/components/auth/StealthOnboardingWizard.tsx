@@ -12,14 +12,14 @@ import {
 
 const TOTAL_STEPS = 6;
 
-// High-resolution cinematic background images paired to each slide
+// High-resolution cinematic background images paired to each slide (locally hosted)
 const SLIDE_BACKGROUNDS = [
-  'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop', // Graduation / Campus
-  'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=2070&auto=format&fit=crop', // Writing / Passport
-  'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop', // UK University Architecture
-  'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=2070&auto=format&fit=crop', // Finance / Accounting
-  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop', // Career / Skyline
-  'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=2070&auto=format&fit=crop', // Activation / Success
+  '/images/onboarding/slide-0.jpg', // Oxford-style Historic Campus & Quadrangle
+  '/images/onboarding/slide-1.jpg', // International Passport, Pen & Travel Credentials
+  '/images/onboarding/slide-2.jpg', // Historic Grand University Study Library
+  '/images/onboarding/slide-3.jpg', // British Pounds, Audited Financial Statements & Calculator
+  '/images/onboarding/slide-4.jpg', // Modern London Financial Skyline & River Thames at Blue Hour
+  '/images/onboarding/slide-5.jpg', // Futuristic Graduation Rotunda Hall & Mission Clearance
 ];
 
 export default function StealthOnboardingWizard({ onClose }: { onClose: () => void }) {

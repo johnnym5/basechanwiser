@@ -18,7 +18,7 @@ export default function AuthPage() {
         <div 
           className="absolute inset-[-10%] bg-cover bg-center opacity-25 filter blur-[2px] animate-ken-burns"
           style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop')",
+            backgroundImage: "url('/images/onboarding/auth-hero.jpg')",
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/90 to-slate-950" />
