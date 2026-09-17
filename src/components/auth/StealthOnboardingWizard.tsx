@@ -102,7 +102,7 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
     if (currentStep > 0 && currentStep < TOTAL_STEPS - 1) {
       const timer = setTimeout(() => {
         setShowNextArrow(true);
-      }, 5000);
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [currentStep]);
@@ -439,10 +439,6 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
               className="w-full grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 xl:gap-24 items-center py-4"
             >
               <div className="lg:col-span-7 space-y-8 text-left">
-                <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-black uppercase tracking-widest">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>The Compliance OS</span>
-                </motion.div>
 
                 <motion.h2 variants={itemVariants} className="text-5xl sm:text-7xl lg:text-8xl font-black text-white tracking-tight leading-[1.04]">
                   What is <br className="hidden sm:inline" />BASECHAN WISER?
@@ -1176,11 +1172,11 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
 
       </main>
 
-      {/* ── 5-SECOND DELAYED FLOATING NEXT BUTTON — RIGHT SIDE ONLY ── */}
-      {/* Fades in after 5 seconds on Steps 2-11 to gently guide user forward */}
+      {/* ── 2-SECOND DELAYED FLOATING NEXT BUTTON — RIGHT SIDE ONLY ── */}
+      {/* Fades in after 2 seconds on Steps 2-11 to gently guide user forward */}
       {currentStep > 0 && currentStep < TOTAL_STEPS - 1 && (
         <div 
-          className={`fixed right-6 sm:right-10 lg:right-12 bottom-8 z-40 transition-all duration-1000 ease-out ${
+          className={`fixed right-6 sm:right-10 lg:right-12 bottom-8 z-40 transition-all duration-700 ease-out ${
             showNextArrow 
               ? 'opacity-100 translate-y-0 pointer-events-auto' 
               : 'opacity-0 translate-y-4 pointer-events-none'
@@ -1189,11 +1185,11 @@ export default function StealthOnboardingWizard({ onClose }: { onClose?: () => v
           <button
             type="button"
             onClick={handleNext}
-            className="group flex items-center gap-3 px-7 py-4 rounded-2xl bg-indigo-600/90 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-widest backdrop-blur-2xl border border-indigo-400/40 shadow-2xl shadow-indigo-600/40 hover:scale-105 active:scale-95 transition-all duration-300"
+            className="group flex items-center gap-3 px-7 py-4 rounded-2xl bg-[#0b1736]/60 hover:bg-[#10224d]/80 text-blue-100 hover:text-white font-black text-xs uppercase tracking-widest backdrop-blur-xl border border-blue-400/30 hover:border-blue-400/60 shadow-[0_8px_32px_rgba(2,6,23,0.5)] hover:scale-105 active:scale-95 transition-all duration-300"
             aria-label="Next slide"
           >
             <span>Next Step</span>
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="w-4 h-4 text-blue-300 group-hover:text-white transition-transform group-hover:translate-x-1" />
           </button>
         </div>
       )}
