@@ -291,9 +291,9 @@ export default function CounselorStudentsPage() {
     // Counselor Filter
     if (counselorFilter !== "ALL") {
       if (counselorFilter === "UNASSIGNED") {
-        processed = processed.filter(s => !s.assignedCounselorId);
+        processed = processed.filter(s => !s.assignedCounselorId && !s.counselorId);
       } else {
-        processed = processed.filter(s => s.assignedCounselorId === counselorFilter);
+        processed = processed.filter(s => s.assignedCounselorId === counselorFilter || s.counselorId === counselorFilter);
       }
     }
 
@@ -582,7 +582,7 @@ export default function CounselorStudentsPage() {
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 animate-in fade-in duration-500">
                 {visibleStudents.map((student) => {
                   const packStatus = interviewPacks[student.uid]?.status || "Not Started";
-                  const assignedCounselor = counselorsList.find(c => c.uid === student.assignedCounselorId);
+                  const assignedCounselor = counselorsList.find(c => c.uid === (student.assignedCounselorId || student.counselorId));
                   const lastSeen = student.lastLoginAt
                     ? formatDistanceToNow(student.lastLoginAt.seconds * 1000) + ' ago'
                     : 'Never';

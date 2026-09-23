@@ -41,10 +41,10 @@ export default function LeadAssignmentModal() {
         const studentsQuery = query(usersRef, where('role', '==', 'Student'));
         const studentsSnap = await getDocs(studentsQuery);
 
-        // Filter manually for counselorId absence since Firestore '!=' queries are limited
+        // Filter manually for counselorId / assignedCounselorId absence since Firestore '!=' queries are limited
         const unassigned = studentsSnap.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as any))
-          .filter(s => !s.counselorId)
+          .filter(s => !s.counselorId && !s.assignedCounselorId)
           .map(s => ({ id: s.id, displayName: s.displayName, email: s.email } as UnassignedStudent));
 
         // 2. Fetch Counselors
@@ -55,8 +55,9 @@ export default function LeadAssignmentModal() {
         const workloadMap = new Map<string, number>();
         studentsSnap.docs.forEach(doc => {
           const data = doc.data();
-          if (data.counselorId) {
-            workloadMap.set(data.counselorId, (workloadMap.get(data.counselorId) || 0) + 1);
+          const cid = data.assignedCounselorId || data.counselorId;
+          if (cid) {
+            workloadMap.set(cid, (workloadMap.get(cid) || 0) + 1);
           }
         });
 
@@ -82,7 +83,8 @@ export default function LeadAssignmentModal() {
     setIsProcessing(true);
     try {
       await updateDoc(doc(db, 'Users', studentId), {
-        counselorId,
+        assignedCounselorId: counselorId,
+        counselorId: counselorId,
         updatedAt: serverTimestamp()
       });
       // Remove student from local state

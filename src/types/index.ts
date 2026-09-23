@@ -18,6 +18,7 @@ export interface UserProfile {
   targetUniversity?: string;
   targetCourse?: string;
   assignedCounselorId?: string; // UID of the counselor managing this student
+  counselorId?: string; // Legacy/Alias UID of assigned counselor
   assignedPackIds?: string[];
   completedPackIds?: string[];
   currentModuleLevel?: number;
