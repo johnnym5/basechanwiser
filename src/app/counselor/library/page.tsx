@@ -66,8 +66,25 @@ export default function CounselorLibraryPage() {
 
   const fetchData = async () => {
     try {
-      const resSnap = await getDocs(query(collection(db, "library_resources"), orderBy("createdAt", "desc")));
-      setResources(resSnap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryResource)));
+      const resSnap = await getDocs(collection(db, "library_resources"));
+      const rawResources = resSnap.docs.map(d => ({ id: d.id, ...d.data() } as LibraryResource));
+
+      const extractNum = (titleStr: string) => {
+        if (!titleStr) return 999;
+        const match = titleStr.match(/(?:module|step)\s*(\d+)/i) || titleStr.match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : 999;
+      };
+
+      rawResources.sort((a, b) => {
+        const aNum = extractNum(a.title);
+        const bNum = extractNum(b.title);
+        if (aNum !== bNum) return aNum - bNum;
+        const aTime = a.createdAt?.seconds || 0;
+        const bTime = b.createdAt?.seconds || 0;
+        return aTime - bTime;
+      });
+
+      setResources(rawResources);
 
       const packSnap = await getDocs(collection(db, "question_packs"));
       setPacks(packSnap.docs.map(d => ({ id: d.id, ...d.data() } as QuestionPack)));

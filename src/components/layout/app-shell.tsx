@@ -409,6 +409,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Global WebRTC Incoming Call Listener */}
       <IncomingCallListener />
+
+      {/* ── Fixed Bottom Mobile Navigation Bar (Thumb Friendly) ── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-slate-800 px-3 py-2 flex items-center justify-around shadow-2xl">
+        {navLinks.slice(0, 4).map((link) => {
+          const isActive = pathname === link.href || pathname.startsWith(link.href.split("?")[0]);
+          const Icon = link.icon;
+          return (
+            <Link
+              key={link.name}
+              href={link.href}
+              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all touch-target ${
+                isActive
+                  ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <Icon size={20} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-slate-500'} />
+              <span className="text-[9px] font-black uppercase tracking-wider">{link.name.split(' ')[0]}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

@@ -35,40 +35,40 @@ const STRATEGIC_BRIEFINGS = [
 const STAGE_CONTENT = [
   {
     id: 1,
-    title: "Study Materials",
-    subtitle: "Rules and Guides",
-    tooltip: "UKVI Officers will check how well you know your course and university. These guides cover the key rules you need to know. You should aim for 80% in the tests to be fully prepared.",
-    cta: "Start Reading",
-    reviewCta: "Review Library",
+    title: "Core Study Modules",
+    subtitle: "Rules & Module 1 Briefings",
+    tooltip: "Start with Module 1! UKVI officers verify your course and university knowledge. Complete each module's guide and pass the linked quiz with at least 80% to progress.",
+    cta: "Start Module 1",
+    reviewCta: "Review Vault",
     href: "/student/library",
     icon: BookOpen
   },
   {
     id: 2,
-    title: "Interview Details",
-    subtitle: "Your Personal Information",
-    tooltip: "You need to record your specific details like tuition fees and sponsorship info. This helps ensure your answers are consistent during the real interview.",
-    cta: "Fill Details",
-    reviewCta: "Update Info",
+    title: "Student Interview Dossier",
+    subtitle: "Tuition & Financial Profile",
+    tooltip: "Record your specific academic and financial details, including tuition fees and sponsorship info. Ensures strict consistency during your official interview.",
+    cta: "Complete Dossier",
+    reviewCta: "Update Profile",
     href: "/student/interview-pack",
     icon: ShieldCheck
   },
   {
     id: 3,
-    title: "Practice Interview",
-    subtitle: "Mock Sessions",
-    tooltip: "Test your confidence! This practice session simulates a real interview to check your English and how you handle pressure.",
-    cta: "Start Mock",
-    reviewCta: "See Feedback",
+    title: "Practice Mock Interview",
+    subtitle: "Live AI & Counselor Session",
+    tooltip: "Simulate an authentic UKVI interview experience. Tests your spoken English, response clarity, and confidence under timed pressure.",
+    cta: "Start Practice",
+    reviewCta: "View Performance",
     href: "/student/mock-interview",
     icon: Video
   },
   {
     id: 4,
-    title: "Final Check",
-    subtitle: "Counselor Review",
-    tooltip: "Your Counselor is checking your mock interview. Once they approve it, you are ready for your CAS!",
-    cta: "Waiting for Review",
+    title: "Compliance CAS Verification",
+    subtitle: "Counselor Endorsement",
+    tooltip: "Your assigned Counselor reviews your mock recording and dossier answers. Once verified and approved, you are cleared for your CAS release!",
+    cta: "Pending Review",
     reviewCta: "Check Status",
     href: "/student/mock-interview",
     icon: Star
@@ -140,12 +140,42 @@ export default function StudentDashboardPage() {
     );
   }
 
+  // Motion Stagger Variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+        delayChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 12, filter: "blur(4px)" },
+    visible: {
+      opacity: 1,
+      y: 0,
+      filter: "blur(0px)",
+      transition: { type: "spring" as const, duration: 0.5, bounce: 0 }
+    }
+  };
+
   return (
     <AppShell>
-      <div className="max-w-5xl mx-auto space-y-16 pb-24 px-4">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="max-w-5xl mx-auto space-y-16 pb-24 px-4"
+      >
 
-        {/* ── Professional Executive Header ────────────────────────── */}
-        <div className="flex flex-col md:flex-row items-end justify-between gap-8 animate-in fade-in slide-in-from-top-4 duration-1000">
+        {/* ── Executive Header ────────────────────────── */}
+        <motion.div
+          variants={itemVariants}
+          className="flex flex-col md:flex-row items-end justify-between gap-8"
+        >
            <div className="space-y-3 text-left w-full md:w-auto">
               <h1 className="text-4xl md:text-5xl font-light text-slate-900 dark:text-slate-50 tracking-tight leading-none font-sans">
                 {greeting}
@@ -168,10 +198,35 @@ export default function StudentDashboardPage() {
                  <span className="text-[10px] font-bold tracking-[0.2em] uppercase">Phase {currentStage} Active</span>
               </div>
            </div>
-        </div>
+        </motion.div>
 
-        {/* ── Sophisticated Milestone Track ──────────────────── */}
-        <div className="space-y-8 relative">
+        {/* ── Active Stage Continue Hero Card ────────────────────────── */}
+        <motion.div variants={itemVariants} className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-900 p-8 sm:p-10 text-white shadow-2xl shadow-indigo-600/20">
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-indigo-100 text-[10px] font-black uppercase tracking-widest border border-white/20">
+                <Activity size={12} /> Active Mission • Stage {currentStage}
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter font-google">
+                Next Action: {(STAGE_CONTENT.find(s => s.id === currentStage) || STAGE_CONTENT[0]).title}
+              </h2>
+              <p className="text-xs text-indigo-100/80 font-medium max-w-xl">
+                {(STAGE_CONTENT.find(s => s.id === currentStage) || STAGE_CONTENT[0]).subtitle} — Proceed directly to advance your CAS preparation.
+              </p>
+            </div>
+            <motion.div whileTap={{ scale: 0.97 }} className="w-full md:w-auto shrink-0">
+              <Link
+                href={(STAGE_CONTENT.find(s => s.id === currentStage) || STAGE_CONTENT[0]).href}
+                className="w-full md:w-auto px-8 py-4 bg-white text-indigo-700 hover:bg-slate-100 font-black rounded-2xl text-xs uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-3 transition-all"
+              >
+                Continue Mission <ArrowRight size={16} />
+              </Link>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* ── Milestone Track ──────────────────── */}
+        <motion.div variants={itemVariants} className="space-y-8 relative">
           <div className="flex items-center justify-between px-2">
              <div className="space-y-1">
                 <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-slate-400 flex items-center gap-2">
@@ -181,10 +236,11 @@ export default function StudentDashboardPage() {
              </div>
              <div className="flex items-center gap-4 text-slate-500">
                 <span className="text-[10px] font-bold uppercase tracking-widest">{currentStage} OF 4 COMPLETE</span>
-                <div className="w-24 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="w-24 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                    <motion.div
                      initial={{ width: 0 }}
                      animate={{ width: `${(currentStage / 4) * 100}%` }}
+                     transition={{ type: "spring", duration: 0.8, bounce: 0 }}
                      className="h-full bg-indigo-500"
                    />
                 </div>
@@ -203,12 +259,15 @@ export default function StudentDashboardPage() {
               const Icon = stage.icon;
 
               return (
-                <div
+                <motion.div
                   key={stage.id}
-                  className={`relative group transition-all duration-700 ${isLocked ? 'opacity-40 grayscale' : ''}`}
+                  variants={itemVariants}
+                  whileHover={!isLocked ? { y: -3 } : undefined}
+                  transition={{ type: "spring", duration: 0.35, bounce: 0 }}
+                  className={`relative group ${isLocked ? 'opacity-40 grayscale' : ''}`}
                 >
                   <div className={`
-                    relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 p-8 md:p-10 rounded-3xl border transition-all duration-500
+                    relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 p-8 md:p-10 rounded-3xl border transition-all duration-300
                     ${isCurrent
                       ? 'bg-white/80 dark:bg-slate-900/40 backdrop-blur-md border-indigo-500/30 shadow-2xl shadow-indigo-500/5 ring-1 ring-indigo-500/20'
                       : isCompleted
@@ -217,9 +276,9 @@ export default function StudentDashboardPage() {
                   `}>
 
                     <div className="flex items-center gap-8 w-full md:w-auto">
-                       {/* Elegant Icon Indicator */}
+                       {/* Icon Indicator */}
                        <div className={`
-                          w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-500
+                          w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-300
                           ${isCompleted
                             ? 'bg-white dark:bg-slate-800 border-emerald-500/30 text-emerald-600 shadow-lg shadow-emerald-500/5'
                             : isCurrent
@@ -237,8 +296,10 @@ export default function StudentDashboardPage() {
                                 {stage.title}
                              </h3>
                              <button
+                               type="button"
                                onClick={() => setActiveTooltip(stage.id)}
-                               className="text-slate-300 hover:text-indigo-500 transition-colors"
+                               className="text-slate-300 hover:text-indigo-500 transition-colors p-1"
+                               title="Stage Information"
                              >
                                 <HelpCircle size={18} strokeWidth={1.5} />
                              </button>
@@ -253,31 +314,33 @@ export default function StudentDashboardPage() {
                             <Lock size={14} /> Ready for next step
                          </div>
                        ) : (
-                         <Link
-                           href={stage.href}
-                           className={`
-                             group/btn px-10 py-4 rounded-xl text-[10px] font-bold uppercase tracking-[0.25em] transition-all flex items-center justify-center gap-4
-                             ${isCompleted
-                               ? 'bg-slate-900 dark:bg-slate-800 text-white hover:bg-black dark:hover:bg-slate-700'
-                               : isCurrent
-                                 ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-600/20'
-                                 : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}
-                           `}
-                         >
-                            {isCompleted ? stage.reviewCta : stage.cta}
-                            <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
-                         </Link>
+                         <motion.div whileTap={{ scale: 0.97 }}>
+                           <Link
+                             href={stage.href}
+                             className={`
+                               group/btn px-10 py-4 rounded-xl text-[10px] font-bold uppercase tracking-[0.25em] transition-all flex items-center justify-center gap-4
+                               ${isCompleted
+                                 ? 'bg-slate-900 dark:bg-slate-800 text-white hover:bg-black dark:hover:bg-slate-700'
+                                 : isCurrent
+                                   ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-600/20'
+                                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}
+                             `}
+                           >
+                              {isCompleted ? stage.reviewCta : stage.cta}
+                              <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+                           </Link>
+                         </motion.div>
                        )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
-        {/* ── Mission Critical Stats (Refined) ────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* ── Stats Row ────────────────────────── */}
+        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-8">
            <div className="bg-white/50 dark:bg-slate-900/20 backdrop-blur-md p-10 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col justify-between">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">Readiness Score</p>
@@ -315,14 +378,14 @@ export default function StudentDashboardPage() {
                  </div>
               </div>
 
-              {/* Decorative Element */}
+              {/* Decorative Blur Element */}
               <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
            </div>
-        </div>
+        </motion.div>
 
-      </div>
+      </motion.div>
 
-      {/* ── Contextual Compliance Briefing (Glassmorphism) ─────────────── */}
+      {/* ── Contextual Compliance Briefing Modal ─────────────── */}
       <AnimatePresence>
         {activeTooltip && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
@@ -334,12 +397,14 @@ export default function StudentDashboardPage() {
                className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
              />
              <motion.div
-               initial={{ opacity: 0, scale: 0.95, y: 10 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95, y: 10 }}
+               initial={{ opacity: 0, scale: 0.95, y: 10, filter: "blur(4px)" }}
+               animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
+               exit={{ opacity: 0, scale: 0.95, y: -10, filter: "blur(4px)" }}
+               transition={{ type: "spring", duration: 0.4, bounce: 0 }}
                className="relative w-full max-w-lg bg-white dark:bg-slate-900 p-10 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl space-y-8"
              >
                 <button
+                  type="button"
                   onClick={() => setActiveTooltip(null)}
                   className="absolute top-8 right-8 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
                 >
@@ -361,12 +426,13 @@ export default function StudentDashboardPage() {
                    </p>
                 </div>
 
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setActiveTooltip(null)}
                   className="w-full py-5 bg-slate-900 dark:bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-[0.3em] rounded-xl hover:bg-black dark:hover:bg-indigo-700 transition-all shadow-lg"
                 >
                    Got it
-                </button>
+                </motion.button>
              </motion.div>
           </div>
         )}

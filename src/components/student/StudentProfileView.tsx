@@ -255,16 +255,24 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
       {/* ── INTERNAL NAVIGATION TABS ── */}
       <div className="flex items-center gap-2 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 w-fit">
          <button
+           type="button"
            onClick={() => setActiveTab('mocks')}
-           className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'mocks' ? 'bg-white dark:bg-slate-800 text-indigo-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+           className={`relative flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'mocks' ? 'text-indigo-400 bg-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
          >
             <Video size={14} /> Mock Sessions
+            {activeTab === 'mocks' && (
+              <motion.div layoutId="activeStudentTab" className="absolute inset-0 bg-indigo-500/10 rounded-xl border border-indigo-500/30" />
+            )}
          </button>
          <button
+           type="button"
            onClick={() => setActiveTab('details')}
-           className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'details' ? 'bg-white dark:bg-slate-800 text-indigo-500 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+           className={`relative flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'details' ? 'text-indigo-400 bg-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
          >
             <FileText size={14} /> Student Details
+            {activeTab === 'details' && (
+              <motion.div layoutId="activeStudentTab" className="absolute inset-0 bg-indigo-500/10 rounded-xl border border-indigo-500/30" />
+            )}
          </button>
       </div>
 
@@ -290,8 +298,11 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
                   {mocks.map(mock => {
                     const mReviewStatus = mock.reviewStatus;
                     return (
-                      <button
+                      <motion.button
                         key={mock.id}
+                        whileHover={{ x: 6 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: "spring", duration: 0.3, bounce: 0 }}
                         onClick={() => {
                           setSelectedMock(mock);
                           setAdminFeedback(mock.adminFeedback || '');
@@ -312,7 +323,7 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
                           <span>{mock.submittedAt ? new Date(mock.submittedAt.toDate()).toLocaleDateString() : 'Active Session'}</span>
                           <ChevronRight className="w-3 h-3" />
                         </div>
-                      </button>
+                      </motion.button>
                     );
                   })}
                 </div>

@@ -1,6 +1,11 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 // Explicitly define fallback values to ensure they are available even if env vars are empty strings
@@ -26,14 +31,30 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || FALLBACK_CONFIG.measurementId,
 };
 
-// Final validation to prevent "missing-project-id" or similar errors
 if (!firebaseConfig.projectId || firebaseConfig.projectId === "undefined" || firebaseConfig.projectId === "") {
   firebaseConfig.projectId = FALLBACK_CONFIG.projectId;
 }
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const isNewApp = !getApps().length;
+const app = isNewApp ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-const db = getFirestore(app);
+
+// Enable Firestore persistent offline cache across multiple tabs for instant zero-delay loading
+let db: ReturnType<typeof getFirestore>;
+if (isNewApp && typeof window !== "undefined") {
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+  } catch (e) {
+    db = getFirestore(app);
+  }
+} else {
+  db = getFirestore(app);
+}
+
 const storage = getStorage(app);
 
 export { app, auth, db, storage };

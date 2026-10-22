@@ -26,6 +26,13 @@ export interface PipelineData {
   };
 }
 
+const CACHE_KEY_PREFIX = 'student_pipeline_cache_';
+
+/**
+ * Custom Hook: useStudentPipeline
+ * Tracks 4-stage progression with Stale-While-Revalidate (SWR) session caching
+ * for 0ms navigation loading state.
+ */
 export function useStudentPipeline(userId: string | null | undefined) {
   const [data, setData] = useState<PipelineData>({
     currentStage: 1,
@@ -44,9 +51,22 @@ export function useStudentPipeline(userId: string | null | undefined) {
       return;
     }
 
+    const cacheKey = `${CACHE_KEY_PREFIX}${userId}`;
+
+    // 1. SWR Session Cache Hydration (0ms Rendering)
+    try {
+      const cachedStr = sessionStorage.getItem(cacheKey);
+      if (cachedStr) {
+        const cachedData = JSON.parse(cachedStr);
+        setData({ ...cachedData, loading: false });
+      }
+    } catch (e) {
+      console.warn("[useStudentPipeline] Cache read failed:", e);
+    }
+
+    // 2. Background Revalidation from Firestore
     const fetchPipeline = async () => {
       try {
-        // 1. Fetch Core Modules to know the total count and IDs
         const coreSnap = await withTimeout(getDocs(query(
           collection(db, "test_question_sets"),
           where("category", "==", "core"),
@@ -55,7 +75,6 @@ export function useStudentPipeline(userId: string | null | undefined) {
         const coreIds = coreSnap.docs.map(d => d.id);
         const totalCoreCount = coreIds.length || 5;
 
-        // 2. Fetch Quiz Attempts
         const quizQ = query(collection(db, "quiz_attempts"), where("userId", "==", userId));
         const quizSnap = await withTimeout(getDocs(quizQ), 10000);
         const passedCoreModules = new Set<string>();
@@ -68,20 +87,15 @@ export function useStudentPipeline(userId: string | null | undefined) {
           }
         });
 
-        // Stage 1 is complete if user passed ALL existing core modules (or at least 5 as safety)
         const isStage1Complete = passedCoreModules.size >= totalCoreCount;
 
-        // 2. Fetch Interview Pack Status
         const packRef = doc(db, "Interview_Packs", userId);
         const packSnap = await withTimeout(getDoc(packRef), 10000);
         const packData = packSnap.exists() ? packSnap.data() : null;
         const packStatus = packData?.status;
-        // User requested: completed or exported. Existing code uses: Submitted or Verified.
         const isStage2Complete = packSnap.exists() &&
           ['completed', 'exported', 'Submitted', 'Verified'].includes(packStatus);
 
-        // 3. Fetch Mock Interview Status
-        // Logic: Check for any attempt with status PENDING_REVIEW, ACCEPTED, or REJECTED.
         const mockQ = query(
           collection(db, "mock_interview_attempts"),
           where("studentId", "==", userId),
@@ -92,22 +106,19 @@ export function useStudentPipeline(userId: string | null | undefined) {
         const mockData = !mockSnap.empty ? mockSnap.docs[0].data() : null;
         const mockStatus = mockData?.status;
 
-        // Normalize status check (handling case sensitivity and different naming)
         const normalizedMockStatus = mockStatus?.toLowerCase();
         const isStage3Complete = !mockSnap.empty &&
           ['pending_review', 'accepted', 'rejected'].includes(normalizedMockStatus);
 
-        // Calculate Current Stage
         let currentStage = 1;
         if (isStage1Complete) currentStage = 2;
         if (isStage1Complete && isStage2Complete) currentStage = 3;
         if (isStage1Complete && isStage2Complete && isStage3Complete) currentStage = 4;
 
-        // Construct Stages Object
         const stages: PipelineStage[] = [
           {
             id: 1,
-            title: "Study Materials",
+            title: "Core Study Modules",
             isUnlocked: true,
             isCompleted: isStage1Complete,
             status: isStage1Complete ? 'completed' : (currentStage === 1 ? 'current' : 'locked')
@@ -130,12 +141,12 @@ export function useStudentPipeline(userId: string | null | undefined) {
             id: 4,
             title: "Final Check",
             isUnlocked: isStage1Complete && isStage2Complete && isStage3Complete,
-            isCompleted: false, // This is the terminal stage
+            isCompleted: false,
             status: currentStage === 4 ? 'current' : 'locked'
           }
         ];
 
-        setData({
+        const freshPipeline: PipelineData = {
           currentStage,
           stages,
           loading: false,
@@ -144,7 +155,15 @@ export function useStudentPipeline(userId: string | null | undefined) {
             packStatus,
             mockStatus
           }
-        });
+        };
+
+        setData(freshPipeline);
+
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify(freshPipeline));
+        } catch (e) {
+          console.warn("[useStudentPipeline] Cache write failed:", e);
+        }
       } catch (error) {
         console.error("Error fetching pipeline data:", error);
         setData(prev => ({ ...prev, loading: false }));

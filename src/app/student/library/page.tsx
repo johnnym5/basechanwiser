@@ -29,7 +29,7 @@ export default function StudentLibrary() {
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [sortBy, setSortBy] = useState('newest');
+  const [sortBy, setSortBy] = useState('sequential');
 
   useEffect(() => {
     if (!userId) return;
@@ -71,8 +71,7 @@ export default function StudentLibrary() {
 
         // 3. Listen to Library Resources (Real-time)
         const q = query(
-          collection(db, 'library_resources'),
-          orderBy('createdAt', 'desc')
+          collection(db, 'library_resources')
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -114,10 +113,23 @@ export default function StudentLibrary() {
       result = result.filter(r => r.fileType === filterType);
     }
 
+    // Helper to extract Module / Step number
+    const extractNum = (titleStr: string) => {
+      if (!titleStr) return 999;
+      const match = titleStr.match(/(?:module|step)\s*(\d+)/i) || titleStr.match(/(\d+)/);
+      return match ? parseInt(match[1], 10) : 999;
+    };
+
     // 3. Sort
     result.sort((a, b) => {
-      if (sortBy === 'newest') return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+      if (sortBy === 'sequential') {
+        const aNum = extractNum(a.title);
+        const bNum = extractNum(b.title);
+        if (aNum !== bNum) return aNum - bNum;
+        return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0); // oldest fallback
+      }
       if (sortBy === 'oldest') return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
+      if (sortBy === 'newest') return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
       if (sortBy === 'alphabetical') return (a.title || '').localeCompare(b.title || '');
       return 0;
     });
@@ -136,15 +148,36 @@ export default function StudentLibrary() {
                <ChevronLeft size={16} /> Back to Dashboard
             </Link>
             <div className="space-y-1">
-              <h1 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter flex items-center gap-3">
-                <BookOpen className="w-10 h-10 text-indigo-600" /> Resource Vault
+              <h1 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter flex items-center gap-3 font-google">
+                <BookOpen className="w-10 h-10 text-indigo-600" /> Academy Study Vault
               </h1>
-              <p className="text-sm text-slate-500 font-bold uppercase tracking-widest leading-relaxed max-w-2xl">
-                Premium UKVI guides, University Briefings, and Strategic Credibility Materials.
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-2xl">
+                Sequential Learning Modules & Strategic UKVI Preparation Briefings.
               </p>
             </div>
           </div>
         </div>
+
+        {/* Forward Stage Jump Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-6 rounded-3xl bg-indigo-900/30 border border-indigo-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-md"
+        >
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+            <div>
+              <p className="text-xs font-black uppercase text-white tracking-wide">Stage 1 Active: Core Study Modules</p>
+              <p className="text-[10px] font-bold text-indigo-200/80 uppercase tracking-wider mt-0.5">Study Module 1 first, pass linked quizzes, then proceed directly to Stage 2.</p>
+            </div>
+          </div>
+          <Link
+            href="/student/interview-pack"
+            className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-indigo-600/20 shrink-0 active:scale-95 transition-all"
+          >
+            Go to Stage 2: Dossier <ArrowRight size={14} />
+          </Link>
+        </motion.div>
 
         {/* Search & Filter Bar */}
         <div className="flex flex-col lg:flex-row items-center gap-4 bg-white/5 dark:bg-slate-900/40 backdrop-blur-md p-4 rounded-3xl border border-slate-200/10 dark:border-slate-800/50 shadow-sm">
@@ -152,7 +185,7 @@ export default function StudentLibrary() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input
                 type="text"
-                placeholder="Search by title or protocol briefing..."
+                placeholder="Search by module title or briefing topic..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl pl-12 pr-4 py-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all dark:text-white shadow-inner"
@@ -175,15 +208,16 @@ export default function StudentLibrary() {
                  </select>
               </div>
 
-              <div className="relative flex-1 lg:w-48">
+              <div className="relative flex-1 lg:w-56">
                  <ArrowUpDown className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
                  <select
                    value={sortBy}
                    onChange={(e) => setSortBy(e.target.value)}
                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl pl-10 pr-4 py-4 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-indigo-500/50 outline-none appearance-none cursor-pointer text-slate-600 dark:text-slate-300"
                  >
+                    <option value="sequential">Module 1 First</option>
+                    <option value="oldest">Oldest First</option>
                     <option value="newest">Recent First</option>
-                    <option value="oldest">Legacy First</option>
                     <option value="alphabetical">A - Z Alpha</option>
                  </select>
               </div>
