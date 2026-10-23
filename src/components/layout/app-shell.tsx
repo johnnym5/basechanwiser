@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import NotificationBell from "@/components/common/NotificationBell";
@@ -10,6 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useTheme } from "@/lib/theme/theme-context";
 import { useSystemNotifications } from "@/hooks/useSystemNotifications";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   BookOpen,
@@ -50,6 +51,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileAvatarErrored, setMobileAvatarErrored] = useState(false);
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
 
+  // FAB Open State
+  const [isFabOpen, setIsFabOpen] = useState(false);
+  const fabRef = useRef<HTMLDivElement>(null);
+
   const isAdmin = role === "Admin" || role === "Super Admin";
 
   // Close drawer on route change
@@ -60,6 +65,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     document.body.style.overflow = mobileDrawerOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [mobileDrawerOpen]);
+
+  // Close FAB on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (fabRef.current && !fabRef.current.contains(event.target as Node)) {
+        setIsFabOpen(false);
+        setProfileDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const studentLinks = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -209,70 +226,104 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
-            {isStudent && (
-              <>
-                <Link
-                  href="/student/leaderboard"
-                  className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all relative"
-                  title="Leaderboard"
-                >
-                  <Trophy size={20} />
-                </Link>
-                <Link
-                  href="/student/history"
-                  className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all relative"
-                  title="My History"
-                >
-                  <History size={20} />
-                </Link>
-              </>
-            )}
+            {/* Unified FAB Menu anchored to Avatar Circle ("J") */}
+            <div className="relative flex items-center" ref={fabRef}>
+              <AnimatePresence>
+                {isFabOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, x: 20 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, x: 20 }}
+                    transition={{ type: "spring", duration: 0.35, bounce: 0 }}
+                    className="absolute right-14 flex items-center gap-2.5 bg-white/95 dark:bg-[#1E293B]/95 backdrop-blur-xl border border-gray-200 dark:border-slate-700/80 rounded-full p-2 shadow-2xl z-50 whitespace-nowrap"
+                  >
+                    {/* 1. Leaderboard (Icon Only) */}
+                    {isStudent && (
+                      <Link
+                        href="/student/leaderboard"
+                        onClick={() => setIsFabOpen(false)}
+                        className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700/80 flex items-center justify-center text-gray-600 dark:text-slate-300 hover:text-[#1a73e8] dark:hover:text-blue-400 hover:border-blue-500 transition-all"
+                        title="Leaderboard"
+                      >
+                        <Trophy size={18} />
+                      </Link>
+                    )}
 
-            {/* Global Chat Trigger */}
-            <button
-              onClick={() => setIsChatDrawerOpen(true)}
-              className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all relative"
-            >
-              <MessageSquare size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border border-white dark:border-slate-800" />
-            </button>
+                    {/* 2. History (Icon Only) */}
+                    {isStudent && (
+                      <Link
+                        href="/student/history"
+                        onClick={() => setIsFabOpen(false)}
+                        className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700/80 flex items-center justify-center text-gray-600 dark:text-slate-300 hover:text-[#1a73e8] dark:hover:text-blue-400 hover:border-blue-500 transition-all"
+                        title="My History"
+                      >
+                        <History size={18} />
+                      </Link>
+                    )}
 
-            {/* Notification Bell */}
-            <NotificationBell />
+                    {/* 3. Global Chat (Icon Only) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsChatDrawerOpen(true);
+                        setIsFabOpen(false);
+                      }}
+                      className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700/80 flex items-center justify-center text-gray-600 dark:text-slate-300 hover:text-[#1a73e8] dark:hover:text-blue-400 hover:border-blue-500 transition-all relative"
+                      title="Community Chat"
+                    >
+                      <MessageSquare size={18} />
+                      <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-indigo-500 rounded-full border border-white dark:border-slate-800" />
+                    </button>
 
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-yellow-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all"
-            >
-              {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
-            </button>
+                    {/* 4. Notification Bell (Icon Only) */}
+                    <NotificationBell />
 
-            {/* Role pill */}
-            <span className={`hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${effectiveRole === "Super Admin"
-                ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800"
-                : effectiveRole === "Head of Compliance"
-                  ? "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800"
-                : effectiveRole === "Admin"
-                  ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-                  : effectiveRole === "Counselor"
-                    ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                    : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-              }`}>
-              {simulatedRole ? `Viewing as: ${simulatedRole}` : (effectiveRole || "Student")}
-            </span>
+                    {/* 5. Theme Toggle (Icon Only) */}
+                    <button
+                      type="button"
+                      onClick={toggleTheme}
+                      className="w-10 h-10 rounded-full bg-gray-50 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700/80 flex items-center justify-center text-gray-600 dark:text-yellow-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-all"
+                      title="Toggle Theme"
+                    >
+                      {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+                    </button>
 
-            {/* Profile Dropdown */}
-            <div className="relative">
+                    {/* 6. Role Badge */}
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                        effectiveRole === "Super Admin"
+                          ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800"
+                          : effectiveRole === "Head of Compliance"
+                          ? "bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                          : effectiveRole === "Admin"
+                          ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                          : effectiveRole === "Counselor"
+                          ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                          : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                      }`}
+                    >
+                      {simulatedRole ? `Sim: ${simulatedRole}` : (effectiveRole || "Student")}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Main Avatar FAB Trigger Button ("J") */}
               <button
-                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="w-10 h-10 rounded-full bg-[#1a73e8] overflow-hidden flex items-center justify-center text-white font-bold text-sm hover:bg-[#1557b0] transition-all shadow-md"
+                type="button"
+                onClick={() => {
+                  const nextState = !isFabOpen;
+                  setIsFabOpen(nextState);
+                  setProfileDropdownOpen(nextState);
+                }}
+                className="w-11 h-11 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-black text-lg flex items-center justify-center shadow-lg shadow-orange-500/20 border-2 border-orange-400/40 transition-all transform active:scale-95 shrink-0 z-50 cursor-pointer"
+                title="Toggle Quick Actions & Profile"
               >
                 {!avatarErrored && (userProfile?.photoURL || user?.photoURL) ? (
                   <img
                     src={userProfile?.photoURL || user?.photoURL || ""}
                     alt="User avatar"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded-full"
                     onError={() => setAvatarErrored(true)}
                   />
                 ) : (
@@ -280,13 +331,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               </button>
 
+              {/* Profile Options Dropdown Menu */}
               {profileDropdownOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setProfileDropdownOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-[#1E293B] rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      setIsFabOpen(false);
+                    }}
+                  />
+                  <div className="absolute right-0 top-14 w-60 bg-white dark:bg-[#1E293B] rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-700 p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                     <div className="p-4 border-b border-gray-100 dark:border-slate-700 mb-1">
-                      <p className="text-sm font-black text-gray-900 dark:text-white truncate">{displayName}</p>
-                      <p className="text-xs text-gray-500 dark:text-slate-400 truncate mt-0.5">{displayEmail}</p>
+                      <p className="text-sm font-black text-gray-900 dark:text-white truncate">
+                        {displayName}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 truncate mt-0.5">
+                        {displayEmail}
+                      </p>
                       {simulatedRole && (
                         <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest mt-1 italic">
                           Simulating: {simulatedRole}
@@ -297,36 +359,64 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <div className="p-2 border-b border-gray-100 dark:border-slate-700">
                       <Link
                         href={role === "Student" ? "/dashboard" : "/counselor/profile"}
-                        onClick={() => setProfileDropdownOpen(false)}
+                        onClick={() => {
+                          setProfileDropdownOpen(false);
+                          setIsFabOpen(false);
+                        }}
                         className="w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-gray-700 dark:text-gray-300"
                       >
-                        <UserIcon size={16}/> My Profile
+                        <UserIcon size={16} /> My Profile
                       </Link>
                     </div>
 
                     {/* Simulation Controls (Admins Only) */}
                     {isAdmin && (
                       <div className="p-2 border-b border-gray-100 dark:border-slate-700">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-2">Simulate View</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-2">
+                          Simulate View
+                        </p>
                         <button
-                          onClick={() => { setSimulatedRole('Counselor'); setProfileDropdownOpen(false); window.location.reload(); }}
-                          className={`w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${simulatedRole === 'Counselor' ? 'text-[#1a73e8] bg-blue-50 dark:bg-blue-900/20' : 'text-gray-700 dark:text-gray-300'}`}
+                          onClick={() => {
+                            setSimulatedRole("Counselor");
+                            setProfileDropdownOpen(false);
+                            setIsFabOpen(false);
+                            window.location.reload();
+                          }}
+                          className={`w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${
+                            simulatedRole === "Counselor"
+                              ? "text-[#1a73e8] bg-blue-50 dark:bg-blue-900/20"
+                              : "text-gray-700 dark:text-gray-300"
+                          }`}
                         >
-                          <Eye size={16}/> Counselor View
+                          <Eye size={16} /> Counselor View
                         </button>
                         <button
-                          onClick={() => { setSimulatedRole('Student'); setProfileDropdownOpen(false); window.location.reload(); }}
-                          className={`w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${simulatedRole === 'Student' ? 'text-[#1a73e8] bg-blue-50 dark:bg-blue-900/20' : 'text-gray-700 dark:text-gray-300'}`}
+                          onClick={() => {
+                            setSimulatedRole("Student");
+                            setProfileDropdownOpen(false);
+                            setIsFabOpen(false);
+                            window.location.reload();
+                          }}
+                          className={`w-full text-left flex items-center gap-3 px-3 py-2 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${
+                            simulatedRole === "Student"
+                              ? "text-[#1a73e8] bg-blue-50 dark:bg-blue-900/20"
+                              : "text-gray-700 dark:text-gray-300"
+                          }`}
                         >
-                          <UserIcon size={16}/> Student View
+                          <UserIcon size={16} /> Student View
                         </button>
 
                         {simulatedRole && (
                           <button
-                            onClick={() => { setSimulatedRole(null); setProfileDropdownOpen(false); window.location.reload(); }}
+                            onClick={() => {
+                              setSimulatedRole(null);
+                              setProfileDropdownOpen(false);
+                              setIsFabOpen(false);
+                              window.location.reload();
+                            }}
                             className="w-full text-left flex items-center gap-3 px-3 py-2 mt-1 text-xs font-black rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-500 transition-colors"
                           >
-                            <ShieldAlert size={16}/> Exit Simulation
+                            <ShieldAlert size={16} /> Exit Simulation
                           </button>
                         )}
                       </div>
