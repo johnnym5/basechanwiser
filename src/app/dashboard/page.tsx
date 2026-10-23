@@ -70,7 +70,7 @@ const STAGE_CONTENT = [
     tooltip: "Your assigned Counselor reviews your mock recording and dossier answers. Once verified and approved, you are cleared for your CAS release!",
     cta: "Pending Review",
     reviewCta: "Check Status",
-    href: "/student/mock-interview",
+    href: "/student/feedback",
     icon: Star
   }
 ];
