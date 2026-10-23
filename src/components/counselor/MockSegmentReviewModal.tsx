@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Star, Save, Loader2, PlayCircle, MessageSquare } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { db } from '@/lib/firebase/config';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { MockInterviewAnswer, MockInterviewAttempt } from '@/types/mock';
+import { useAuth } from '@/lib/auth/auth-context';
 
 interface MockSegmentReviewModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface MockSegmentReviewModalProps {
   mockId: string;
   answerIndex: number;
   answer: MockInterviewAnswer;
+  readOnly?: boolean;
   onSuccess: () => void;
 }
 
@@ -22,18 +24,20 @@ export default function MockSegmentReviewModal({
   mockId,
   answerIndex,
   answer,
+  readOnly,
   onSuccess
 }: MockSegmentReviewModalProps) {
+  const { userProfile } = useAuth();
+  const isStaff = userProfile?.role === 'Admin' || userProfile?.role === 'Super Admin' || userProfile?.role === 'Counselor';
+  const isReadOnly = readOnly !== undefined ? readOnly : !isStaff;
+
   const [stars, setStars] = useState<number>(0);
   const [remark, setRemark] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen && answer) {
-      // Initialize with existing data if available
-      // Note: We might need to extend the type or use existing 'rating' logic
       setRemark(answer.feedback || '');
-      // If we don't have stars yet, we can map 'good' to 5, 'average' to 3, 'bad' to 1 or just leave at 0
       if ((answer as any).stars) {
         setStars((answer as any).stars);
       } else if (answer.rating === 'good') {
@@ -47,7 +51,7 @@ export default function MockSegmentReviewModal({
   }, [isOpen, answer]);
 
   const handleSave = async () => {
-    if (!mockId) return;
+    if (isReadOnly || !mockId) return;
     setIsSaving(true);
     try {
       const mockRef = doc(db, 'mock_interview_attempts', mockId);
@@ -61,7 +65,6 @@ export default function MockSegmentReviewModal({
           ...updatedAnswers[answerIndex],
           feedback: remark,
           rating: stars >= 4 ? 'good' : stars === 3 ? 'average' : 'bad',
-          // Persist the specific star count
           stars: stars
         } as any;
 
@@ -122,7 +125,7 @@ export default function MockSegmentReviewModal({
              </div>
           </div>
 
-          {/* Right: Review Form */}
+          {/* Right: Review Form / Read-Only Display */}
           <div className="w-full lg:w-96 bg-slate-900 border-l border-slate-800 p-8 space-y-8 overflow-y-auto">
 
              {/* Question Prompt */}
@@ -140,15 +143,17 @@ export default function MockSegmentReviewModal({
                    {[1, 2, 3, 4, 5].map((s) => (
                      <button
                        key={s}
-                       onClick={() => setStars(s)}
-                       className={`p-2 transition-all hover:scale-110 ${stars >= s ? 'text-yellow-400' : 'text-slate-700'}`}
+                       type="button"
+                       disabled={isReadOnly}
+                       onClick={() => !isReadOnly && setStars(s)}
+                       className={`p-2 transition-all ${!isReadOnly ? 'hover:scale-110 cursor-pointer' : 'cursor-default'} ${stars >= s ? 'text-yellow-400' : 'text-slate-700'}`}
                      >
                        <Star size={32} fill={stars >= s ? 'currentColor' : 'none'} strokeWidth={2.5} />
                      </button>
                    ))}
                 </div>
                 <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">
-                   {stars === 5 ? 'Exceptional Confidence' : stars === 4 ? 'Solid Response' : stars === 3 ? 'Average / Needs Work' : stars === 2 ? 'Weak Content' : stars === 1 ? 'Critical Failure' : 'Select Star Rating'}
+                   {stars === 5 ? 'Exceptional Confidence' : stars === 4 ? 'Solid Response' : stars === 3 ? 'Average / Needs Work' : stars === 2 ? 'Weak Content' : stars === 1 ? 'Critical Failure' : 'No Rating Assigned'}
                 </p>
              </div>
 
@@ -157,28 +162,47 @@ export default function MockSegmentReviewModal({
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                    <MessageSquare size={12} /> Counselor Remarks
                 </label>
-                <textarea
-                  value={remark}
-                  onChange={(e) => setRemark(e.target.value)}
-                  placeholder="Enter specific observations, required corrections, or guidance for the scholar..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-3xl p-6 text-sm font-medium leading-relaxed text-white focus:ring-2 focus:ring-indigo-500 outline-none h-40 transition-all resize-none shadow-inner"
-                />
+                {isReadOnly ? (
+                  <div className="w-full bg-slate-950 border border-slate-800 rounded-3xl p-6 text-sm font-medium leading-relaxed text-slate-300 min-h-32 shadow-inner">
+                    {remark ? (
+                      <p className="whitespace-pre-wrap">{remark}</p>
+                    ) : (
+                      <p className="italic text-slate-500 text-xs">No counselor remarks provided for this segment yet.</p>
+                    )}
+                  </div>
+                ) : (
+                  <textarea
+                    value={remark}
+                    onChange={(e) => setRemark(e.target.value)}
+                    placeholder="Enter specific observations, required corrections, or guidance for the scholar..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-3xl p-6 text-sm font-medium leading-relaxed text-white focus:ring-2 focus:ring-indigo-500 outline-none h-40 transition-all resize-none shadow-inner"
+                  />
+                )}
              </div>
 
-             <button
-               onClick={handleSave}
-               disabled={isSaving || stars === 0}
-               className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-900/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
-             >
-                {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                Archive Segment Audit
-             </button>
+             {!isReadOnly ? (
+               <button
+                 onClick={handleSave}
+                 disabled={isSaving || stars === 0}
+                 className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-900/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+               >
+                  {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                  Archive Segment Audit
+               </button>
+             ) : (
+               <button
+                 onClick={onClose}
+                 className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-[24px] font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2"
+               >
+                  Close Audit View
+               </button>
+             )}
           </div>
         </div>
 
         {/* Footer info */}
-        <div className="px-8 py-3 bg-slate-950 border-t border-slate-800 text-[9px] font-black text-slate-600 uppercase tracking-widest">
-           Secure Audit Transmission Active • Saving to Scholar Dossier
+        <div className="px-8 py-3 bg-slate-950 border-t border-slate-800 text-[9px] font-black text-slate-600 uppercase tracking-widest flex items-center justify-between">
+           <span>{isReadOnly ? "Student Audit Mode • Read-Only View" : "Secure Audit Transmission Active • Saving to Scholar Dossier"}</span>
         </div>
       </motion.div>
     </div>

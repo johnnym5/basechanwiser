@@ -578,6 +578,7 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
           mockId={reviewTarget.mockId}
           answerIndex={reviewTarget.index}
           answer={reviewTarget.answer}
+          readOnly={!isAdmin}
           onSuccess={() => {
             // Data will refresh via onSnapshot listener on the parent
           }}
