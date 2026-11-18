@@ -131,7 +131,7 @@ export default function StudentProfileView({ studentId, onBack, hideHeader }: St
         adminFeedback: adminFeedback,
         reviewedBy: user.uid,
         reviewedAt: serverTimestamp(),
-        status: 'completed'
+        status: status === 'ACCEPTED' ? 'accepted' : 'rejected'
       });
       alert(`Mock Interview marked as ${status}`);
     } catch (error) {

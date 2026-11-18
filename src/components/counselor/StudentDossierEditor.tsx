@@ -63,13 +63,12 @@ export default function StudentDossierEditor({
     const field: PackField = {
       id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       label: newLabel.trim(),
-      description: newDescription.trim() || undefined,
+      description: newDescription.trim(),
       category: selectedCategory || "Custom Questions",
       type: newType,
-      options:
-        newType === "select"
-          ? newOptions.split(",").map((o) => o.trim()).filter(Boolean)
-          : undefined,
+      options: newType === "select"
+        ? newOptions.split(",").map((o) => o.trim()).filter(Boolean)
+        : [],
       required: false,
       isCustom: true,
     };

@@ -4,7 +4,7 @@ import React from "react";
 import AppShell from "@/components/layout/app-shell";
 import StudentProfileView from "@/components/student/StudentProfileView";
 import { useAuth } from "@/lib/auth/auth-context";
-import { MessageSquare, ChevronLeft } from "lucide-react";
+import { MessageSquare, ChevronLeft, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -50,6 +50,12 @@ export default function StudentFeedbackHubPage() {
                 <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Feedback Hub</h1>
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Review counselor evaluations and mission status</p>
               </div>
+              <Link
+                href="/student/mock-interview"
+                className="ml-auto inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white transition-colors hover:bg-indigo-700"
+              >
+                <RotateCcw size={14} /> Restart Interview
+              </Link>
             </div>
           </div>
 

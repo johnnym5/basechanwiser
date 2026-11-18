@@ -23,6 +23,9 @@ export interface PipelineData {
     passedModules: string[];
     packStatus: string | null;
     mockStatus: string | null;
+    mockReviewStatus: string | null;
+    complianceStatus: string | null;
+    complianceRating: string | null;
   };
 }
 
@@ -41,7 +44,10 @@ export function useStudentPipeline(userId: string | null | undefined) {
     stats: {
       passedModules: [],
       packStatus: null,
-      mockStatus: null
+      mockStatus: null,
+      mockReviewStatus: null,
+      complianceStatus: null,
+      complianceRating: null
     }
   });
 
@@ -105,10 +111,23 @@ export function useStudentPipeline(userId: string | null | undefined) {
         const mockSnap = await withTimeout(getDocs(mockQ), 10000);
         const mockData = !mockSnap.empty ? mockSnap.docs[0].data() : null;
         const mockStatus = mockData?.status;
+        const mockReviewStatus = mockData?.reviewStatus;
 
         const normalizedMockStatus = mockStatus?.toLowerCase();
         const isStage3Complete = !mockSnap.empty &&
-          ['pending_review', 'accepted', 'rejected'].includes(normalizedMockStatus);
+          (mockReviewStatus === 'ACCEPTED' || normalizedMockStatus === 'accepted');
+
+        const evaluationSnap = await withTimeout(getDocs(query(
+          collection(db, "evaluations"),
+          where("studentId", "==", userId)
+        )), 10000);
+        const latestEvaluation = evaluationSnap.docs
+          .map((evaluationDoc) => evaluationDoc.data())
+          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0] || null;
+        const complianceStatus = latestEvaluation?.complianceStatus || null;
+        const complianceRating = latestEvaluation?.rating || latestEvaluation?.outcome || null;
+        const isStage4Complete = isStage3Complete &&
+          complianceStatus?.toLowerCase() === 'verified' && complianceRating?.toLowerCase() === 'pass';
 
         let currentStage = 1;
         if (isStage1Complete) currentStage = 2;
@@ -141,8 +160,8 @@ export function useStudentPipeline(userId: string | null | undefined) {
             id: 4,
             title: "Final Check",
             isUnlocked: isStage1Complete && isStage2Complete && isStage3Complete,
-            isCompleted: false,
-            status: currentStage === 4 ? 'current' : 'locked'
+            isCompleted: isStage4Complete,
+            status: isStage4Complete ? 'completed' : (currentStage === 4 ? 'current' : 'locked')
           }
         ];
 
@@ -153,7 +172,10 @@ export function useStudentPipeline(userId: string | null | undefined) {
           stats: {
             passedModules: Array.from(passedCoreModules),
             packStatus,
-            mockStatus
+            mockStatus,
+            mockReviewStatus,
+            complianceStatus,
+            complianceRating
           }
         };
 

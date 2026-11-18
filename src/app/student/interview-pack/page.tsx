@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { db, storage } from "@/lib/firebase/config";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { PackFile, StudentPackData } from "@/types/pack";
+import { PackField, PackFile, StudentPackData, DEFAULT_PACK_FIELDS } from "@/types/pack";
 import AppShell from "@/components/layout/app-shell";
 import {
   Loader2,
@@ -82,6 +82,8 @@ export default function StudentInterviewPackPage() {
   const [activeTab, setActiveTab] = useState<"guide" | "vault">("guide");
   const [guide, setGuide] = useState<StudyGuideData>(EMPTY_GUIDE);
   const [vault, setVault] = useState<VaultData>(EMPTY_VAULT);
+  const [packFields, setPackFields] = useState<PackField[]>(DEFAULT_PACK_FIELDS);
+  const [customAnswers, setCustomAnswers] = useState<Record<string, string | number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -97,6 +99,30 @@ export default function StudentInterviewPackPage() {
 
         const vaultSnap = await getDoc(doc(db, "Users", userId, "portfolio", "document_vault"));
         if (vaultSnap.exists()) setVault({ ...EMPTY_VAULT, ...(vaultSnap.data() as VaultData) });
+
+        const [globalConfigSnap, studentConfigSnap] = await Promise.all([
+          getDoc(doc(db, "interview_pack_configs", "default")),
+          getDoc(doc(db, "Users", userId, "portfolio", "pack_config")),
+        ]);
+        const globalFields = globalConfigSnap.exists() && Array.isArray(globalConfigSnap.data().fields)
+          ? globalConfigSnap.data().fields as PackField[]
+          : DEFAULT_PACK_FIELDS;
+        const studentConfig = studentConfigSnap.exists() ? studentConfigSnap.data() : {};
+        const studentFields = Array.isArray(studentConfig.fields)
+          ? studentConfig.fields as PackField[]
+          : Array.isArray(studentConfig.customFields)
+            ? [...globalFields, ...studentConfig.customFields as PackField[]]
+            : globalFields;
+        setPackFields(studentFields);
+
+        const savedGuide = guideSnap.exists() ? guideSnap.data() : {};
+        const savedCustomAnswers = studentConfig.answers && typeof studentConfig.answers === "object"
+          ? studentConfig.answers as Record<string, string | number>
+          : {};
+        const initialAnswers = Object.fromEntries(
+          studentFields.filter((field) => !(field.id in EMPTY_GUIDE)).map((field) => [field.id, savedCustomAnswers[field.id] ?? ""])
+        );
+        setCustomAnswers({ ...initialAnswers, ...savedCustomAnswers, ...savedGuide });
       } finally {
         setLoading(false);
       }
@@ -108,6 +134,15 @@ export default function StudentInterviewPackPage() {
     setSaving(true);
     await setDoc(doc(db, "Users", userId, "portfolio", "study_guide"), {
       ...guide,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    const dynamicAnswers = Object.fromEntries(
+      packFields
+        .filter((field) => !(field.id in EMPTY_GUIDE))
+        .map((field) => [field.id, customAnswers[field.id] ?? ""])
+    );
+    await setDoc(doc(db, "Users", userId, "portfolio", "pack_config"), {
+      answers: dynamicAnswers,
       updatedAt: serverTimestamp(),
     }, { merge: true });
     setSaving(false);
@@ -175,7 +210,16 @@ export default function StudentInterviewPackPage() {
         </div>
 
         {activeTab === "guide" ? (
-          <StudyGuideTab guide={guide} setGuide={setGuide} />
+          <div className="space-y-8">
+            <StudyGuideTab guide={guide} setGuide={setGuide} />
+            {packFields.filter((field) => !(field.id in EMPTY_GUIDE)).length > 0 && (
+              <DynamicPackFields
+                fields={packFields.filter((field) => !(field.id in EMPTY_GUIDE))}
+                answers={customAnswers}
+                onChange={(fieldId, value) => setCustomAnswers((previous) => ({ ...previous, [fieldId]: value }))}
+              />
+            )}
+          </div>
         ) : (
           <DocumentVaultTab vault={vault} uploading={uploading} onUpload={handleFileUpload} onRemove={handleRemoveFile} />
         )}
@@ -340,6 +384,72 @@ function Field({ label, value, onChange, placeholder }: any) {
     <div className="space-y-2">
       <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">{label}</label>
       <input type="text" value={value} onChange={onChange} placeholder={placeholder} className="w-full bg-gray-50 dark:bg-slate-950 border border-gray-100 dark:border-slate-800 rounded-2xl px-6 py-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all dark:text-white shadow-inner" />
+    </div>
+  );
+}
+
+function DynamicPackFields({
+  fields,
+  answers,
+  onChange,
+}: {
+  fields: PackField[];
+  answers: Record<string, string | number>;
+  onChange: (fieldId: string, value: string | number) => void;
+}) {
+  const categories = Array.from(new Set(fields.map((field) => field.category?.trim() || "General")));
+
+  return (
+    <div className="space-y-10">
+      {categories.map((category) => (
+        <section key={category} className="space-y-5">
+          <h2 className="border-l-4 border-indigo-500 pl-4 text-xs font-black uppercase tracking-[0.2em] text-indigo-500">{category}</h2>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {fields.filter((field) => (field.category?.trim() || "General") === category).map((field) => (
+              <div key={field.id} className={field.type === "long_text" ? "space-y-2 md:col-span-2" : "space-y-2"}>
+                <label htmlFor={`custom-${field.id}`} className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  {field.label}{field.required ? " *" : ""}
+                </label>
+                {field.type === "long_text" ? (
+                  <textarea
+                    id={`custom-${field.id}`}
+                    required={field.required}
+                    value={String(answers[field.id] ?? "")}
+                    placeholder={field.description || "Enter your response..."}
+                    onChange={(event) => onChange(field.id, event.target.value)}
+                    rows={4}
+                    className="w-full resize-y rounded-[28px] border border-gray-100 bg-gray-50 px-6 py-5 text-sm font-medium leading-relaxed outline-none transition-all focus:ring-2 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                  />
+                ) : field.type === "select" ? (
+                  <select
+                    id={`custom-${field.id}`}
+                    required={field.required}
+                    value={String(answers[field.id] ?? "")}
+                    onChange={(event) => onChange(field.id, event.target.value)}
+                    className="w-full rounded-2xl border border-gray-100 bg-gray-50 px-5 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                  >
+                    <option value="">Select an option</option>
+                    {(field.options || []).map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                ) : field.type === "file" ? (
+                  <p className="rounded-2xl border border-slate-200 p-4 text-xs text-slate-500 dark:border-slate-800">Upload this document in the Document Vault tab.</p>
+                ) : (
+                  <input
+                    id={`custom-${field.id}`}
+                    type={field.type === "number" ? "number" : "text"}
+                    required={field.required}
+                    value={String(answers[field.id] ?? "")}
+                    placeholder={field.description || "Enter your response..."}
+                    onChange={(event) => onChange(field.id, field.type === "number" && event.target.value ? Number(event.target.value) : event.target.value)}
+                    className="w-full rounded-2xl border border-gray-100 bg-gray-50 px-6 py-4 text-sm font-bold outline-none transition-all focus:ring-2 focus:ring-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                  />
+                )}
+                {field.description && field.type !== "long_text" && <p className="ml-1 text-xs text-slate-500">{field.description}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

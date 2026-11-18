@@ -42,10 +42,12 @@ import {
   Unlock,
   User,
   Activity,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   doc,
   getDoc,
+  addDoc,
   collection,
   query,
   where,
@@ -59,7 +61,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { UserProfile, InterviewPack, LearningModule } from "@/types";
-import { PackField, DEFAULT_PACK_FIELDS } from "@/types/pack";
+import { PackField, DEFAULT_PACK_FIELDS, STUDENT_GUIDE_FIELDS } from "@/types/pack";
 import { motion, AnimatePresence } from "framer-motion";
 import EmptyState from "@/components/common/EmptyState";
 import { withTimeout } from "@/lib/utils/promise-timeout";
@@ -187,7 +189,7 @@ function PortfolioContent() {
 
   // Default Tab State
   const [activeTab, setActiveTab] = useState<
-    "dossier" | "mock" | "quiz" | "engagement"
+    "dossier" | "mock" | "quiz" | "engagement" | "compliance"
   >("dossier");
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -196,6 +198,12 @@ function PortfolioContent() {
     message: string;
     type: "success" | "error";
   } | null>(null);
+  const [evaluations, setEvaluations] = useState<any[]>([]);
+  const [evaluationRating, setEvaluationRating] = useState<"Pass" | "Needs Improvement" | "Fail" | "">("");
+  const [complianceStatus, setComplianceStatus] = useState<"Pending" | "Verified" | "Needs Follow-up">("Pending");
+  const [evaluationNotes, setEvaluationNotes] = useState("");
+  const [savingEvaluation, setSavingEvaluation] = useState(false);
+  const [interviewApproved, setInterviewApproved] = useState(false);
 
   const canEdit =
     userProfile?.role === "Admin" ||
@@ -258,14 +266,19 @@ function PortfolioContent() {
         }
 
         // Fetch Global Default Pack Config
-        let activeGlobal = DEFAULT_PACK_FIELDS;
+        let activeGlobal = [...STUDENT_GUIDE_FIELDS, ...DEFAULT_PACK_FIELDS];
         try {
           const globalConfigSnap = await withTimeout(
             getDoc(doc(db, "interview_pack_configs", "default")),
             5000
           );
           if (globalConfigSnap.exists() && globalConfigSnap.data().fields) {
-            activeGlobal = globalConfigSnap.data().fields;
+            const configuredFields = globalConfigSnap.data().fields as PackField[];
+            const guideFieldIds = new Set(STUDENT_GUIDE_FIELDS.map((field) => field.id));
+            activeGlobal = [
+              ...STUDENT_GUIDE_FIELDS,
+              ...configuredFields.filter((field) => !guideFieldIds.has(field.id)),
+            ];
           }
         } catch (e) {
           console.warn("Global default pack config fetch failed, using fallback:", e);
@@ -283,7 +296,11 @@ function PortfolioContent() {
           if (studentConfigSnap.exists()) {
             const data = studentConfigSnap.data();
             if (data.fields && Array.isArray(data.fields) && data.fields.length > 0) {
-              activeStudentFields = data.fields;
+              const guideFieldIds = new Set(STUDENT_GUIDE_FIELDS.map((field) => field.id));
+              activeStudentFields = [
+                ...STUDENT_GUIDE_FIELDS,
+                ...(data.fields as PackField[]).filter((field) => !guideFieldIds.has(field.id)),
+              ];
             } else if (data.customFields && Array.isArray(data.customFields)) {
               activeStudentFields = [...activeGlobal, ...data.customFields];
             }
@@ -305,6 +322,27 @@ function PortfolioContent() {
         if (isMounted) {
           setActivityLogs(logsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
         }
+
+        const evaluationsSnap = await withTimeout(getDocs(query(
+          collection(db, "evaluations"),
+          where("studentId", "==", id)
+        )), 10000);
+        if (isMounted) {
+          setEvaluations(evaluationsSnap.docs
+            .map((d) => ({ id: d.id, ...d.data() } as any))
+            .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+        }
+
+        const mockAttemptsSnap = await withTimeout(getDocs(query(
+          collection(db, "mock_interview_attempts"),
+          where("studentId", "==", id)
+        )), 10000);
+        if (isMounted) {
+          const mockAttempts = mockAttemptsSnap.docs.map((d) => d.data());
+          setInterviewApproved(mockAttempts.some((attempt) =>
+            attempt.reviewStatus === "ACCEPTED" || attempt.status?.toLowerCase() === "accepted"
+          ));
+        }
       } catch (err) {
         console.error("Portfolio fetch error:", err);
       } finally {
@@ -322,16 +360,18 @@ function PortfolioContent() {
   const handleAddQuestion = async (newField: PackField) => {
     if (!id) return;
     const updated = [...packFields, newField];
-    setPackFields(updated);
     try {
       await setDoc(
         doc(db, "Users", id, "portfolio", "pack_config"),
         {
-          fields: updated,
+          fields: updated.map((field) => Object.fromEntries(
+            Object.entries(field).filter(([, value]) => value !== undefined)
+          )),
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
+      setPackFields(updated);
       setToast({ message: "Question added to student pack", type: "success" });
     } catch (err) {
       console.error("Error adding question:", err);
@@ -373,6 +413,36 @@ function PortfolioContent() {
       console.error("Error resetting pack:", err);
       setToast({ message: "Failed to reset pack", type: "error" });
     } finally {
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  const handleSaveEvaluation = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!id || !canEdit || !evaluationRating || !user) return;
+    setSavingEvaluation(true);
+    try {
+      const evaluation = {
+        studentId: id,
+        studentName: student?.displayName || "Student",
+        counselorId: user.uid,
+        counselorName: userProfile?.displayName || user.displayName || "Counselor",
+        rating: evaluationRating,
+        complianceStatus,
+        notes: evaluationNotes.trim(),
+        createdAt: serverTimestamp(),
+      };
+      const evaluationRef = await addDoc(collection(db, "evaluations"), evaluation);
+      setEvaluations((previous) => [{ id: evaluationRef.id, ...evaluation, createdAt: { seconds: Math.floor(Date.now() / 1000), toDate: () => new Date() } }, ...previous]);
+      setEvaluationRating("");
+      setComplianceStatus("Pending");
+      setEvaluationNotes("");
+      setToast({ message: "Rating and compliance review saved", type: "success" });
+    } catch (error) {
+      console.error("Failed to save compliance evaluation:", error);
+      setToast({ message: "Could not save the evaluation", type: "error" });
+    } finally {
+      setSavingEvaluation(false);
       setTimeout(() => setToast(null), 3000);
     }
   };
@@ -641,6 +711,14 @@ function PortfolioContent() {
             active={activeTab === "engagement"}
             onClick={() => setActiveTab("engagement")}
           />
+          {interviewApproved && (
+            <Tab
+              label="Rating & Compliance"
+              icon={ClipboardCheck}
+              active={activeTab === "compliance"}
+              onClick={() => setActiveTab("compliance")}
+            />
+          )}
         </div>
 
         <div className="p-8 md:p-12">
@@ -929,6 +1007,61 @@ function PortfolioContent() {
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === "compliance" && interviewApproved && (
+            <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] animate-in fade-in duration-300">
+              <form onSubmit={handleSaveEvaluation} className="space-y-6 rounded-3xl border border-slate-700 bg-slate-900/50 p-6">
+                <div>
+                  <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-white">
+                    <ClipboardCheck className="text-blue-400" size={18} /> Rating & Compliance Review
+                  </h3>
+                  <p className="mt-2 text-xs text-slate-400">Available because the mock interview has been approved.</p>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="evaluation-rating" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Overall Rating</label>
+                  <select id="evaluation-rating" required value={evaluationRating} onChange={(event) => setEvaluationRating(event.target.value as typeof evaluationRating)} className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="" disabled>Select rating</option>
+                    <option value="Pass">Pass</option>
+                    <option value="Needs Improvement">Needs Improvement</option>
+                    <option value="Fail">Fail</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="compliance-status" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Compliance Verification</label>
+                  <select id="compliance-status" value={complianceStatus} onChange={(event) => setComplianceStatus(event.target.value as typeof complianceStatus)} className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="Pending">Pending</option>
+                    <option value="Verified">Verified</option>
+                    <option value="Needs Follow-up">Needs Follow-up</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="evaluation-notes" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Counselor Note</label>
+                  <textarea id="evaluation-notes" value={evaluationNotes} onChange={(event) => setEvaluationNotes(event.target.value)} rows={5} placeholder="Add the reason for this rating or compliance decision..." className="w-full resize-y rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <button type="submit" disabled={!canEdit || !evaluationRating || savingEvaluation} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50">
+                  {savingEvaluation ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save Review
+                </button>
+                {!canEdit && <p className="text-xs text-amber-400">You don’t have permission to submit this review.</p>}
+              </form>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-white">Review History</h3>
+                {evaluations.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-slate-700 p-10 text-center text-sm text-slate-500">No ratings or compliance reviews have been recorded.</div>
+                ) : evaluations.map((evaluation) => (
+                  <article key={evaluation.id} className="space-y-3 rounded-2xl border border-slate-700/70 bg-slate-900/40 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${evaluation.rating === "Pass" ? "bg-emerald-500/10 text-emerald-400" : evaluation.rating === "Fail" ? "bg-rose-500/10 text-rose-400" : "bg-amber-500/10 text-amber-400"}`}>{evaluation.rating || "Evaluation"}</span>
+                      <span className="text-[10px] font-mono text-slate-500">{evaluation.createdAt?.toDate ? format(evaluation.createdAt.toDate(), "MMM dd, yyyy HH:mm") : "Recently"}</span>
+                    </div>
+                    <p className="text-xs font-bold text-blue-300">Compliance: {evaluation.complianceStatus || "Not specified"}</p>
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-300">{evaluation.notes || "No note entered."}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Reviewed by {evaluation.counselorName || "Counselor"}</p>
+                  </article>
+                ))}
+              </section>
             </div>
           )}
         </div>

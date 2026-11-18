@@ -59,7 +59,7 @@ const STAGE_CONTENT = [
     subtitle: "Live AI & Counselor Session",
     tooltip: "Simulate an authentic UKVI interview experience. Tests your spoken English, response clarity, and confidence under timed pressure.",
     cta: "Start Practice",
-    reviewCta: "View Performance",
+    reviewCta: "Review Interview",
     href: "/student/mock-interview",
     icon: Video
   },
@@ -69,7 +69,7 @@ const STAGE_CONTENT = [
     subtitle: "Counselor Endorsement",
     tooltip: "Your assigned Counselor reviews your mock recording and dossier answers. Once verified and approved, you are cleared for your CAS release!",
     cta: "Pending Review",
-    reviewCta: "Check Status",
+    reviewCta: "View Clearance",
     href: "/student/feedback",
     icon: Star
   }
@@ -78,7 +78,9 @@ const STAGE_CONTENT = [
 export default function StudentDashboardPage() {
   const { user, userId } = useAuth();
   const { data: stats, loading: statsLoading } = useStudentDashboard(userId);
-  const { currentStage, stages, loading: pipelineLoading } = useStudentPipeline(userId);
+  const { currentStage, stages, loading: pipelineLoading, stats: pipelineStats } = useStudentPipeline(userId);
+  const isClearedForInterview = pipelineStats.complianceStatus?.toLowerCase() === "verified" &&
+    pipelineStats.complianceRating?.toLowerCase() === "pass";
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
@@ -195,7 +197,7 @@ export default function StudentDashboardPage() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
                  </div>
-                 <span className="text-[10px] font-bold tracking-[0.2em] uppercase">Phase {currentStage} Active</span>
+                 <span className="text-[10px] font-bold tracking-[0.2em] uppercase">{isClearedForInterview ? "Cleared for Interview" : `Phase ${currentStage} Active`}</span>
               </div>
            </div>
         </motion.div>
@@ -208,18 +210,20 @@ export default function StudentDashboardPage() {
                 <Activity size={12} /> Active Mission • Stage {currentStage}
               </div>
               <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter font-google">
-                Next Action: {(STAGE_CONTENT.find(s => s.id === currentStage) || STAGE_CONTENT[0]).title}
+                {isClearedForInterview ? "You’re clear for your interview" : `Next Action: ${(STAGE_CONTENT.find(s => s.id === currentStage) || STAGE_CONTENT[0]).title}`}
               </h2>
               <p className="text-xs text-indigo-100/80 font-medium max-w-xl">
-                {(STAGE_CONTENT.find(s => s.id === currentStage) || STAGE_CONTENT[0]).subtitle} — Proceed directly to advance your CAS preparation.
+                {isClearedForInterview
+                  ? "Your preparation has been approved. Good luck with your interview! You can still revisit modules, your dossier, and mock interviews below."
+                  : `${(STAGE_CONTENT.find(s => s.id === currentStage) || STAGE_CONTENT[0]).subtitle} — Proceed directly to advance your CAS preparation.`}
               </p>
             </div>
             <motion.div whileTap={{ scale: 0.97 }} className="w-full md:w-auto shrink-0">
               <Link
-                href={(STAGE_CONTENT.find(s => s.id === currentStage) || STAGE_CONTENT[0]).href}
+                href={isClearedForInterview ? "/student/feedback" : (STAGE_CONTENT.find(s => s.id === currentStage) || STAGE_CONTENT[0]).href}
                 className="w-full md:w-auto px-8 py-4 bg-white text-indigo-700 hover:bg-slate-100 font-black rounded-2xl text-xs uppercase tracking-[0.2em] shadow-xl flex items-center justify-center gap-3 transition-all"
               >
-                Continue Mission <ArrowRight size={16} />
+                {isClearedForInterview ? "View Clearance" : "Continue Mission"} <ArrowRight size={16} />
               </Link>
             </motion.div>
           </div>
@@ -326,7 +330,13 @@ export default function StudentDashboardPage() {
                                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}
                              `}
                            >
-                              {isCompleted ? stage.reviewCta : stage.cta}
+                              {stage.id === 4 && isClearedForInterview
+                                ? "View Clearance"
+                                : stage.id === 4 && pipelineStats.complianceStatus?.toLowerCase() === "needs follow-up"
+                                  ? "Review Follow-up"
+                                  : stage.id === 3 && pipelineStats.mockStatus && ['pending_review', 'completed', 'timeout'].includes(pipelineStats.mockStatus.toLowerCase())
+                                ? stage.reviewCta
+                                : isCompleted ? stage.reviewCta : stage.cta}
                               <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
                            </Link>
                          </motion.div>
